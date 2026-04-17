@@ -5,8 +5,15 @@ import math
 import os
 import re
 from datetime import datetime
+from io import BytesIO
 
 import pandas as pd
+
+
+def _open_excel(source) -> pd.ExcelFile:
+    if isinstance(source, (bytes, bytearray)):
+        return pd.ExcelFile(BytesIO(source))
+    return pd.ExcelFile(source)
 
 
 def _find_default_excel_path() -> str:
@@ -171,9 +178,9 @@ def _drop_total_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def export_due_shortage_with_wip(file_path: str, out_dir: str) -> dict:
+def export_due_shortage_with_wip(file_path: str | bytes, out_dir: str) -> dict:
     _safe_mkdir(out_dir)
-    xl = pd.ExcelFile(file_path)
+    xl = _open_excel(file_path)
 
     # Demand (납기 기준 필요수량): from 이니셜별 (수주/납기/제품코드 기반)
     if "이니셜별" not in xl.sheet_names:
@@ -456,7 +463,7 @@ def export_due_shortage_with_wip(file_path: str, out_dir: str) -> dict:
     }
 
 
-def export_due_process_shortage(file_path: str, out_dir: str) -> dict:
+def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     """
     Export 납기 기준 제품군별 공정별 부족(=이니셜별 시트의 공정 컬럼 합계) + 필요수량.
 
@@ -464,7 +471,7 @@ def export_due_process_shortage(file_path: str, out_dir: str) -> dict:
     rather than computed from inventory snapshots.
     """
     _safe_mkdir(out_dir)
-    xl = pd.ExcelFile(file_path)
+    xl = _open_excel(file_path)
 
     if "이니셜별" not in xl.sheet_names:
         return {"enabled": False, "reason": "Missing sheet: 이니셜별"}
@@ -596,10 +603,10 @@ def export_due_process_shortage(file_path: str, out_dir: str) -> dict:
     }
 
 
-def analyze(file_path: str, out_dir: str) -> dict:
+def analyze(file_path: str | bytes, out_dir: str) -> dict:
     _safe_mkdir(out_dir)
 
-    xl = pd.ExcelFile(file_path)
+    xl = _open_excel(file_path)
     sheets = xl.sheet_names
 
     report: dict = {
@@ -702,16 +709,19 @@ def analyze(file_path: str, out_dir: str) -> dict:
     return report
 
 
-def validate_workbook(file_path: str, template_path: str | None = None) -> dict:
+def validate_workbook(file_path: str | bytes, template_path: str | bytes | None = None) -> dict:
     """
     Validate that required sheets/columns exist.
 
     If template_path is provided and exists, validate each matching sheet's columns
     against the template (after column normalization via _clean_columns).
     """
-    def _sheet_columns(path: str, sheet: str) -> list[str]:
+    def _sheet_columns(source, sheet: str) -> list[str]:
         try:
-            df0 = pd.read_excel(path, sheet_name=sheet, nrows=0)
+            if isinstance(source, (bytes, bytearray)):
+                df0 = pd.read_excel(BytesIO(source), sheet_name=sheet, nrows=0)
+            else:
+                df0 = pd.read_excel(source, sheet_name=sheet, nrows=0)
         except Exception:
             return []
         df0 = _clean_columns(df0)
@@ -720,7 +730,7 @@ def validate_workbook(file_path: str, template_path: str | None = None) -> dict:
     result: dict = {"ok": True, "file": file_path, "errors": []}
 
     try:
-        xl = pd.ExcelFile(file_path)
+        xl = _open_excel(file_path)
         sheets = set(xl.sheet_names)
     except Exception as e:
         return {"ok": False, "file": file_path, "errors": [f"엑셀 열기 실패: {e}"]}
@@ -758,9 +768,9 @@ def validate_workbook(file_path: str, template_path: str | None = None) -> dict:
             result["errors"].append(f"{sheet} 시트 컬럼 누락: {', '.join(missing)}")
 
     # Template-based validation (optional).
-    if template_path and os.path.exists(template_path):
+    if template_path and (isinstance(template_path, (bytes, bytearray)) or os.path.exists(template_path)):
         try:
-            t_xl = pd.ExcelFile(template_path)
+            t_xl = _open_excel(template_path)
             t_sheets = set(t_xl.sheet_names)
         except Exception as e:
             result["ok"] = False

@@ -3,6 +3,11 @@ import os
 import importlib
 import re
 import time
+import base64
+import json
+import tomllib
+import urllib.request
+import urllib.error
 from datetime import date
 from datetime import timedelta
 from datetime import datetime
@@ -18,6 +23,8 @@ DATA_DIR = "data"
 UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
 ACTIVE_EXCEL_PATH = os.path.join(DATA_DIR, "s관 부족수량.xlsx")
 UPLOAD_RETENTION_DAYS = 7
+GITHUB_ACTIVE_PATH_DEFAULT = "data/s관 부족수량.xlsx"
+STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
 
 
 def _find_default_excel() -> str | None:
@@ -72,6 +79,157 @@ def _cleanup_old_uploads(dir_path: str, *, retention_days: int) -> int:
         return removed
     except Exception:
         return 0
+
+
+def _get_secret(key: str, default=None):
+    try:
+        return st.secrets.get(key, default)  # type: ignore[attr-defined]
+    except Exception:
+        return default
+
+
+def _github_api_request(url: str, *, token: str | None, method: str = "GET", body: dict | None = None) -> dict:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "s-due-dashboard",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    data = None
+    if body is not None:
+        data = json.dumps(body).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        raw = resp.read().decode("utf-8")
+        return json.loads(raw) if raw else {}
+
+
+def _github_get_file_content(
+    *, repo_full_name: str, path: str, branch: str, token: str | None
+) -> tuple[bytes | None, str | None, str | None]:
+    url = f"https://api.github.com/repos/{repo_full_name}/contents/{path}?ref={branch}"
+    try:
+        data = _github_api_request(url, token=token, method="GET")
+    except urllib.error.HTTPError as e:
+        return None, None, f"GitHub GET 실패: {e.code}"
+    except Exception as e:
+        return None, None, f"GitHub GET 실패: {e}"
+
+    content = data.get("content")
+    encoding = data.get("encoding")
+    if not content or encoding != "base64":
+        return None, None, "GitHub 응답에서 content(base64)를 찾지 못했습니다."
+    try:
+        return base64.b64decode(content), data.get("sha"), None
+    except Exception as e:
+        return None, None, f"base64 decode 실패: {e}"
+
+
+def _github_put_file_content(
+    *,
+    repo_full_name: str,
+    path: str,
+    branch: str,
+    token: str,
+    content_bytes: bytes,
+    message: str,
+) -> tuple[bool, str]:
+    base_url = f"https://api.github.com/repos/{repo_full_name}/contents/{path}"
+    # Find existing sha (if any)
+    sha = None
+    try:
+        existing = _github_api_request(f"{base_url}?ref={branch}", token=token, method="GET")
+        sha = existing.get("sha")
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            return False, f"GitHub SHA 조회 실패: {e.code}"
+    except Exception as e:
+        return False, f"GitHub SHA 조회 실패: {e}"
+
+    payload: dict = {
+        "message": message,
+        "content": base64.b64encode(content_bytes).decode("utf-8"),
+        "branch": branch,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    try:
+        _github_api_request(base_url, token=token, method="PUT", body=payload)
+        return True, "GitHub 업로드 완료"
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode("utf-8")
+        except Exception:
+            detail = ""
+        return False, f"GitHub 업로드 실패: {e.code} {detail}".strip()
+    except Exception as e:
+        return False, f"GitHub 업로드 실패: {e}"
+
+
+def _load_theme_from_config() -> dict:
+    try:
+        if not os.path.exists(STREAMLIT_CONFIG_PATH):
+            return {}
+        with open(STREAMLIT_CONFIG_PATH, "rb") as f:
+            data = tomllib.load(f)
+        return data.get("theme", {}) if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _apply_local_theme_css() -> None:
+    theme = _load_theme_from_config()
+    bg = theme.get("backgroundColor", "#FCFBF7")
+    sbg = theme.get("secondaryBackgroundColor", "#F1EFE6")
+    text = theme.get("textColor", "#1B1B1B")
+    primary = theme.get("primaryColor", "#0A5C36")
+
+    st.markdown(
+        f"""
+<style>
+.stApp {{
+  background-color: {bg} !important;
+  color: {text} !important;
+}}
+[data-testid="stSidebar"] > div {{
+  background-color: {sbg} !important;
+}}
+/* Make widgets/containers closer to local look across deployments */
+div[data-testid="stVerticalBlockBorderWrapper"],
+div[data-testid="stContainer"] {{
+  background-color: transparent;
+}}
+a, a:visited {{
+  color: {primary};
+}}
+
+/* Air / spacing */
+.block-container {{
+  padding-top: 2.2rem !important;
+  padding-bottom: 2.2rem !important;
+}}
+div[data-testid="stVerticalBlock"] > div {{
+  row-gap: 0.9rem;
+}}
+/* Pills & segmented controls spacing */
+div[data-testid="stPills"] > div {{
+  margin-top: 0.2rem;
+  margin-bottom: 0.7rem;
+}}
+div[data-testid="stSegmentedControl"] > div {{
+  margin-top: 0.2rem;
+  margin-bottom: 0.7rem;
+}}
+/* Make title breathe */
+h1 {{
+  margin-bottom: 0.8rem !important;
+}}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _split_family(family: str) -> tuple[str, str]:
@@ -401,6 +559,7 @@ def _render_totals_grid(
 def main() -> None:
     st.set_page_config(page_title="S관 생산 필요수량 대시보드", layout="wide")
     st.title("S관 생산 필요수량 대시보드")
+    _apply_local_theme_css()
 
     _safe_mkdir(DATA_DIR)
     _safe_mkdir(UPLOADS_DIR)
@@ -410,12 +569,44 @@ def main() -> None:
     with st.sidebar:
         st.header("데이터")
 
+        with st.expander("GitHub 연동(선택)", expanded=False):
+            repo_full_name = _get_secret("github_repo", "")
+            branch = _get_secret("github_branch", "main")
+            token = _get_secret("github_token", None)
+            github_path = st.text_input("저장 경로", value=_get_secret("github_path", GITHUB_ACTIVE_PATH_DEFAULT))
+            auto_push = st.checkbox("업로드 시 GitHub에도 저장", value=False)
+            github_only_default = bool(repo_full_name and token and github_path)
+            github_only = st.checkbox("GitHub만 운영", value=github_only_default)
+
+            if not repo_full_name:
+                st.caption("secrets에 `github_repo`(owner/name) 설정 필요")
+            if not token:
+                st.caption("secrets에 `github_token`(PAT) 설정 필요")
+
+            if st.button("GitHub에서 최신 엑셀 불러오기", disabled=not (repo_full_name and github_path)):
+                content, sha, err = _github_get_file_content(
+                    repo_full_name=repo_full_name,
+                    path=github_path,
+                    branch=branch,
+                    token=token,
+                )
+                if err:
+                    st.error(err)
+                elif content is None:
+                    st.error("GitHub에서 파일을 가져오지 못했습니다.")
+                else:
+                    st.session_state["github_excel_bytes"] = content
+                    if sha:
+                        st.session_state["github_excel_sha"] = sha
+                    st.session_state["github_excel_loaded_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    st.success("GitHub 최신 엑셀을 불러왔습니다(분석 시 사용).")
+
         uploaded = st.file_uploader("엑셀 업로드", type=["xlsx"])
-        overwrite_default = st.checkbox("분석용 파일로 저장(덮어쓰기)", value=True)
+        overwrite_default = st.checkbox("분석용 파일로 저장(덮어쓰기)", value=True, disabled=bool(github_only))
         save_name = st.text_input(
             "저장 파일명",
             value=os.path.basename(ACTIVE_EXCEL_PATH) if overwrite_default else (uploaded.name if uploaded else "upload.xlsx"),
-            disabled=overwrite_default,
+            disabled=overwrite_default or bool(github_only),
         )
         validation_ok = True
         validate_on_upload = st.checkbox("업로드 검증(양식 기준)", value=True)
@@ -426,36 +617,90 @@ def main() -> None:
             archive_target = os.path.join(UPLOADS_DIR, f"{stamp}_{safe}")
             target = ACTIVE_EXCEL_PATH if overwrite_default else os.path.join(DATA_DIR, safe)
             try:
-                # Save archive copy (7일 보관)
-                with open(archive_target, "wb") as f:
-                    f.write(uploaded.getbuffer())
-                # Save active/selected copy
-                with open(target, "wb") as f:
-                    f.write(uploaded.getbuffer())
-                st.success(f"업로드 저장: `{os.path.relpath(target)}` (보관: `{os.path.relpath(archive_target)}`)")
-                default_excel = target
+                upload_bytes = bytes(uploaded.getbuffer())
+
+                if validate_on_upload:
+                    template_path = "assets/엑셀_양식.xlsx"
+                    v = excel_analysis.validate_workbook(upload_bytes, template_path=template_path)
+                    validation_ok = bool(v.get("ok", False))
+                    if not validation_ok:
+                        st.error("업로드 검증 실패(양식/필수 컬럼 확인)")
+                        for msg in v.get("errors", [])[:20]:
+                            st.caption(f"- {msg}")
+                    else:
+                        st.success("업로드 검증 통과")
+
+                if github_only:
+                    if not (repo_full_name and token and github_path):
+                        st.error("GitHub만 운영을 선택했지만 secrets 설정이 부족합니다(github_repo/token/path).")
+                    else:
+                        ok, msg = _github_put_file_content(
+                            repo_full_name=repo_full_name,
+                            path=github_path,
+                            branch=branch,
+                            token=token,
+                            content_bytes=upload_bytes,
+                            message=f"Update data: {os.path.basename(github_path)} ({stamp})",
+                        )
+                        if ok:
+                            st.session_state["github_excel_bytes"] = upload_bytes
+                            st.session_state["github_last_push"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            st.success(f"{msg} (GitHub)")
+                        else:
+                            st.error(msg)
+                else:
+                    # Save archive copy (7일 보관)
+                    with open(archive_target, "wb") as f:
+                        f.write(upload_bytes)
+                    # Save active/selected copy
+                    with open(target, "wb") as f:
+                        f.write(upload_bytes)
+                    st.success(f"업로드 저장: `{os.path.relpath(target)}` (보관: `{os.path.relpath(archive_target)}`)")
+                    default_excel = target
+
+                if (not github_only) and auto_push and repo_full_name and token and github_path:
+                    ok, msg = _github_put_file_content(
+                        repo_full_name=repo_full_name,
+                        path=github_path,
+                        branch=branch,
+                        token=token,
+                        content_bytes=upload_bytes,
+                        message=f"Update data: {os.path.basename(target)} ({stamp})",
+                    )
+                    if ok:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
             except Exception as e:
                 st.error(f"업로드 저장 실패: {e}")
 
-        excel_path = st.text_input("엑셀 파일", value=default_excel or "")
-        if excel_path and os.path.exists(excel_path):
-            st.caption(f"파일 업데이트: `{_file_mtime_label(excel_path)}`")
-            if validate_on_upload:
-                template_path = "assets/엑셀_양식.xlsx"
-                v = excel_analysis.validate_workbook(excel_path, template_path=template_path)
-                validation_ok = bool(v.get("ok", False))
-                if not validation_ok:
-                    st.error("업로드 검증 실패(양식/필수 컬럼 확인)")
-                    for msg in v.get("errors", [])[:20]:
-                        st.caption(f"- {msg}")
-                else:
-                    st.success("업로드 검증 통과")
+            if github_only and repo_full_name and github_path:
+                st.text_input("엑셀 소스", value=f"{repo_full_name}:{github_path}@{branch}", disabled=True)
+                if st.session_state.get("github_last_push"):
+                    st.caption(f"GitHub 업로드: `{st.session_state.get('github_last_push')}`")
+                if st.session_state.get("github_excel_loaded_at"):
+                    st.caption(f"GitHub 불러옴: `{st.session_state.get('github_excel_loaded_at')}`")
+                excel_path = ""  # not used in github-only mode
+            else:
+                excel_path = st.text_input("엑셀 파일", value=default_excel or "")
+                if excel_path and os.path.exists(excel_path):
+                    st.caption(f"파일 업데이트: `{_file_mtime_label(excel_path)}`")
+                    if validate_on_upload:
+                        template_path = "assets/엑셀_양식.xlsx"
+                        v = excel_analysis.validate_workbook(excel_path, template_path=template_path)
+                        validation_ok = bool(v.get("ok", False))
+                        if not validation_ok:
+                            st.error("업로드 검증 실패(양식/필수 컬럼 확인)")
+                            for msg in v.get("errors", [])[:20]:
+                                st.caption(f"- {msg}")
+                        else:
+                            st.success("업로드 검증 통과")
 
         out_dir = st.text_input("출력 폴더", value="out")
         run = st.button(
             "분석 실행",
             type="primary",
-            disabled=(not bool(excel_path)) or (validate_on_upload and not validation_ok),
+            disabled=((not github_only) and (not bool(excel_path))) or (github_only and not (repo_full_name and token and github_path)) or (validate_on_upload and not validation_ok),
         )
         st.caption("결과: `out/납기_제품군_공정별부족.csv`")
 
@@ -487,11 +732,66 @@ def main() -> None:
         else:
             st.caption("양식 추가: `assets/엑셀_양식.xlsx`")
 
+    due_csv = f"{out_dir}/납기_제품군_공정별부족.csv"
+
+    # Viewer-friendly: in GitHub-only mode, show latest dashboard without requiring uploads.
+    if github_only and repo_full_name and token and github_path:
+        cached_bytes = st.session_state.get("github_excel_bytes")
+        cached_sha = st.session_state.get("github_excel_sha")
+        if not cached_bytes:
+            b, sha, err = _github_get_file_content(
+                repo_full_name=repo_full_name,
+                path=github_path,
+                branch=branch,
+                token=token,
+            )
+            if err or b is None:
+                st.error(err or "GitHub에서 엑셀을 가져오지 못했습니다.")
+                st.stop()
+            cached_bytes = b
+            st.session_state["github_excel_bytes"] = b
+            if sha:
+                cached_sha = sha
+                st.session_state["github_excel_sha"] = sha
+            st.session_state["github_excel_loaded_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        need_rebuild = (not os.path.exists(due_csv)) or (
+            cached_sha and (cached_sha != st.session_state.get("github_last_sha_analyzed"))
+        )
+        if need_rebuild:
+            with st.spinner("GitHub 최신 데이터로 분석 결과 생성 중..."):
+                importlib.reload(excel_analysis)
+                info = excel_analysis.export_due_process_shortage(file_path=cached_bytes, out_dir=out_dir)
+            if not info.get("enabled"):
+                st.error(f"자동 분석 실패: {info.get('reason')}")
+                st.stop()
+            if cached_sha:
+                st.session_state["github_last_sha_analyzed"] = cached_sha
+            st.cache_data.clear()
+
     if run:
         with st.spinner("엑셀 분석 중..."):
             # VSCode/Streamlit 실행 옵션에서 file watcher가 꺼져있어도 최신 로직을 반영하도록 강제 reload.
             importlib.reload(excel_analysis)
-            info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
+            if github_only:
+                src_bytes = st.session_state.get("github_excel_bytes")
+                if not src_bytes:
+                    src_bytes, sha, err = _github_get_file_content(
+                        repo_full_name=repo_full_name,
+                        path=github_path,
+                        branch=branch,
+                        token=token,
+                    )
+                    if err or src_bytes is None:
+                        st.error(err or "GitHub에서 엑셀을 가져오지 못했습니다.")
+                        st.stop()
+                    st.session_state["github_excel_bytes"] = src_bytes
+                    if sha:
+                        st.session_state["github_excel_sha"] = sha
+                    st.session_state["github_excel_loaded_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                info = excel_analysis.export_due_process_shortage(file_path=src_bytes, out_dir=out_dir)
+            else:
+                info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
         if not info.get("enabled"):
             st.error(f"분석 실패: {info.get('reason')}")
             st.stop()
@@ -520,7 +820,6 @@ def main() -> None:
             lens_rank = 9
         return (is_color, lens_rank, sl)
 
-    due_csv = f"{out_dir}/납기_제품군_공정별부족.csv"
     try:
         base = _load_due_csv(due_csv, os.path.getmtime(due_csv))
     except Exception as e:
