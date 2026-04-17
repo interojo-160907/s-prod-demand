@@ -569,13 +569,18 @@ def main() -> None:
     with st.sidebar:
         st.header("데이터")
 
+        # Defaults to avoid UnboundLocalError even if GitHub UI block is skipped/errored.
+        repo_full_name = _get_secret("github_repo", "")
+        branch = _get_secret("github_branch", "main")
+        token = _get_secret("github_token", None)
+        github_path = _get_secret("github_path", GITHUB_ACTIVE_PATH_DEFAULT)
+        auto_push = False
+        github_only_default = bool(repo_full_name and token and github_path)
+        github_only = github_only_default
+
         with st.expander("GitHub 연동(선택)", expanded=False):
-            repo_full_name = _get_secret("github_repo", "")
-            branch = _get_secret("github_branch", "main")
-            token = _get_secret("github_token", None)
-            github_path = st.text_input("저장 경로", value=_get_secret("github_path", GITHUB_ACTIVE_PATH_DEFAULT))
+            github_path = st.text_input("저장 경로", value=github_path)
             auto_push = st.checkbox("업로드 시 GitHub에도 저장", value=False)
-            github_only_default = bool(repo_full_name and token and github_path)
             github_only = st.checkbox("GitHub만 운영", value=github_only_default)
 
             if not repo_full_name:
