@@ -36,6 +36,24 @@ def _table_height_for_rows(
     return max(min_height, min(max_height, h))
 
 
+def _ensure_single_select(
+    value: str | None,
+    *,
+    key: str,
+    default: str,
+    options: list[str],
+) -> str:
+    """
+    Streamlit pills can end up in an "unselected" state (None/"") if the user clicks the
+    selected option again. For our dashboard UX, treat that as selecting `default`.
+    """
+    v = (value or "").strip()
+    if v in options:
+        return v
+    st.session_state[key] = default
+    return default
+
+
 def _find_repo_excel() -> str | None:
     for p in REPO_EXCEL_CANDIDATES:
         if os.path.exists(p):
@@ -877,22 +895,34 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
 
     process_only = None
     if view_mode == "공정별 보기":
-        process_only = st.pills(
+        process_only_raw = st.pills(
             "공정",
             options=DEFAULT_STAGE_COLS,
             default="사출",
             key="process_pill",
             label_visibility="collapsed",
         )
+        process_only = _ensure_single_select(
+            process_only_raw,
+            key="process_pill",
+            default="사출",
+            options=DEFAULT_STAGE_COLS,
+        )
 
         # Due date end quick-picks (same idea as order view).
-        proc_quick = st.pills(
+        proc_quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
             options=["해제", "직접", "+7일", "+14일"],
             default="해제",
             key="proc_due_quick",
             selection_mode="single",
             label_visibility="collapsed",
+        )
+        proc_quick = _ensure_single_select(
+            proc_quick_raw,
+            key="proc_due_quick",
+            default="해제",
+            options=["해제", "직접", "+7일", "+14일"],
         )
         if proc_quick == "+7일":
             proc_default_end = date.today() + timedelta(days=7)
@@ -928,6 +958,12 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             key="order_due_quick",
             selection_mode="single",
             label_visibility="collapsed",
+        )
+        quick = _ensure_single_select(
+            quick,
+            key="order_due_quick",
+            default="해제",
+            options=["해제", "직접", "+7일", "+14일"],
         )
         if quick == "+7일":
             default_end = date.today() + timedelta(days=7)
@@ -989,6 +1025,12 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         format_func=_code_label,
         selection_mode="single",
         label_visibility="collapsed",
+    )
+    code = _ensure_single_select(
+        code,
+        key="code_pill",
+        default="전체",
+        options=["전체"] + code_options,
     )
 
     if view_mode == "수주별 현황":
