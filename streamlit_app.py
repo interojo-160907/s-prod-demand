@@ -976,12 +976,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         stage_cols_raw = DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in subset.columns]
 
-        show_products = st.checkbox(
-            "제품별 펼쳐보기 (품명까지)",
-            value=False,
-            key="order_show_products",
-        )
-
         search_raw = st.text_input(
             "검색 (품명/이니셜/수주번호)",
             placeholder="예: 해외, 202601, SEPIA",
@@ -1117,48 +1111,47 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             column_config=col_cfg_summary,
         )
 
-        if show_products:
-            st.divider()
+        st.divider()
 
-            view = detail_num.copy()
-            sort_cols = [c for c in ["납기일", "이니셜", "수주번호", "품명"] if c in view.columns]
-            if sort_cols:
-                view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
-            view.insert(0, "우선순위", range(1, len(view) + 1))
+        view = detail_num.copy()
+        sort_cols = [c for c in ["납기일", "이니셜", "수주번호", "품명"] if c in view.columns]
+        if sort_cols:
+            view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+        view.insert(0, "우선순위", range(1, len(view) + 1))
 
-            for c in numeric_cols:
-                view[c] = pd.to_numeric(view[c], errors="coerce").fillna(0).map(_format_int)
+        for c in numeric_cols:
+            view[c] = pd.to_numeric(view[c], errors="coerce").fillna(0).map(_format_int)
 
-            cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view.columns] + numeric_cols
+        cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view.columns] + numeric_cols
 
-            column_config = {
-                "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
-                "이니셜": st.column_config.TextColumn(width="small"),
-                "수주번호": st.column_config.TextColumn(width="medium"),
-                "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
-                "품명": st.column_config.TextColumn(width="large"),
-                "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-            }
-            for c in numeric_cols:
-                column_config[c] = st.column_config.TextColumn(width="small")
-            column_config = {k: v for k, v in column_config.items() if k in cols}
+        column_config = {
+            "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
+            "이니셜": st.column_config.TextColumn(width="small"),
+            "수주번호": st.column_config.TextColumn(width="medium"),
+            "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
+            "품명": st.column_config.TextColumn(width="large"),
+            "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+        }
+        for c in numeric_cols:
+            column_config[c] = st.column_config.TextColumn(width="small")
+        column_config = {k: v for k, v in column_config.items() if k in cols}
 
-            xlsx_bytes_det = _to_excel_bytes(view[cols], sheet_name="수주상세")
-            st.download_button(
-                "엑셀 다운로드 (상세)",
-                data=xlsx_bytes_det,
-                file_name=f"수주상세_{code}_{date.today().isoformat()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"order_{code}_download_det",
-            )
+        xlsx_bytes_det = _to_excel_bytes(view[cols], sheet_name="수주상세")
+        st.download_button(
+            "엑셀 다운로드 (상세)",
+            data=xlsx_bytes_det,
+            file_name=f"수주상세_{code}_{date.today().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"order_{code}_download_det",
+        )
 
-            st.dataframe(
-                view[cols],
-                use_container_width=True,
-                height=720,
-                hide_index=True,
-                column_config=column_config,
-            )
+        st.dataframe(
+            view[cols],
+            use_container_width=True,
+            height=720,
+            hide_index=True,
+            column_config=column_config,
+        )
         return
 
     base_df = df
