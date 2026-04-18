@@ -1,4 +1,5 @@
 import os
+import os
 import importlib
 import re
 from datetime import date
@@ -21,106 +22,6 @@ REPO_EXCEL_CANDIDATES = [
 TEMPLATE_XLSX_PATH = "업로드 양식.xlsx"
 OUT_DIR = "out"
 STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
-
-
-def _render_table_with_drag_sum(
-    df: pd.DataFrame,
-    *,
-    key: str,
-    height: int,
-    numeric_cols: list[str] | None = None,
-    fallback_column_config: dict | None = None,
-) -> bool:
-    """
-    Try to render an AG Grid table that supports range selection + sum (Excel-like).
-    Returns True if AG Grid was used, False if caller should fallback to st.dataframe.
-
-    Notes:
-    - Range selection / aggregation UI is an AG Grid Enterprise feature. streamlit-aggrid can
-      enable enterprise modules, but this may show an enterprise trial watermark unless licensed.
-    """
-    try:
-        from st_aggrid import AgGrid, GridOptionsBuilder, JsCode  # type: ignore
-    except Exception:
-        return False
-
-    df_view = df.copy()
-
-    # st-aggrid serializes data to JSON; python `date` objects inside object columns can break rendering.
-    # Normalize date/datetime-like columns to ISO strings for display (aggregation is on numeric cols anyway).
-    for c in list(df_view.columns):
-        try:
-            s = df_view[c]
-        except Exception:
-            continue
-        try:
-            if pd.api.types.is_datetime64_any_dtype(s):
-                df_view[c] = pd.to_datetime(s, errors="coerce").dt.strftime("%Y-%m-%d")
-                continue
-        except Exception:
-            pass
-        try:
-            non_null = s.dropna()
-            if len(non_null) > 0:
-                v0 = non_null.iloc[0]
-                if isinstance(v0, (date, datetime)):
-                    df_view[c] = s.map(lambda v: v.isoformat() if isinstance(v, (date, datetime)) else "")
-        except Exception:
-            pass
-    if numeric_cols:
-        for c in numeric_cols:
-            if c in df_view.columns:
-                df_view[c] = pd.to_numeric(df_view[c], errors="coerce").fillna(0)
-
-    gb = GridOptionsBuilder.from_dataframe(df_view)
-    gb.configure_default_column(resizable=True, sortable=True, filter=True, wrapHeaderText=True, autoHeaderHeight=True)
-
-    # Excel-like: drag select cells, show Sum/Avg/Count in status bar.
-    gb.configure_grid_options(
-        enableRangeSelection=True,
-        enableCellTextSelection=True,
-        suppressCopyRowsToClipboard=False,
-        statusBar={
-            "statusPanels": [
-                {"statusPanel": "agTotalRowCountComponent", "align": "left"},
-                {"statusPanel": "agFilteredRowCountComponent", "align": "left"},
-                {"statusPanel": "agSelectedRowCountComponent", "align": "left"},
-                {"statusPanel": "agAggregationComponent", "align": "right"},
-            ]
-        },
-    )
-
-    # Render numbers with commas, keep underlying values numeric for aggregation.
-    comma_fmt = JsCode(
-        """
-function(params) {
-  const v = params.value;
-  if (v === null || v === undefined || v === "") return "";
-  if (typeof v === "number") return v.toLocaleString();
-  const n = Number(String(v).replace(/,/g, ""));
-  return Number.isFinite(n) ? n.toLocaleString() : String(v);
-}
-        """.strip()
-    )
-    if numeric_cols:
-        for c in numeric_cols:
-            if c in df_view.columns:
-                gb.configure_column(c, type=["numericColumn", "numberColumnFilter"], valueFormatter=comma_fmt)
-
-    grid_options = gb.build()
-    try:
-        AgGrid(
-            df_view,
-            gridOptions=grid_options,
-            height=int(height),
-            fit_columns_on_grid_load=True,
-            allow_unsafe_jscode=True,
-            enable_enterprise_modules=True,
-            key=key,
-        )
-        return True
-    except Exception:
-        return False
 
 
 def _table_height_for_rows(
@@ -1165,8 +1066,7 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             order_num = order_num.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
         order_num.insert(0, "우선순위", range(1, len(order_num) + 1))
 
-        order_view_num = order_num.copy()
-        order_view = order_view_num.copy()
+        order_view = order_num.copy()
         for c in numeric_cols:
             order_view[c] = pd.to_numeric(order_view[c], errors="coerce").fillna(0).map(_format_int)
         if "품목수" in order_view.columns:
@@ -1218,22 +1118,14 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             non_total_cols=set(summary_cols) - set(numeric_cols),
         )
 
-        sum_h = _table_height_for_rows(len(order_view_num), min_height=260, max_height=520)
-        used_aggrid = _render_table_with_drag_sum(
-            order_view_num[summary_cols],
-            key=f"order_sum_grid_{code}",
+        sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
+        st.dataframe(
+            order_view[summary_cols],
+            use_container_width=True,
             height=sum_h,
-            numeric_cols=[c for c in (numeric_cols + ["품목수"]) if c in order_view_num.columns],
-            fallback_column_config=col_cfg_summary,
+            hide_index=True,
+            column_config=col_cfg_summary,
         )
-        if not used_aggrid:
-            st.dataframe(
-                order_view[summary_cols],
-                use_container_width=True,
-                height=sum_h,
-                hide_index=True,
-                column_config=col_cfg_summary,
-            )
 
         st.divider()
 
@@ -1242,7 +1134,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         if sort_cols:
             view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
         view.insert(0, "우선순위", range(1, len(view) + 1))
-        view_num = view.copy()
 
         view_fmt = view.copy()
         for c in numeric_cols:
@@ -1271,22 +1162,14 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             key=f"order_{code}_download_det",
         )
 
-        detail_h = _table_height_for_rows(len(view_num), min_height=320, max_height=720)
-        used_aggrid = _render_table_with_drag_sum(
-            view_num[cols],
-            key=f"order_detail_grid_{code}",
+        detail_h = _table_height_for_rows(len(view_fmt), min_height=320, max_height=720)
+        st.dataframe(
+            view_fmt[cols],
+            use_container_width=True,
             height=detail_h,
-            numeric_cols=[c for c in numeric_cols if c in view_num.columns],
-            fallback_column_config=column_config,
+            hide_index=True,
+            column_config=column_config,
         )
-        if not used_aggrid:
-            st.dataframe(
-                view_fmt[cols],
-                use_container_width=True,
-                height=detail_h,
-                hide_index=True,
-                column_config=column_config,
-            )
         return
 
     base_df = df
