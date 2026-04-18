@@ -127,7 +127,7 @@ div[data-testid="stSegmentedControl"] > div {{
 
 /* Sidebar layout */
 .sb-title {{
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   margin: 0.15rem 0 0.65rem 0;
 }}
@@ -148,13 +148,13 @@ div[data-testid="stSegmentedControl"] > div {{
 }}
 .sb-kv .k {{
   color: rgba(0, 0, 0, 0.55);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
   margin-bottom: 0.25rem;
 }}
 .sb-kv .v {{
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   color: rgba(0, 0, 0, 0.85);
   overflow-wrap: anywhere;
@@ -179,6 +179,7 @@ div[data-testid="stDownloadButton"] button {{
   border: 1px solid rgba(0, 0, 0, 0.12) !important;
   background: rgba(255, 255, 255, 0.75) !important;
   font-weight: 800 !important;
+  font-size: 14px !important;
   padding: 0.65rem 0.75rem !important;
 }}
 div[data-testid="stDownloadButton"] button:hover {{
