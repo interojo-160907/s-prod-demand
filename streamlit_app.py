@@ -5,6 +5,7 @@ from datetime import date
 from datetime import timedelta
 from datetime import datetime
 from io import BytesIO
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -31,8 +32,9 @@ def _find_repo_excel() -> str | None:
 
 def _file_mtime_label(path: str) -> str:
     try:
-        ts = datetime.fromtimestamp(os.path.getmtime(path))
-        return ts.strftime("%Y-%m-%d %H:%M:%S")
+        # Show in Asia/Seoul (KST) regardless of server locale (Streamlit Cloud is often UTC).
+        ts = datetime.fromtimestamp(os.path.getmtime(path), tz=ZoneInfo("Asia/Seoul"))
+        return ts.strftime("%Y-%m-%d %H:%M:%S %Z (UTC%z)")
     except Exception:
         return "-"
 
