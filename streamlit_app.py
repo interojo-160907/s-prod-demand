@@ -1,5 +1,4 @@
 import os
-import os
 import importlib
 import re
 from datetime import date
@@ -279,6 +278,7 @@ def _filter_by_any_contains(df: pd.DataFrame, cols: list[str], raw_terms: str) -
 DEFAULT_STAGE_COLS = ["사출", "분리", "하이드레이션", "접착", "누수규격"]
 
 
+@st.cache_data(show_spinner=False)
 def _to_excel_bytes(df: pd.DataFrame, *, sheet_name: str = "data") -> bytes:
     output = BytesIO()
     xdf = df.copy()
@@ -396,6 +396,44 @@ def _load_order_detail_csv(path: str, mtime: float) -> pd.DataFrame:
     if "납기일" in df.columns:
         df["납기일"] = pd.to_datetime(df["납기일"], errors="coerce")
     return df
+
+
+@st.cache_data(show_spinner=False)
+def _load_due_prepared(path: str, mtime: float) -> pd.DataFrame:
+    # One-shot cache: load + prepare (avoids recomputing _prepare_lens_df on every rerun).
+    base = _load_due_csv(path, mtime)
+    return _prepare_lens_df(base)
+
+
+@st.cache_data(show_spinner=False)
+def _load_order_detail_prepared(path: str, mtime: float) -> pd.DataFrame:
+    base = _load_order_detail_csv(path, mtime)
+    out = _prepare_lens_df(base)
+    # In order-detail, prefer the full product name if present.
+    if "수요 제품 이름" in out.columns:
+        out["품명"] = out["수요 제품 이름"].astype("string").fillna("")
+    return out
+
+
+@st.cache_data(show_spinner=False)
+def _load_order_detail_grouped(path: str, mtime: float) -> pd.DataFrame:
+    """
+    Order view heavy step: group product-level rows once per source file.
+    Filters (due-date/search/code) can be applied afterwards without regrouping.
+    """
+    df = _load_order_detail_prepared(path, mtime)
+    numeric_cols = [c for c in DEFAULT_STAGE_COLS if c in df.columns]
+    if numeric_cols:
+        work = df.copy()
+        for c in numeric_cols:
+            work[c] = pd.to_numeric(work[c], errors="coerce").fillna(0)
+    else:
+        work = df
+
+    group_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in work.columns]
+    if group_cols and numeric_cols:
+        work = work.groupby(group_cols, dropna=False, as_index=False)[numeric_cols].sum(numeric_only=True)
+    return work
 
 
 def _prepare_lens_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -534,11 +572,17 @@ def _render_totals_grid(
 
 
 def main() -> None:
-    st.set_page_config(page_title="S관 생산 필요수량 대시보드", layout="wide")
+    st.set_page_config(
+        page_title="S관 생산 필요수량 대시보드",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
     st.title("S관 생산 필요수량 대시보드")
     _apply_local_theme_css()
 
     excel_path = _find_repo_excel()
+    if excel_path:
+        st.caption(f"업데이트: `{_file_mtime_label(excel_path)}`")
     with st.sidebar:
         st.markdown("<div class='sb-title'>자료 다운로드</div>", unsafe_allow_html=True)
         b = _read_bytes(TEMPLATE_XLSX_PATH)
@@ -553,46 +597,10 @@ def main() -> None:
         else:
             st.caption(f"양식 파일이 없습니다: `{TEMPLATE_XLSX_PATH}`")
 
-        st.markdown("<hr class='sb-hr'/>", unsafe_allow_html=True)
-        st.markdown("<div class='sb-title'>데이터</div>", unsafe_allow_html=True)
         if excel_path:
-            excel_name = os.path.basename(excel_path)
-            updated = _file_mtime_label(excel_path)
-            st.markdown(
-                f"""
-<div class="sb-kv">
-  <div class="row">
-    <div class="k">상태</div>
-    <div class="v"><span class="sb-dot ok"></span>파일 확인됨</div>
-  </div>
-  <div class="row">
-    <div class="k">읽는 파일</div>
-    <div class="v"><code>{excel_name}</code></div>
-  </div>
-  <div class="row">
-    <div class="k">업데이트</div>
-    <div class="v"><code>{updated}</code></div>
-  </div>
-</div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.caption(f"읽는 파일: `{os.path.basename(excel_path)}`")
         else:
-            st.markdown(
-                """
-<div class="sb-kv">
-  <div class="row">
-    <div class="k">상태</div>
-    <div class="v"><span class="sb-dot warn"></span>파일 없음</div>
-  </div>
-  <div class="row">
-    <div class="k">읽는 파일</div>
-    <div class="v">-</div>
-  </div>
-</div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.caption("읽는 파일: -")
 
     if not excel_path:
         st.error("`s관 부족수량.xlsx` 파일을 찾지 못했습니다. 저장소에 커밋해 두고 다시 실행하세요.")
@@ -613,7 +621,7 @@ def main() -> None:
 
     detail_for_map: pd.DataFrame | None = None
     try:
-        detail_for_map = _load_order_detail_csv(detail_csv, os.path.getmtime(detail_csv))
+        detail_for_map = _load_order_detail_prepared(detail_csv, os.path.getmtime(detail_csv))
     except Exception:
         detail_for_map = None
 
@@ -632,13 +640,13 @@ def main() -> None:
         return (is_color, lens_rank, sl)
 
     try:
-        base = _load_due_csv(due_csv, os.path.getmtime(due_csv))
+        base = _load_due_prepared(due_csv, os.path.getmtime(due_csv))
     except Exception as e:
         st.error("데이터 로딩 실패")
         st.caption(str(e))
         st.stop()
 
-    df = _prepare_lens_df(base)
+    df = base
     new_code_col = "신규분류 요약코드" if "신규분류 요약코드" in df.columns else None
 
     def render(
@@ -765,7 +773,7 @@ def main() -> None:
         # Display formatting (comma) after export snapshot.
         for s in stage_cols_raw:
             if s in view.columns:
-                view[s] = pd.to_numeric(view[s], errors="coerce").fillna(0).map(_format_int)
+                view[s] = pd.to_numeric(view[s], errors="coerce").fillna(0).astype(int)
 
         stage_totals = {c: _format_int(df_num[c].sum()) for c in stage_cols_raw if c in df_num.columns}
 
@@ -792,7 +800,7 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         }
         for c in stage_cols_raw:
             if c in cols:
-                column_config[c] = st.column_config.TextColumn(width="small")
+                column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
         width_token_map: dict[str, str] = {
@@ -910,10 +918,7 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         if detail_for_map is None:
             st.error("수주별 현황 데이터가 없습니다. 엑셀 시트/컬럼을 확인하세요.")
             st.stop()
-        detail_base = detail_for_map
-        order_df = _prepare_lens_df(detail_base)
-        if "수요 제품 이름" in order_df.columns:
-            order_df["품명"] = order_df["수요 제품 이름"].astype("string").fillna("")
+        order_df = _load_order_detail_grouped(detail_csv, os.path.getmtime(detail_csv))
 
         # Due date end quick-picks
         quick = st.pills(
@@ -998,16 +1003,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         )
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
 
-        df_num = subset.copy()
+        detail_num = subset.copy()
         for c in numeric_cols:
-            df_num[c] = pd.to_numeric(df_num[c], errors="coerce").fillna(0)
-
-        # Detail rows: product-level (same as before).
-        detail_group_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in df_num.columns]
-        if detail_group_cols and numeric_cols:
-            detail_num = df_num.groupby(detail_group_cols, dropna=False, as_index=False)[numeric_cols].sum(numeric_only=True)
-        else:
-            detail_num = df_num
+            if c in detail_num.columns:
+                detail_num[c] = pd.to_numeric(detail_num[c], errors="coerce").fillna(0)
 
         stage_sum = 0
         for c in numeric_cols:
@@ -1068,7 +1067,8 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
 
         order_view = order_num.copy()
         for c in numeric_cols:
-            order_view[c] = pd.to_numeric(order_view[c], errors="coerce").fillna(0).map(_format_int)
+            if c in order_view.columns:
+                order_view[c] = pd.to_numeric(order_view[c], errors="coerce").fillna(0).astype(int)
         if "품목수" in order_view.columns:
             order_view["품목수"] = pd.to_numeric(order_view["품목수"], errors="coerce").fillna(0).astype(int)
 
@@ -1083,7 +1083,7 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             "납기(종료)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         for c in numeric_cols:
-            col_cfg_summary[c] = st.column_config.TextColumn(width="small")
+            col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
         col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
 
         width_token_map: dict[str, str] = {
@@ -1135,11 +1135,11 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
         view.insert(0, "우선순위", range(1, len(view) + 1))
 
-        view_fmt = view.copy()
         for c in numeric_cols:
-            view_fmt[c] = pd.to_numeric(view_fmt[c], errors="coerce").fillna(0).map(_format_int)
+            if c in view.columns:
+                view[c] = pd.to_numeric(view[c], errors="coerce").fillna(0).astype(int)
 
-        cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view_fmt.columns] + numeric_cols
+        cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view.columns] + numeric_cols
 
         column_config = {
             "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
@@ -1150,10 +1150,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         for c in numeric_cols:
-            column_config[c] = st.column_config.TextColumn(width="small")
+            column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        xlsx_bytes_det = _to_excel_bytes(view_fmt[cols], sheet_name="수주상세")
+        xlsx_bytes_det = _to_excel_bytes(view[cols], sheet_name="수주상세")
         st.download_button(
             "엑셀 다운로드 (상세)",
             data=xlsx_bytes_det,
@@ -1162,9 +1162,9 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             key=f"order_{code}_download_det",
         )
 
-        detail_h = _table_height_for_rows(len(view_fmt), min_height=320, max_height=720)
+        detail_h = _table_height_for_rows(len(view), min_height=320, max_height=720)
         st.dataframe(
-            view_fmt[cols],
+            view[cols],
             use_container_width=True,
             height=detail_h,
             hide_index=True,
