@@ -34,7 +34,7 @@ def _file_mtime_label(path: str) -> str:
     try:
         # Show in Asia/Seoul (KST) regardless of server locale (Streamlit Cloud is often UTC).
         ts = datetime.fromtimestamp(os.path.getmtime(path), tz=ZoneInfo("Asia/Seoul"))
-        return ts.strftime("%Y-%m-%d %H:%M:%S %Z (UTC%z)")
+        return ts.strftime("%Y-%m-%d %H:%M:%S %Z")
     except Exception:
         return "-"
 
@@ -123,6 +123,65 @@ div[data-testid="stPills"] > div {{
 div[data-testid="stSegmentedControl"] > div {{
   margin-top: 0.2rem;
   margin-bottom: 0.7rem;
+}}
+
+/* Sidebar layout */
+.sb-title {{
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0.15rem 0 0.65rem 0;
+}}
+.sb-hr {{
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin: 0.8rem 0;
+}}
+.sb-kv {{
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  background: rgba(255, 255, 255, 0.55);
+}}
+.sb-kv .row {{
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  column-gap: 0.6rem;
+  align-items: start;
+  margin: 0.35rem 0;
+}}
+.sb-kv .k {{
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}}
+.sb-kv .v {{
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(0, 0, 0, 0.85);
+  overflow-wrap: anywhere;
+}}
+.sb-dot {{
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-right: 6px;
+  background: #9aa0a6;
+}}
+.sb-dot.ok {{ background: #1e8e3e; }}
+.sb-dot.warn {{ background: #b06000; }}
+
+div[data-testid="stDownloadButton"] button {{
+  width: 100%;
+  border-radius: 10px !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  font-weight: 800 !important;
+  padding: 0.65rem 0.75rem !important;
+}}
+div[data-testid="stDownloadButton"] button:hover {{
+  border-color: rgba(0, 0, 0, 0.20) !important;
 }}
 /* Make title breathe */
 h1 {{
@@ -465,7 +524,7 @@ def main() -> None:
 
     excel_path = _find_repo_excel()
     with st.sidebar:
-        st.header("자료 다운로드")
+        st.markdown("<div class='sb-title'>자료 다운로드</div>", unsafe_allow_html=True)
         b = _read_bytes(TEMPLATE_XLSX_PATH)
         if b is not None:
             st.download_button(
@@ -478,13 +537,46 @@ def main() -> None:
         else:
             st.caption(f"양식 파일이 없습니다: `{TEMPLATE_XLSX_PATH}`")
 
-        st.divider()
-        st.header("데이터")
+        st.markdown("<hr class='sb-hr'/>", unsafe_allow_html=True)
+        st.markdown("<div class='sb-title'>데이터</div>", unsafe_allow_html=True)
         if excel_path:
-            st.caption(f"읽는 파일: `{excel_path}`")
-            st.caption(f"업데이트: `{_file_mtime_label(excel_path)}`")
+            excel_name = os.path.basename(excel_path)
+            updated = _file_mtime_label(excel_path)
+            st.markdown(
+                f"""
+<div class="sb-kv">
+  <div class="row">
+    <div class="k">상태</div>
+    <div class="v"><span class="sb-dot ok"></span>파일 확인됨</div>
+  </div>
+  <div class="row">
+    <div class="k">읽는 파일</div>
+    <div class="v"><code>{excel_name}</code></div>
+  </div>
+  <div class="row">
+    <div class="k">업데이트</div>
+    <div class="v"><code>{updated}</code></div>
+  </div>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
         else:
-            st.caption("읽는 파일: -")
+            st.markdown(
+                """
+<div class="sb-kv">
+  <div class="row">
+    <div class="k">상태</div>
+    <div class="v"><span class="sb-dot warn"></span>파일 없음</div>
+  </div>
+  <div class="row">
+    <div class="k">읽는 파일</div>
+    <div class="v">-</div>
+  </div>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     if not excel_path:
         st.error("`s관 부족수량.xlsx` 파일을 찾지 못했습니다. 저장소에 커밋해 두고 다시 실행하세요.")
@@ -747,6 +839,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         st.session_state["code_pill"] = "전체"
         if view_mode == "공정별 보기":
             st.session_state["process_pill"] = "사출"
+            # Reset due-date filter when entering process view.
+            st.session_state["proc_due_quick"] = "해제"
+            st.session_state["proc_due_end"] = date.today()
+            st.session_state["_prev_proc_due_quick"] = "해제"
         if view_mode == "수주별 현황":
             # Always reset due-date filter when entering order view.
             st.session_state["order_due_quick"] = "해제"
@@ -762,6 +858,34 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             default="사출",
             key="process_pill",
             label_visibility="collapsed",
+        )
+
+        # Due date end quick-picks (same idea as order view).
+        proc_quick = st.pills(
+            "납기일 종료 (빠른 선택)",
+            options=["해제", "직접", "+7일", "+14일"],
+            default="해제",
+            key="proc_due_quick",
+            selection_mode="single",
+            label_visibility="collapsed",
+        )
+        if proc_quick == "+7일":
+            proc_default_end = date.today() + timedelta(days=7)
+        elif proc_quick == "+14일":
+            proc_default_end = date.today() + timedelta(days=14)
+        else:
+            proc_default_end = date.today()
+
+        prev_proc_quick = st.session_state.get("_prev_proc_due_quick")
+        if prev_proc_quick != proc_quick:
+            st.session_state["proc_due_end"] = proc_default_end
+            st.session_state["_prev_proc_due_quick"] = proc_quick
+
+        proc_end_date = st.date_input(
+            "납기일 종료",
+            value=st.session_state.get("proc_due_end", proc_default_end),
+            key="proc_due_end",
+            disabled=(proc_quick == "해제"),
         )
 
     # 분류 pills (view-mode별로 totals 계산 데이터가 다름)
@@ -808,6 +932,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         value_col = "누수규격"
     else:
         codes_src = df
+        if view_mode == "공정별 보기":
+            proc_quick_state = st.session_state.get("proc_due_quick", "해제")
+            if proc_quick_state != "해제":
+                codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("proc_due_end", date.today()))
         value_col = process_only if process_only else "누수규격"
 
     totals_base: dict[str, float] = {}
@@ -942,7 +1070,13 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         )
         return
 
-    subset = df if code == "전체" else df[df[new_code_col].astype("string") == code].copy()
+    base_df = df
+    if view_mode == "공정별 보기":
+        proc_quick_state = st.session_state.get("proc_due_quick", "해제")
+        if proc_quick_state != "해제":
+            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("proc_due_end", date.today()))
+
+    subset = base_df if code == "전체" else base_df[base_df[new_code_col].astype("string") == code].copy()
     page_key = "due" if process_only is None else f"proc_{process_only}"
     render(
         subset,
