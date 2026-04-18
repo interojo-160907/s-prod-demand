@@ -139,27 +139,28 @@ div[data-testid="stSegmentedControl"] > div {{
 .sb-kv {{
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
-  padding: 0.75rem 0.85rem;
+  padding: 0.9rem 0.95rem;
   background: rgba(255, 255, 255, 0.55);
 }}
 .sb-kv .row {{
-  display: grid;
-  grid-template-columns: 76px 1fr;
-  column-gap: 0.6rem;
-  align-items: start;
-  margin: 0.35rem 0;
+  display: block;
+  margin: 0.55rem 0;
 }}
 .sb-kv .k {{
   color: rgba(0, 0, 0, 0.55);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
+  margin-bottom: 0.25rem;
 }}
 .sb-kv .v {{
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 1.45;
   color: rgba(0, 0, 0, 0.85);
   overflow-wrap: anywhere;
+}}
+.sb-kv code {{
+  white-space: normal;
 }}
 .sb-dot {{
   display: inline-block;
