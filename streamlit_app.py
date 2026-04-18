@@ -23,6 +23,94 @@ OUT_DIR = "out"
 STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
 
 
+def _render_table_with_drag_sum(
+    df: pd.DataFrame,
+    *,
+    key: str,
+    height: int,
+    numeric_cols: list[str] | None = None,
+    fallback_column_config: dict | None = None,
+) -> bool:
+    """
+    Try to render an AG Grid table that supports range selection + sum (Excel-like).
+    Returns True if AG Grid was used, False if caller should fallback to st.dataframe.
+
+    Notes:
+    - Range selection / aggregation UI is an AG Grid Enterprise feature. streamlit-aggrid can
+      enable enterprise modules, but this may show an enterprise trial watermark unless licensed.
+    """
+    try:
+        from st_aggrid import AgGrid, GridOptionsBuilder, JsCode  # type: ignore
+    except Exception:
+        return False
+
+    df_view = df.copy()
+    if numeric_cols:
+        for c in numeric_cols:
+            if c in df_view.columns:
+                df_view[c] = pd.to_numeric(df_view[c], errors="coerce").fillna(0)
+
+    gb = GridOptionsBuilder.from_dataframe(df_view)
+    gb.configure_default_column(resizable=True, sortable=True, filter=True, wrapHeaderText=True, autoHeaderHeight=True)
+
+    # Excel-like: drag select cells, show Sum/Avg/Count in status bar.
+    gb.configure_grid_options(
+        enableRangeSelection=True,
+        enableCellTextSelection=True,
+        suppressCopyRowsToClipboard=False,
+        statusBar={
+            "statusPanels": [
+                {"statusPanel": "agTotalRowCountComponent", "align": "left"},
+                {"statusPanel": "agFilteredRowCountComponent", "align": "left"},
+                {"statusPanel": "agSelectedRowCountComponent", "align": "left"},
+                {"statusPanel": "agAggregationComponent", "align": "right"},
+            ]
+        },
+    )
+
+    # Render numbers with commas, keep underlying values numeric for aggregation.
+    comma_fmt = JsCode(
+        """
+function(params) {
+  const v = params.value;
+  if (v === null || v === undefined || v === "") return "";
+  if (typeof v === "number") return v.toLocaleString();
+  const n = Number(String(v).replace(/,/g, ""));
+  return Number.isFinite(n) ? n.toLocaleString() : String(v);
+}
+        """.strip()
+    )
+    if numeric_cols:
+        for c in numeric_cols:
+            if c in df_view.columns:
+                gb.configure_column(c, type=["numericColumn", "numberColumnFilter"], valueFormatter=comma_fmt)
+
+    grid_options = gb.build()
+    AgGrid(
+        df_view,
+        gridOptions=grid_options,
+        height=int(height),
+        fit_columns_on_grid_load=True,
+        allow_unsafe_jscode=True,
+        enable_enterprise_modules=True,
+        key=key,
+    )
+    return True
+
+
+def _table_height_for_rows(
+    n_rows: int,
+    *,
+    min_height: int,
+    max_height: int,
+    header_px: int = 110,
+    row_px: int = 34,
+) -> int:
+    n = max(0, int(n_rows))
+    h = int(header_px + (n * row_px))
+    return max(min_height, min(max_height, h))
+
+
 def _find_repo_excel() -> str | None:
     for p in REPO_EXCEL_CANDIDATES:
         if os.path.exists(p):
@@ -816,10 +904,11 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             non_total_cols=set(cols) - set(stage_cols_raw),
         )
 
+        table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
         st.dataframe(
             view[cols],
             use_container_width=True,
-            height=720,
+            height=table_h,
             hide_index=True,
             column_config=column_config,
         )
@@ -1051,7 +1140,8 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             order_num = order_num.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
         order_num.insert(0, "우선순위", range(1, len(order_num) + 1))
 
-        order_view = order_num.copy()
+        order_view_num = order_num.copy()
+        order_view = order_view_num.copy()
         for c in numeric_cols:
             order_view[c] = pd.to_numeric(order_view[c], errors="coerce").fillna(0).map(_format_int)
         if "품목수" in order_view.columns:
@@ -1103,13 +1193,22 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             non_total_cols=set(summary_cols) - set(numeric_cols),
         )
 
-        st.dataframe(
-            order_view[summary_cols],
-            use_container_width=True,
-            height=520,
-            hide_index=True,
-            column_config=col_cfg_summary,
+        sum_h = _table_height_for_rows(len(order_view_num), min_height=260, max_height=520)
+        used_aggrid = _render_table_with_drag_sum(
+            order_view_num[summary_cols],
+            key=f"order_sum_grid_{code}",
+            height=sum_h,
+            numeric_cols=[c for c in (numeric_cols + ["품목수"]) if c in order_view_num.columns],
+            fallback_column_config=col_cfg_summary,
         )
+        if not used_aggrid:
+            st.dataframe(
+                order_view[summary_cols],
+                use_container_width=True,
+                height=sum_h,
+                hide_index=True,
+                column_config=col_cfg_summary,
+            )
 
         st.divider()
 
@@ -1118,11 +1217,13 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         if sort_cols:
             view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
         view.insert(0, "우선순위", range(1, len(view) + 1))
+        view_num = view.copy()
 
+        view_fmt = view.copy()
         for c in numeric_cols:
-            view[c] = pd.to_numeric(view[c], errors="coerce").fillna(0).map(_format_int)
+            view_fmt[c] = pd.to_numeric(view_fmt[c], errors="coerce").fillna(0).map(_format_int)
 
-        cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view.columns] + numeric_cols
+        cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view_fmt.columns] + numeric_cols
 
         column_config = {
             "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
@@ -1136,7 +1237,7 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             column_config[c] = st.column_config.TextColumn(width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        xlsx_bytes_det = _to_excel_bytes(view[cols], sheet_name="수주상세")
+        xlsx_bytes_det = _to_excel_bytes(view_fmt[cols], sheet_name="수주상세")
         st.download_button(
             "엑셀 다운로드 (상세)",
             data=xlsx_bytes_det,
@@ -1145,13 +1246,22 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             key=f"order_{code}_download_det",
         )
 
-        st.dataframe(
-            view[cols],
-            use_container_width=True,
-            height=720,
-            hide_index=True,
-            column_config=column_config,
+        detail_h = _table_height_for_rows(len(view_num), min_height=320, max_height=720)
+        used_aggrid = _render_table_with_drag_sum(
+            view_num[cols],
+            key=f"order_detail_grid_{code}",
+            height=detail_h,
+            numeric_cols=[c for c in numeric_cols if c in view_num.columns],
+            fallback_column_config=column_config,
         )
+        if not used_aggrid:
+            st.dataframe(
+                view_fmt[cols],
+                use_container_width=True,
+                height=detail_h,
+                hide_index=True,
+                column_config=column_config,
+            )
         return
 
     base_df = df
