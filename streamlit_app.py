@@ -976,6 +976,12 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         stage_cols_raw = DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in subset.columns]
 
+        order_collapse = st.toggle(
+            "수주 단위로 접기 (기본: 접힘 → 펼치면 품명별)",
+            value=True,
+            key="order_collapse",
+        )
+
         search_raw = st.text_input(
             "검색 (품명/이니셜/수주번호)",
             placeholder="예: 해외, 202601, SEPIA",
@@ -987,26 +993,21 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         for c in numeric_cols:
             df_num[c] = pd.to_numeric(df_num[c], errors="coerce").fillna(0)
 
-        group_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in df_num.columns]
-        if group_cols and numeric_cols:
-            df_num = df_num.groupby(group_cols, dropna=False, as_index=False)[numeric_cols].sum(numeric_only=True)
+        # Detail rows: product-level (same as before).
+        detail_group_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in df_num.columns]
+        if detail_group_cols and numeric_cols:
+            detail_num = df_num.groupby(detail_group_cols, dropna=False, as_index=False)[numeric_cols].sum(numeric_only=True)
+        else:
+            detail_num = df_num
 
         stage_sum = 0
         for c in numeric_cols:
-            stage_sum = stage_sum + df_num[c].fillna(0)
-        df_num = df_num.loc[stage_sum.fillna(0).gt(0)].copy()
+            stage_sum = stage_sum + detail_num[c].fillna(0)
+        detail_num = detail_num.loc[stage_sum.fillna(0).gt(0)].copy()
 
-        view = df_num.copy()
-        sort_cols = [c for c in ["납기일", "이니셜", "수주번호", "품명"] if c in view.columns]
-        if sort_cols:
-            view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
-        view.insert(0, "우선순위", range(1, len(view) + 1))
-
-        for c in numeric_cols:
-            view[c] = pd.to_numeric(view[c], errors="coerce").fillna(0).map(_format_int)
-
-        cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view.columns] + numeric_cols
-        stage_totals = {c: _format_int(pd.to_numeric(df_num[c], errors="coerce").fillna(0).sum()) for c in numeric_cols}
+        stage_totals = {
+            c: _format_int(pd.to_numeric(detail_num[c], errors="coerce").fillna(0).sum()) for c in numeric_cols
+        }
 
         st.markdown(
             """
@@ -1020,56 +1021,235 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             unsafe_allow_html=True,
         )
 
-        column_config = {
-            "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
-            "이니셜": st.column_config.TextColumn(width="small"),
-            "수주번호": st.column_config.TextColumn(width="medium"),
-            "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
-            "품명": st.column_config.TextColumn(width="large"),
-            "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-        }
-        for c in numeric_cols:
-            column_config[c] = st.column_config.TextColumn(width="small")
-        column_config = {k: v for k, v in column_config.items() if k in cols}
+        if order_collapse:
+            # Summary rows: order-level (initial + order number), summed across products.
+            summary_base = detail_num.copy()
+            if "납기일" in summary_base.columns:
+                due_dt = pd.to_datetime(summary_base["납기일"], errors="coerce")
+                summary_base["_due_date"] = due_dt.dt.date
+            else:
+                summary_base["_due_date"] = pd.NaT
 
-        width_token_map: dict[str, str] = {
-            "우선순위": "small",
-            "이니셜": "small",
-            "수주번호": "medium",
-            "신규분류 요약코드": "medium",
-            "품명": "large",
-            "납기일": "small",
-            "사출": "small",
-            "분리": "small",
-            "하이드레이션": "small",
-            "접착": "small",
-            "누수규격": "small",
-        }
-        weight_for = {"small": 1, "medium": 2, "large": 4}
-        weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in cols]
-        xlsx_bytes = _to_excel_bytes(view[cols], sheet_name="수주별")
-        st.download_button(
-            "엑셀 다운로드",
-            data=xlsx_bytes,
-            file_name=f"수주별현황_{code}_{date.today().isoformat()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"order_{code}_download",
-        )
+            group_key = [c for c in ["이니셜", "수주번호"] if c in summary_base.columns]
+            if not group_key:
+                group_key = ["수주번호"] if "수주번호" in summary_base.columns else []
 
-        _render_totals_grid(
-            cols,
-            totals=stage_totals,
-            weights=weights,
-            non_total_cols=set(cols) - set(numeric_cols),
-        )
+            agg_spec: dict[str, str] = {c: "sum" for c in numeric_cols}
+            if "품명" in summary_base.columns:
+                agg_spec["품목수"] = "nunique"
+            else:
+                agg_spec["품목수"] = "size"
+            if "_due_date" in summary_base.columns:
+                agg_spec["납기(시작)"] = "min"
+                agg_spec["납기(종료)"] = "max"
 
-        st.dataframe(
-            view[cols],
-            use_container_width=True,
-            height=720,
-            hide_index=True,
-            column_config=column_config,
-        )
+            # Pandas needs existing columns for named aggs; create working cols.
+            work = summary_base.copy()
+            if "품명" in work.columns:
+                work["품목수"] = work["품명"]
+            else:
+                work["품목수"] = 1
+            work["납기(시작)"] = work["_due_date"]
+            work["납기(종료)"] = work["_due_date"]
+
+            order_num = work.groupby(group_key, dropna=False, as_index=False).agg(agg_spec)
+            sort_cols = [c for c in ["납기(시작)", "이니셜", "수주번호"] if c in order_num.columns]
+            if sort_cols:
+                order_num = order_num.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+            order_num.insert(0, "우선순위", range(1, len(order_num) + 1))
+
+            order_view = order_num.copy()
+            for c in numeric_cols:
+                order_view[c] = pd.to_numeric(order_view[c], errors="coerce").fillna(0).map(_format_int)
+            if "품목수" in order_view.columns:
+                order_view["품목수"] = pd.to_numeric(order_view["품목수"], errors="coerce").fillna(0).astype(int)
+
+            summary_cols = [c for c in ["우선순위", "이니셜", "수주번호", "품목수", "납기(시작)", "납기(종료)"] if c in order_view.columns] + numeric_cols
+
+            col_cfg_summary: dict[str, object] = {
+                "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
+                "이니셜": st.column_config.TextColumn(width="small"),
+                "수주번호": st.column_config.TextColumn(width="medium"),
+                "품목수": st.column_config.NumberColumn(format="%d", width="small"),
+                "납기(시작)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+                "납기(종료)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+            }
+            for c in numeric_cols:
+                col_cfg_summary[c] = st.column_config.TextColumn(width="small")
+            col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
+
+            width_token_map: dict[str, str] = {
+                "우선순위": "small",
+                "이니셜": "small",
+                "수주번호": "medium",
+                "품목수": "small",
+                "납기(시작)": "small",
+                "납기(종료)": "small",
+                "사출": "small",
+                "분리": "small",
+                "하이드레이션": "small",
+                "접착": "small",
+                "누수규격": "small",
+            }
+            weight_for = {"small": 1, "medium": 2, "large": 4}
+            weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in summary_cols]
+
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
+                st.download_button(
+                    "엑셀 다운로드 (요약)",
+                    data=xlsx_bytes_sum,
+                    file_name=f"수주요약_{code}_{date.today().isoformat()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"order_{code}_download_sum",
+                )
+            with c2:
+                # Detail export matches the expanded view.
+                detail_export = detail_num.copy()
+                sort_cols_detail = [c for c in ["납기일", "이니셜", "수주번호", "품명"] if c in detail_export.columns]
+                if sort_cols_detail:
+                    detail_export = detail_export.sort_values(
+                        sort_cols_detail,
+                        ascending=[True] * len(sort_cols_detail),
+                        na_position="last",
+                    )
+                for c in numeric_cols:
+                    detail_export[c] = pd.to_numeric(detail_export[c], errors="coerce").fillna(0).map(_format_int)
+                detail_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in detail_export.columns] + numeric_cols
+                xlsx_bytes_det = _to_excel_bytes(detail_export[detail_cols], sheet_name="수주상세")
+                st.download_button(
+                    "엑셀 다운로드 (상세)",
+                    data=xlsx_bytes_det,
+                    file_name=f"수주상세_{code}_{date.today().isoformat()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"order_{code}_download_det",
+                )
+
+            _render_totals_grid(
+                summary_cols,
+                totals=stage_totals,
+                weights=weights,
+                non_total_cols=set(summary_cols) - set(numeric_cols),
+            )
+
+            st.dataframe(
+                order_view[summary_cols],
+                use_container_width=True,
+                height=520,
+                hide_index=True,
+                column_config=col_cfg_summary,
+            )
+
+            # Expanded details per order.
+            detail_sorted = detail_num.copy()
+            sort_cols = [c for c in ["납기일", "이니셜", "수주번호", "품명"] if c in detail_sorted.columns]
+            if sort_cols:
+                detail_sorted = detail_sorted.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+
+            for _, row in order_num.iterrows():
+                initial = str(row["이니셜"]) if "이니셜" in order_num.columns else "-"
+                order_no = str(row["수주번호"]) if "수주번호" in order_num.columns else "-"
+                item_cnt = int(row.get("품목수", 0)) if "품목수" in order_num.columns else 0
+                title = f"{initial} / {order_no} (품목 {item_cnt})"
+
+                mask = True
+                if "이니셜" in detail_sorted.columns:
+                    mask = mask & (detail_sorted["이니셜"].astype("string") == initial)
+                if "수주번호" in detail_sorted.columns:
+                    mask = mask & (detail_sorted["수주번호"].astype("string") == order_no)
+                d_one = detail_sorted.loc[mask].copy()
+                if d_one.empty:
+                    continue
+
+                d_view = d_one.copy()
+                d_view.insert(0, "우선순위", range(1, len(d_view) + 1))
+                for c in numeric_cols:
+                    d_view[c] = pd.to_numeric(d_view[c], errors="coerce").fillna(0).map(_format_int)
+                d_cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in d_view.columns] + numeric_cols
+
+                column_config = {
+                    "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
+                    "이니셜": st.column_config.TextColumn(width="small"),
+                    "수주번호": st.column_config.TextColumn(width="medium"),
+                    "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
+                    "품명": st.column_config.TextColumn(width="large"),
+                    "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+                }
+                for c in numeric_cols:
+                    column_config[c] = st.column_config.TextColumn(width="small")
+                column_config = {k: v for k, v in column_config.items() if k in d_cols}
+
+                with st.expander(title, expanded=False):
+                    st.dataframe(
+                        d_view[d_cols],
+                        use_container_width=True,
+                        height=min(520, 46 + 35 * min(12, len(d_view))),
+                        hide_index=True,
+                        column_config=column_config,
+                    )
+        else:
+            view = detail_num.copy()
+            sort_cols = [c for c in ["납기일", "이니셜", "수주번호", "품명"] if c in view.columns]
+            if sort_cols:
+                view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+            view.insert(0, "우선순위", range(1, len(view) + 1))
+
+            for c in numeric_cols:
+                view[c] = pd.to_numeric(view[c], errors="coerce").fillna(0).map(_format_int)
+
+            cols = [c for c in ["우선순위", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in view.columns] + numeric_cols
+
+            column_config = {
+                "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
+                "이니셜": st.column_config.TextColumn(width="small"),
+                "수주번호": st.column_config.TextColumn(width="medium"),
+                "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
+                "품명": st.column_config.TextColumn(width="large"),
+                "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+            }
+            for c in numeric_cols:
+                column_config[c] = st.column_config.TextColumn(width="small")
+            column_config = {k: v for k, v in column_config.items() if k in cols}
+
+            width_token_map: dict[str, str] = {
+                "우선순위": "small",
+                "이니셜": "small",
+                "수주번호": "medium",
+                "신규분류 요약코드": "medium",
+                "품명": "large",
+                "납기일": "small",
+                "사출": "small",
+                "분리": "small",
+                "하이드레이션": "small",
+                "접착": "small",
+                "누수규격": "small",
+            }
+            weight_for = {"small": 1, "medium": 2, "large": 4}
+            weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in cols]
+            xlsx_bytes = _to_excel_bytes(view[cols], sheet_name="수주별")
+            st.download_button(
+                "엑셀 다운로드",
+                data=xlsx_bytes,
+                file_name=f"수주별현황_{code}_{date.today().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"order_{code}_download",
+            )
+
+            _render_totals_grid(
+                cols,
+                totals=stage_totals,
+                weights=weights,
+                non_total_cols=set(cols) - set(numeric_cols),
+            )
+
+            st.dataframe(
+                view[cols],
+                use_container_width=True,
+                height=720,
+                hide_index=True,
+                column_config=column_config,
+            )
         return
 
     base_df = df
