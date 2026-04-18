@@ -869,12 +869,18 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         render(df, ui_key_prefix="all")
         return
 
-    view_mode = st.segmented_control(
+    view_mode_raw = st.segmented_control(
         "보기",
         options=["납기별 상세", "공정별 보기", "수주별 현황"],
         default="납기별 상세",
         key="view_mode",
         label_visibility="collapsed",
+    )
+    view_mode = _ensure_single_select(
+        view_mode_raw,
+        key="view_mode",
+        default="납기별 상세",
+        options=["납기별 상세", "공정별 보기", "수주별 현황"],
     )
 
     prev_mode = st.session_state.get("_prev_view_mode")
