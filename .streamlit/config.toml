@@ -1,0 +1,8 @@
+[theme]
+# Warm, low-glare palette (less "pure white")
+primaryColor = "#0A5C36"
+backgroundColor = "#FBF7EE"
+secondaryBackgroundColor = "#F2EBDD"
+textColor = "#1B1B1B"
+font = "sans serif"
+

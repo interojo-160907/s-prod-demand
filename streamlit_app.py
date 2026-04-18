@@ -96,8 +96,8 @@ def _load_theme_from_config() -> dict:
 
 def _apply_local_theme_css() -> None:
     theme = _load_theme_from_config()
-    bg = theme.get("backgroundColor", "#FCFBF7")
-    sbg = theme.get("secondaryBackgroundColor", "#F1EFE6")
+    bg = theme.get("backgroundColor", "#FBF7EE")
+    sbg = theme.get("secondaryBackgroundColor", "#F2EBDD")
     text = theme.get("textColor", "#1B1B1B")
     primary = theme.get("primaryColor", "#0A5C36")
 
