@@ -45,6 +45,28 @@ def _render_table_with_drag_sum(
         return False
 
     df_view = df.copy()
+
+    # st-aggrid serializes data to JSON; python `date` objects inside object columns can break rendering.
+    # Normalize date/datetime-like columns to ISO strings for display (aggregation is on numeric cols anyway).
+    for c in list(df_view.columns):
+        try:
+            s = df_view[c]
+        except Exception:
+            continue
+        try:
+            if pd.api.types.is_datetime64_any_dtype(s):
+                df_view[c] = pd.to_datetime(s, errors="coerce").dt.strftime("%Y-%m-%d")
+                continue
+        except Exception:
+            pass
+        try:
+            non_null = s.dropna()
+            if len(non_null) > 0:
+                v0 = non_null.iloc[0]
+                if isinstance(v0, (date, datetime)):
+                    df_view[c] = s.map(lambda v: v.isoformat() if isinstance(v, (date, datetime)) else "")
+        except Exception:
+            pass
     if numeric_cols:
         for c in numeric_cols:
             if c in df_view.columns:
@@ -86,16 +108,19 @@ function(params) {
                 gb.configure_column(c, type=["numericColumn", "numberColumnFilter"], valueFormatter=comma_fmt)
 
     grid_options = gb.build()
-    AgGrid(
-        df_view,
-        gridOptions=grid_options,
-        height=int(height),
-        fit_columns_on_grid_load=True,
-        allow_unsafe_jscode=True,
-        enable_enterprise_modules=True,
-        key=key,
-    )
-    return True
+    try:
+        AgGrid(
+            df_view,
+            gridOptions=grid_options,
+            height=int(height),
+            fit_columns_on_grid_load=True,
+            allow_unsafe_jscode=True,
+            enable_enterprise_modules=True,
+            key=key,
+        )
+        return True
+    except Exception:
+        return False
 
 
 def _table_height_for_rows(
