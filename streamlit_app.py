@@ -837,28 +837,6 @@ def main() -> None:
             if s in view.columns:
                 view[s] = pd.to_numeric(view[s], errors="coerce").fillna(0).astype(int)
 
-        st.markdown(
-            """
-<style>
-div[data-testid="stDataFrame"] [role="columnheader"] {
-  background-color: #ffffff;
-}
-div[data-testid="stDataFrame"] thead tr:nth-child(1) th {
-  background-color: #e8f0fe !important;
-  color: #1a73e8 !important;
-  font-weight: 800 !important;
-  text-align: right !important;
-  white-space: nowrap !important;
-}
-div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
-  background-color: #ffffff !important;
-  white-space: nowrap !important;
-}
-</style>
-            """,
-            unsafe_allow_html=True,
-        )
-
         column_config = {
             "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
             "품명": st.column_config.TextColumn(width="large"),
@@ -1150,28 +1128,6 @@ div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
         stage_totals = {
             c: _format_int(pd.to_numeric(detail_num[c], errors="coerce").fillna(0).sum()) for c in numeric_cols
         }
-
-        st.markdown(
-            """
-<style>
-div[data-testid="stDataFrame"] [role="columnheader"] {
-  background-color: #ffffff;
-}
-div[data-testid="stDataFrame"] thead tr:nth-child(1) th {
-  background-color: #e8f0fe !important;
-  color: #1a73e8 !important;
-  font-weight: 800 !important;
-  text-align: right !important;
-  white-space: nowrap !important;
-}
-div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
-  background-color: #ffffff !important;
-  white-space: nowrap !important;
-}
-</style>
-            """,
-            unsafe_allow_html=True,
-        )
 
         # Summary rows: order-level (initial + order number), summed across products.
         summary_base = detail_num.copy()
