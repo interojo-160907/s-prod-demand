@@ -626,50 +626,6 @@ def _apply_due_date_end_filter(df: pd.DataFrame, end: date) -> pd.DataFrame:
     return df.loc[mask].copy()
 
 
-def _render_totals_grid(
-    cols: list[str],
-    *,
-    totals: dict[str, str],
-    weights: list[int],
-    non_total_cols: set[str] | None = None,
-) -> None:
-    non_total_cols = non_total_cols or set()
-    tpl = " ".join(f"{max(1, int(w))}fr" for w in weights)
-
-    def cell(c: str) -> str:
-        if c in non_total_cols:
-            return "&nbsp;"
-        v = totals.get(c, "")
-        return v if v else "&nbsp;"
-
-    cells_html = "\n".join(f"<div class='totals-cell'>{cell(c)}</div>" for c in cols)
-    st.markdown(
-        f"""
-<style>
-.totals-grid {{
-  display: grid;
-  grid-template-columns: {tpl};
-  gap: 0;
-  align-items: end;
-  margin: 0 0 2px 0;
-  padding: 0;
-}}
-.totals-cell {{
-  font-size: 12px;
-  font-weight: 700;
-  color: #1a73e8;
-  text-align: right;
-  white-space: nowrap;
-}}
-</style>
-<div class="totals-grid">
-{cells_html}
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def main() -> None:
     st.title("S관 생산 필요수량 대시보드")
     _apply_local_theme_css()
@@ -881,15 +837,21 @@ def main() -> None:
             if s in view.columns:
                 view[s] = pd.to_numeric(view[s], errors="coerce").fillna(0).astype(int)
 
-        stage_totals = {c: _format_int(df_num[c].sum()) for c in stage_cols_raw if c in df_num.columns}
-
         st.markdown(
             """
 <style>
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
 }
-div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
+div[data-testid="stDataFrame"] thead tr:nth-child(1) th {
+  color: #1a73e8 !important;
+  font-weight: 800 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
+  white-space: nowrap !important;
+}
 </style>
             """,
             unsafe_allow_html=True,
@@ -909,23 +871,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
                 column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        width_token_map: dict[str, str] = {
-            "신규분류 요약코드": "medium",
-            "품명": "large",
-            "POWER": "small",
-            "CP": "small",
-            "AXIS": "small",
-            "ADD": "small",
-            "납기일": "small",
-            "사출": "small",
-            "분리": "small",
-            "하이드레이션": "small",
-            "접착": "small",
-            "누수규격": "small",
-        }
-        weight_for = {"small": 1, "medium": 2, "large": 4}
-        weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in cols]
-
         # Download button should not push the totals row away from the table header,
         # so render it BEFORE totals grid.
         xlsx_bytes = _to_excel_bytes(export_df2[export_cols], sheet_name="다운로드")
@@ -937,20 +882,20 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             key=f"{ui_key_prefix}_download",
         )
 
-        _render_totals_grid(
-            cols,
-            totals=stage_totals,
-            weights=weights,
-            non_total_cols=set(cols) - set(stage_cols_raw),
-        )
+        stage_totals = {c: _format_int(df_num[c].sum()) for c in stage_cols_raw if c in df_num.columns}
+        view_show = view[cols].copy()
+        for c in stage_cols_raw:
+            if c in view_show.columns:
+                view_show[c] = pd.to_numeric(view_show[c], errors="coerce").fillna(0).map(_format_int)
+        top = [stage_totals.get(c, "") if c in stage_cols_raw else "" for c in cols]
+        view_show.columns = pd.MultiIndex.from_arrays([top, cols])
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
         st.dataframe(
-            view[cols],
+            view_show,
             use_container_width=True,
             height=table_h,
             hide_index=True,
-            column_config=column_config,
         )
 
     if new_code_col is None:
@@ -1199,7 +1144,15 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
 }
-div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
+div[data-testid="stDataFrame"] thead tr:nth-child(1) th {
+  color: #1a73e8 !important;
+  font-weight: 800 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
+  white-space: nowrap !important;
+}
 </style>
             """,
             unsafe_allow_html=True,
@@ -1216,6 +1169,8 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         group_key = [c for c in ["이니셜", "수주번호"] if c in summary_base.columns]
         if not group_key:
             group_key = ["수주번호"] if "수주번호" in summary_base.columns else []
+        if code == "전체" and new_code_col in summary_base.columns:
+            group_key = [c for c in [*group_key, new_code_col] if c in summary_base.columns]
 
         agg_spec: dict[str, str] = {c: "sum" for c in numeric_cols}
         if "품명" in summary_base.columns:
@@ -1236,7 +1191,7 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         work["납기(종료)"] = work["_due_date"]
 
         order_num = work.groupby(group_key, dropna=False, as_index=False).agg(agg_spec)
-        sort_cols = [c for c in ["납기(시작)", "이니셜", "수주번호"] if c in order_num.columns]
+        sort_cols = [c for c in ["납기(시작)", new_code_col, "이니셜", "수주번호"] if c in order_num.columns]
         if sort_cols:
             order_num = order_num.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
         order_num.insert(0, "우선순위", range(1, len(order_num) + 1))
@@ -1248,7 +1203,11 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         if "품목수" in order_view.columns:
             order_view["품목수"] = pd.to_numeric(order_view["품목수"], errors="coerce").fillna(0).astype(int)
 
-        summary_cols = [c for c in ["우선순위", "이니셜", "수주번호", "품목수", "납기(시작)", "납기(종료)"] if c in order_view.columns] + numeric_cols
+        base_cols = ["우선순위", "이니셜", "수주번호"]
+        if code == "전체":
+            base_cols.append(new_code_col)
+        base_cols += ["품목수", "납기(시작)", "납기(종료)"]
+        summary_cols = [c for c in base_cols if c in order_view.columns] + numeric_cols
 
         col_cfg_summary: dict[str, object] = {
             "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
@@ -1262,22 +1221,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
         col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
 
-        width_token_map: dict[str, str] = {
-            "우선순위": "small",
-            "이니셜": "small",
-            "수주번호": "medium",
-            "품목수": "small",
-            "납기(시작)": "small",
-            "납기(종료)": "small",
-            "사출": "small",
-            "분리": "small",
-            "하이드레이션": "small",
-            "접착": "small",
-            "누수규격": "small",
-        }
-        weight_for = {"small": 1, "medium": 2, "large": 4}
-        weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in summary_cols]
-
         xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
         st.download_button(
             "엑셀 다운로드 (요약)",
@@ -1287,20 +1230,19 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             key=f"order_{code}_download_sum",
         )
 
-        _render_totals_grid(
-            summary_cols,
-            totals=stage_totals,
-            weights=weights,
-            non_total_cols=set(summary_cols) - set(numeric_cols),
-        )
+        order_show = order_view[summary_cols].copy()
+        for c in numeric_cols:
+            if c in order_show.columns:
+                order_show[c] = pd.to_numeric(order_show[c], errors="coerce").fillna(0).map(_format_int)
+        top = [stage_totals.get(c, "") if c in numeric_cols else "" for c in summary_cols]
+        order_show.columns = pd.MultiIndex.from_arrays([top, summary_cols])
 
         sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
         st.dataframe(
-            order_view[summary_cols],
+            order_show,
             use_container_width=True,
             height=sum_h,
             hide_index=True,
-            column_config=col_cfg_summary,
         )
 
         st.divider()
