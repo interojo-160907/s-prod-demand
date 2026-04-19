@@ -2,6 +2,8 @@ import os
 import importlib
 import json
 import re
+import zipfile
+from xml.etree import ElementTree as ET
 from datetime import date
 from datetime import timedelta
 from datetime import datetime
@@ -118,8 +120,32 @@ def _find_repo_excel() -> str | None:
 
 def _file_mtime_label(path: str) -> str:
     try:
-        # Show in Asia/Seoul (KST) regardless of server locale (Streamlit Cloud is often UTC).
-        ts = datetime.fromtimestamp(os.path.getmtime(path), tz=ZoneInfo("Asia/Seoul"))
+        def _xlsx_modified_ts(p: str) -> datetime | None:
+            if not str(p).lower().endswith(".xlsx"):
+                return None
+            try:
+                with zipfile.ZipFile(p) as zf:
+                    core = zf.read("docProps/core.xml")
+                root = ET.fromstring(core)
+                ns = {
+                    "dcterms": "http://purl.org/dc/terms/",
+                }
+                modified_el = root.find(".//dcterms:modified", ns)
+                if modified_el is None or not (modified_el.text or "").strip():
+                    return None
+                raw = modified_el.text.strip()
+                raw = raw.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(raw)
+                return dt if dt.tzinfo is not None else dt.replace(tzinfo=ZoneInfo("UTC"))
+            except Exception:
+                return None
+
+        # Prefer Excel's internal "modified" timestamp (prevents git checkout time confusion).
+        ts = _xlsx_modified_ts(path)
+        if ts is None:
+            ts = datetime.fromtimestamp(os.path.getmtime(path), tz=ZoneInfo("Asia/Seoul"))
+        else:
+            ts = ts.astimezone(ZoneInfo("Asia/Seoul"))
         return ts.strftime("%Y-%m-%d %H:%M:%S %Z")
     except Exception:
         return "-"
@@ -662,7 +688,7 @@ def main() -> None:
 
     excel_path = _find_repo_excel()
     if excel_path:
-        st.caption(f"업데이트: `{_file_mtime_label(excel_path)}`")
+        st.caption(f"업데이트(엑셀 저장시각): `{_file_mtime_label(excel_path)}`")
     with st.sidebar:
         st.markdown("<div class='sb-title'>자료 다운로드</div>", unsafe_allow_html=True)
         b = _read_bytes(TEMPLATE_XLSX_PATH)
@@ -862,8 +888,14 @@ def main() -> None:
 <style>
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
+  white-space: pre-line !important;
 }
 div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
+div[data-testid="stDataFrame"] [role="columnheader"]::first-line,
+div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
+  color: #1a73e8;
+  font-weight: 800;
+}
 </style>
             """,
             unsafe_allow_html=True,
@@ -880,25 +912,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         }
         for c in stage_cols_raw:
             if c in cols:
-                column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
+                total = stage_totals.get(c, "")
+                label = f"{total}\n{c}" if total else c
+                column_config[c] = st.column_config.NumberColumn(label=label, format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
-
-        width_token_map: dict[str, str] = {
-            "신규분류 요약코드": "medium",
-            "품명": "large",
-            "POWER": "small",
-            "CP": "small",
-            "AXIS": "small",
-            "ADD": "small",
-            "납기일": "small",
-            "사출": "small",
-            "분리": "small",
-            "하이드레이션": "small",
-            "접착": "small",
-            "누수규격": "small",
-        }
-        weight_for = {"small": 1, "medium": 2, "large": 4}
-        weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in cols]
 
         # Download button should not push the totals row away from the table header,
         # so render it BEFORE totals grid.
@@ -909,13 +926,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             file_name=f"{'공정' if process_only else '납기'}_{selected_code or '전체'}_{process_only or '전체'}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"{ui_key_prefix}_download",
-        )
-
-        _render_totals_grid(
-            cols,
-            totals=stage_totals,
-            weights=weights,
-            non_total_cols=set(cols) - set(stage_cols_raw),
         )
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
@@ -1172,8 +1182,14 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
 <style>
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
+  white-space: pre-line !important;
 }
 div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
+div[data-testid="stDataFrame"] [role="columnheader"]::first-line,
+div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
+  color: #1a73e8;
+  font-weight: 800;
+}
 </style>
             """,
             unsafe_allow_html=True,
@@ -1233,24 +1249,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             "납기(종료)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         for c in numeric_cols:
-            col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
+            total = stage_totals.get(c, "")
+            label = f"{total}\n{c}" if total else c
+            col_cfg_summary[c] = st.column_config.NumberColumn(label=label, format="localized", width="small")
         col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
-
-        width_token_map: dict[str, str] = {
-            "우선순위": "small",
-            "이니셜": "small",
-            "수주번호": "medium",
-            "품목수": "small",
-            "납기(시작)": "small",
-            "납기(종료)": "small",
-            "사출": "small",
-            "분리": "small",
-            "하이드레이션": "small",
-            "접착": "small",
-            "누수규격": "small",
-        }
-        weight_for = {"small": 1, "medium": 2, "large": 4}
-        weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in summary_cols]
 
         xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
         st.download_button(
@@ -1259,13 +1261,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             file_name=f"수주요약_{code}_{date.today().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"order_{code}_download_sum",
-        )
-
-        _render_totals_grid(
-            summary_cols,
-            totals=stage_totals,
-            weights=weights,
-            non_total_cols=set(summary_cols) - set(numeric_cols),
         )
 
         sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
