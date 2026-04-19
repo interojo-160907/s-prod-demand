@@ -1,5 +1,5 @@
 [
   { "label": "통합 AIMS (내부)", "url": "http://192.168.2.29:1231/index.html" },
-  { "label": "생산 운영 현황 대시보드", "url": "https://aps-yield-dashboard.streamlit.app/" },
-  { "label": "수주대시보드", "url": "https://interojo-order-dashboard.streamlit.app/" }
+  { "label": "수요 대응 생산량 대시보드", "url": "https://aps-yield-dashboard.streamlit.app/" },
+  { "label": "수주 대시보드", "url": "https://interojo-order-dashboard.streamlit.app/" }
 ]
