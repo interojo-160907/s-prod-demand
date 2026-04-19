@@ -1231,11 +1231,28 @@ div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
         )
 
         order_show = order_view[summary_cols].copy()
-        for c in numeric_cols:
-            if c in order_show.columns:
-                order_show[c] = pd.to_numeric(order_show[c], errors="coerce").fillna(0).map(_format_int)
+        # MultiIndex header: show stage totals like "납기별 상세" (blue numbers over numeric cols).
         top = [stage_totals.get(c, "") if c in numeric_cols else "" for c in summary_cols]
         order_show.columns = pd.MultiIndex.from_arrays([top, summary_cols])
+
+        # Keep the same nice column widths/formatting even with MultiIndex columns.
+        col_cfg_summary_mi: dict[tuple[str, str], object] = {}
+        for t, c in zip(top, summary_cols, strict=True):
+            key = (t, c)
+            if c == "우선순위":
+                col_cfg_summary_mi[key] = st.column_config.NumberColumn(format="%d", width="small")
+            elif c == "이니셜":
+                col_cfg_summary_mi[key] = st.column_config.TextColumn(width="small")
+            elif c == "수주번호":
+                col_cfg_summary_mi[key] = st.column_config.TextColumn(width="medium")
+            elif c == "신규분류 요약코드":
+                col_cfg_summary_mi[key] = st.column_config.TextColumn(width="medium")
+            elif c == "품목수":
+                col_cfg_summary_mi[key] = st.column_config.NumberColumn(format="%d", width="small")
+            elif c in ["납기(시작)", "납기(종료)"]:
+                col_cfg_summary_mi[key] = st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small")
+            elif c in numeric_cols:
+                col_cfg_summary_mi[key] = st.column_config.NumberColumn(format="localized", width="small")
 
         sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
         st.dataframe(
@@ -1243,6 +1260,7 @@ div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
             use_container_width=True,
             height=sum_h,
             hide_index=True,
+            column_config=col_cfg_summary_mi,
         )
 
         st.divider()
