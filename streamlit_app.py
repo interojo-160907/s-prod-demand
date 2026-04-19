@@ -13,6 +13,12 @@ import streamlit as st
 
 import excel_analysis
 
+st.set_page_config(
+    page_title="S관 생산 필요수량 대시보드",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
 
 DATA_DIR = "data"
 REPO_EXCEL_CANDIDATES = [
@@ -639,11 +645,6 @@ def _render_totals_grid(
 
 
 def main() -> None:
-    st.set_page_config(
-        page_title="S관 생산 필요수량 대시보드",
-        layout="wide",
-        initial_sidebar_state="collapsed",
-    )
     st.title("S관 생산 필요수량 대시보드")
     _apply_local_theme_css()
 
