@@ -23,6 +23,7 @@ st.set_page_config(
 
 
 DATA_DIR = "data"
+KST = ZoneInfo("Asia/Seoul")
 REPO_EXCEL_CANDIDATES = [
     "s관 부족수량.xlsx",
     os.path.join(DATA_DIR, "s관 부족수량.xlsx"),
@@ -31,6 +32,10 @@ TEMPLATE_XLSX_PATH = "업로드 양식.xlsx"
 OUT_DIR = "out"
 STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
 DASHBOARD_LINKS_PATH = "dashboard_links.json"
+
+
+def _today_kst() -> date:
+    return datetime.now(tz=KST).date()
 
 
 def _load_dashboard_links(path: str = DASHBOARD_LINKS_PATH) -> list[dict[str, str]]:
@@ -143,9 +148,9 @@ def _file_mtime_label(path: str) -> str:
         # Prefer Excel's internal "modified" timestamp (prevents git checkout time confusion).
         ts = _xlsx_modified_ts(path)
         if ts is None:
-            ts = datetime.fromtimestamp(os.path.getmtime(path), tz=ZoneInfo("Asia/Seoul"))
+            ts = datetime.fromtimestamp(os.path.getmtime(path), tz=KST)
         else:
-            ts = ts.astimezone(ZoneInfo("Asia/Seoul"))
+            ts = ts.astimezone(KST)
         return ts.strftime("%Y-%m-%d %H:%M:%S %Z")
     except Exception:
         return "-"
@@ -297,14 +302,34 @@ div[data-testid="stDownloadButton"] button {{
 div[data-testid="stDownloadButton"] button:hover {{
   border-color: rgba(0, 0, 0, 0.20) !important;
 }}
-/* Make title breathe */
-h1 {{
-  margin-bottom: 0.8rem !important;
-}}
-</style>
-        """,
-        unsafe_allow_html=True,
-    )
+ /* Make title breathe */
+ h1 {{
+   margin-bottom: 0.8rem !important;
+ }}
+
+ /* DataFrame: match dashboard background (Streamlit DataTable / BaseWeb) */
+ div[data-testid="stDataFrame"] {{
+   background-color: {bg} !important;
+ }}
+ div[data-testid="stDataFrame"] div[data-baseweb="data-table"] {{
+   background-color: {bg} !important;
+ }}
+ div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="gridcell"] {{
+   background-color: {bg} !important;
+ }}
+ div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="row"] {{
+   background-color: {bg} !important;
+ }}
+ div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="columnheader"] {{
+   background-color: {sbg} !important;
+ }}
+ div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="row"]:hover div[role="gridcell"] {{
+   background-color: {sbg} !important;
+ }}
+ </style>
+         """,
+         unsafe_allow_html=True,
+     )
 
 
 def _split_family(family: str) -> tuple[str, str]:
@@ -909,18 +934,18 @@ def main() -> None:
         if view_mode == "납기별 상세":
             # Reset due-date filter when entering due view.
             st.session_state["due_due_quick"] = "해제"
-            st.session_state["due_due_end"] = date.today()
+            st.session_state["due_due_end"] = _today_kst()
             st.session_state["_prev_due_due_quick"] = "해제"
         if view_mode == "공정별 보기":
             st.session_state["process_pill"] = "사출"
             # Reset due-date filter when entering process view.
             st.session_state["proc_due_quick"] = "해제"
-            st.session_state["proc_due_end"] = date.today()
+            st.session_state["proc_due_end"] = _today_kst()
             st.session_state["_prev_proc_due_quick"] = "해제"
         if view_mode == "수주별 현황":
             # Always reset due-date filter when entering order view.
             st.session_state["order_due_quick"] = "해제"
-            st.session_state["order_due_end"] = date.today()
+            st.session_state["order_due_end"] = _today_kst()
             st.session_state["_prev_order_due_quick"] = "해제"
         st.session_state["_prev_view_mode"] = view_mode
 
@@ -941,11 +966,11 @@ def main() -> None:
         )
         due_quick = _coerce_single_value(due_quick_raw, default="해제", options=due_quick_options)
         if due_quick == "+7일":
-            due_default_end = date.today() + timedelta(days=7)
+            due_default_end = _today_kst() + timedelta(days=7)
         elif due_quick == "+14일":
-            due_default_end = date.today() + timedelta(days=14)
+            due_default_end = _today_kst() + timedelta(days=14)
         else:
-            due_default_end = date.today()
+            due_default_end = _today_kst()
 
         prev_due_quick = st.session_state.get("_prev_due_due_quick")
         if prev_due_quick != due_quick:
@@ -987,11 +1012,11 @@ def main() -> None:
         )
         proc_quick = _coerce_single_value(proc_quick_raw, default="해제", options=proc_quick_options)
         if proc_quick == "+7일":
-            proc_default_end = date.today() + timedelta(days=7)
+            proc_default_end = _today_kst() + timedelta(days=7)
         elif proc_quick == "+14일":
-            proc_default_end = date.today() + timedelta(days=14)
+            proc_default_end = _today_kst() + timedelta(days=14)
         else:
-            proc_default_end = date.today()
+            proc_default_end = _today_kst()
 
         prev_proc_quick = st.session_state.get("_prev_proc_due_quick")
         if prev_proc_quick != proc_quick:
@@ -1027,11 +1052,11 @@ def main() -> None:
         )
         quick = _coerce_single_value(quick_raw, default="해제", options=order_quick_options)
         if quick == "+7일":
-            default_end = date.today() + timedelta(days=7)
+            default_end = _today_kst() + timedelta(days=7)
         elif quick == "+14일":
-            default_end = date.today() + timedelta(days=14)
+            default_end = _today_kst() + timedelta(days=14)
         else:
-            default_end = date.today()
+            default_end = _today_kst()
 
         # Ensure quick pick actually updates the date_input (Streamlit keeps widget state by key).
         prev_quick = st.session_state.get("_prev_order_due_quick")
@@ -1056,12 +1081,12 @@ def main() -> None:
             if due_quick_state != "해제":
                 codes_src = _apply_due_date_end_filter(
                     codes_src,
-                    st.session_state.get("due_due_end", date.today()),
+                    st.session_state.get("due_due_end", _today_kst()),
                 )
         if view_mode == "공정별 보기":
             proc_quick_state = st.session_state.get("proc_due_quick", "해제")
             if proc_quick_state != "해제":
-                codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("proc_due_end", date.today()))
+                codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("proc_due_end", _today_kst()))
         value_col = process_only if process_only else "누수규격"
 
     totals_base: dict[str, float] = {}
@@ -1192,7 +1217,7 @@ def main() -> None:
         st.download_button(
             "엑셀 다운로드 (요약)",
             data=xlsx_bytes_sum,
-            file_name=f"수주요약_{code}_{date.today().isoformat()}.xlsx",
+            file_name=f"수주요약_{code}_{_today_kst().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"order_{code}_download_sum",
         )
@@ -1247,7 +1272,7 @@ def main() -> None:
         st.download_button(
             "엑셀 다운로드 (상세)",
             data=xlsx_bytes_det,
-            file_name=f"수주상세_{code}_{date.today().isoformat()}.xlsx",
+            file_name=f"수주상세_{code}_{_today_kst().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"order_{code}_download_det",
         )
@@ -1266,11 +1291,11 @@ def main() -> None:
     if view_mode == "납기별 상세":
         due_quick_state = st.session_state.get("due_due_quick", "해제")
         if due_quick_state != "해제":
-            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("due_due_end", date.today()))
+            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("due_due_end", _today_kst()))
     if view_mode == "공정별 보기":
         proc_quick_state = st.session_state.get("proc_due_quick", "해제")
         if proc_quick_state != "해제":
-            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("proc_due_end", date.today()))
+            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("proc_due_end", _today_kst()))
 
     subset = base_df if code == "전체" else base_df[base_df[new_code_col].astype("string") == code].copy()
     page_key = "due" if process_only is None else f"proc_{process_only}"
