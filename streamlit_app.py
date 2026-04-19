@@ -1,5 +1,6 @@
 import os
 import importlib
+import json
 import re
 from datetime import date
 from datetime import timedelta
@@ -21,6 +22,51 @@ REPO_EXCEL_CANDIDATES = [
 TEMPLATE_XLSX_PATH = "업로드 양식.xlsx"
 OUT_DIR = "out"
 STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
+DASHBOARD_LINKS_PATH = "dashboard_links.json"
+
+
+def _load_dashboard_links(path: str = DASHBOARD_LINKS_PATH) -> list[dict[str, str]]:
+    """
+    Load external dashboard links from a local json file.
+
+    Recommended schema:
+      [{"label": "...", "url": "https://..."}]
+
+    Also accepts:
+      {"links": [...]} and "name" instead of "label".
+    """
+    try:
+        if not os.path.exists(path):
+            return []
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("links"), list):
+            data = data["links"]
+        if not isinstance(data, list):
+            return []
+        out: list[dict[str, str]] = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get("label") or item.get("name") or "").strip()
+            url = str(item.get("url") or "").strip()
+            if label and url:
+                out.append({"label": label, "url": url})
+        return out
+    except Exception:
+        return []
+
+
+def _render_dashboard_link_buttons(links: list[dict[str, str]]) -> None:
+    if not links:
+        return
+    st.subheader("대시보드 바로가기")
+    ncols = min(4, len(links))
+    cols = st.columns(ncols)
+    for i, item in enumerate(links):
+        with cols[i % ncols]:
+            st.link_button(item["label"], item["url"], use_container_width=True)
+    st.divider()
 
 
 def _table_height_for_rows(
@@ -612,6 +658,19 @@ def main() -> None:
     )
     st.title("S관 생산 필요수량 대시보드")
     _apply_local_theme_css()
+
+    dashboard_links = _load_dashboard_links()
+    _render_dashboard_link_buttons(dashboard_links)
+    with st.sidebar:
+        if dashboard_links:
+            st.markdown("<div class='sb-title'>대시보드 링크</div>", unsafe_allow_html=True)
+            for item in dashboard_links:
+                st.link_button(item["label"], item["url"], use_container_width=True)
+            st.markdown("<div class='sb-hr'></div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='sb-title'>대시보드 링크</div>", unsafe_allow_html=True)
+            st.caption(f"`{DASHBOARD_LINKS_PATH}`에 링크를 추가하면 여기서 새 탭으로 열 수 있어요.")
+            st.markdown("<div class='sb-hr'></div>", unsafe_allow_html=True)
 
     excel_path = _find_repo_excel()
     if excel_path:
