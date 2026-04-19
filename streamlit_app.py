@@ -36,22 +36,37 @@ def _table_height_for_rows(
     return max(min_height, min(max_height, h))
 
 
-def _ensure_single_select(
-    value: str | None,
-    *,
-    key: str,
-    default: str,
-    options: list[str],
-) -> str:
+def _pre_widget_single_select_fix(*, key: str, default: str, options: list[str]) -> None:
     """
-    Streamlit pills can end up in an "unselected" state (None/"") if the user clicks the
-    selected option again. For our dashboard UX, treat that as selecting `default`.
+    Safe to call BEFORE the widget is instantiated in the current run.
+    Fixes invalid/cleared value in session_state so the widget shows `default`.
     """
+    v = st.session_state.get(key)
+    if isinstance(v, list):
+        v = v[0] if v else None
+    if isinstance(v, str):
+        v = v.strip()
+    if v not in options:
+        st.session_state[key] = default
+
+
+def _on_change_single_select(key: str, default: str, options: list[str]) -> None:
+    """
+    Callback: safe to mutate session_state for the widget key.
+    Used to snap back to default when user clears the selection.
+    """
+    v = st.session_state.get(key)
+    if isinstance(v, list):
+        v = v[0] if v else None
+    if isinstance(v, str):
+        v = v.strip()
+    if v not in options:
+        st.session_state[key] = default
+
+
+def _coerce_single_value(value: str | None, *, default: str, options: list[str]) -> str:
     v = (value or "").strip()
-    if v in options:
-        return v
-    st.session_state[key] = default
-    return default
+    return v if v in options else default
 
 
 def _find_repo_excel() -> str | None:
@@ -869,19 +884,18 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         render(df, ui_key_prefix="all")
         return
 
+    view_options = ["납기별 상세", "공정별 보기", "수주별 현황"]
+    _pre_widget_single_select_fix(key="view_mode", default="납기별 상세", options=view_options)
     view_mode_raw = st.segmented_control(
         "보기",
-        options=["납기별 상세", "공정별 보기", "수주별 현황"],
+        options=view_options,
         default="납기별 상세",
         key="view_mode",
+        on_change=_on_change_single_select,
+        args=("view_mode", "납기별 상세", view_options),
         label_visibility="collapsed",
     )
-    view_mode = _ensure_single_select(
-        view_mode_raw,
-        key="view_mode",
-        default="납기별 상세",
-        options=["납기별 상세", "공정별 보기", "수주별 현황"],
-    )
+    view_mode = _coerce_single_value(view_mode_raw, default="납기별 상세", options=view_options)
 
     prev_mode = st.session_state.get("_prev_view_mode")
     if prev_mode != view_mode:
@@ -901,35 +915,32 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
 
     process_only = None
     if view_mode == "공정별 보기":
+        _pre_widget_single_select_fix(key="process_pill", default="사출", options=DEFAULT_STAGE_COLS)
         process_only_raw = st.pills(
             "공정",
             options=DEFAULT_STAGE_COLS,
             default="사출",
             key="process_pill",
+            on_change=_on_change_single_select,
+            args=("process_pill", "사출", DEFAULT_STAGE_COLS),
             label_visibility="collapsed",
         )
-        process_only = _ensure_single_select(
-            process_only_raw,
-            key="process_pill",
-            default="사출",
-            options=DEFAULT_STAGE_COLS,
-        )
+        process_only = _coerce_single_value(process_only_raw, default="사출", options=DEFAULT_STAGE_COLS)
 
         # Due date end quick-picks (same idea as order view).
+        proc_quick_options = ["해제", "직접", "+7일", "+14일"]
+        _pre_widget_single_select_fix(key="proc_due_quick", default="해제", options=proc_quick_options)
         proc_quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
-            options=["해제", "직접", "+7일", "+14일"],
+            options=proc_quick_options,
             default="해제",
             key="proc_due_quick",
             selection_mode="single",
+            on_change=_on_change_single_select,
+            args=("proc_due_quick", "해제", proc_quick_options),
             label_visibility="collapsed",
         )
-        proc_quick = _ensure_single_select(
-            proc_quick_raw,
-            key="proc_due_quick",
-            default="해제",
-            options=["해제", "직접", "+7일", "+14일"],
-        )
+        proc_quick = _coerce_single_value(proc_quick_raw, default="해제", options=proc_quick_options)
         if proc_quick == "+7일":
             proc_default_end = date.today() + timedelta(days=7)
         elif proc_quick == "+14일":
@@ -957,20 +968,19 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         order_df = _load_order_detail_grouped(detail_csv, os.path.getmtime(detail_csv))
 
         # Due date end quick-picks
-        quick = st.pills(
+        order_quick_options = ["해제", "직접", "+7일", "+14일"]
+        _pre_widget_single_select_fix(key="order_due_quick", default="해제", options=order_quick_options)
+        quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
-            options=["해제", "직접", "+7일", "+14일"],
+            options=order_quick_options,
             default="해제",
             key="order_due_quick",
             selection_mode="single",
+            on_change=_on_change_single_select,
+            args=("order_due_quick", "해제", order_quick_options),
             label_visibility="collapsed",
         )
-        quick = _ensure_single_select(
-            quick,
-            key="order_due_quick",
-            default="해제",
-            options=["해제", "직접", "+7일", "+14일"],
-        )
+        quick = _coerce_single_value(quick_raw, default="해제", options=order_quick_options)
         if quick == "+7일":
             default_end = date.today() + timedelta(days=7)
         elif quick == "+14일":
@@ -1023,21 +1033,20 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             return f"전체 ({_format_int(total_all)})"
         return f"{code} ({_format_int(totals_base.get(code, 0.0))})"
 
-    code = st.pills(
+    code_all_options = ["전체"] + code_options
+    _pre_widget_single_select_fix(key="code_pill", default="전체", options=code_all_options)
+    code_raw = st.pills(
         "분류",
-        options=["전체"] + code_options,
+        options=code_all_options,
         default="전체",
         key="code_pill",
         format_func=_code_label,
         selection_mode="single",
+        on_change=_on_change_single_select,
+        args=("code_pill", "전체", code_all_options),
         label_visibility="collapsed",
     )
-    code = _ensure_single_select(
-        code,
-        key="code_pill",
-        default="전체",
-        options=["전체"] + code_options,
-    )
+    code = _coerce_single_value(code_raw, default="전체", options=code_all_options)
 
     if view_mode == "수주별 현황":
         subset = order_df if code == "전체" else order_df[order_df[new_code_col].astype("string") == code].copy()
