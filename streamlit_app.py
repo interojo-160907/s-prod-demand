@@ -867,19 +867,15 @@ def main() -> None:
         for c in stage_cols_raw:
             if c in view_show.columns:
                 view_show[c] = pd.to_numeric(view_show[c], errors="coerce").fillna(0).map(_format_int)
-        top = [stage_totals.get(c, "") if c in stage_cols_raw else "" for c in cols]
-        # Prevent header cell merging when adjacent totals have the same text (Streamlit merges identical headers).
-        seen: dict[str, int] = {}
-        top_unique: list[str] = []
-        for t in top:
-            if not t:
-                top_unique.append("")
-                continue
-            n = seen.get(t, 0)
-            seen[t] = n + 1
-            top_unique.append(t + ("\u200b" * n))
-        top = top_unique
-        view_show.columns = pd.MultiIndex.from_arrays([top, cols])
+        # Display totals as a clean HTML row above the columns
+        if stage_totals:
+            totals_html = " ".join([
+                f"<span style='margin-right: 20px; font-size: 15px;'>{c}: <strong style='color: #0066cc;'>{stage_totals[c]}</strong></span>"
+                for c in stage_cols_raw if c in stage_totals
+            ])
+            st.markdown(f"<div style='margin-bottom: 8px; padding: 4px 8px;'>{totals_html}</div>", unsafe_allow_html=True)
+
+        view_show.columns = cols
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
         st.dataframe(
@@ -887,6 +883,7 @@ def main() -> None:
             use_container_width=True,
             height=table_h,
             hide_index=True,
+            column_config=column_config,
         )
 
     if new_code_col is None:
@@ -1149,8 +1146,7 @@ def main() -> None:
         else:
             agg_spec["품목수"] = "size"
         if "_due_date" in summary_base.columns:
-            agg_spec["납기(시작)"] = "min"
-            agg_spec["납기(종료)"] = "max"
+            agg_spec["납기일"] = "min"
 
         # Pandas needs existing columns for named aggs; create working cols.
         work = summary_base.copy()
@@ -1158,11 +1154,11 @@ def main() -> None:
             work["품목수"] = work["품명"]
         else:
             work["품목수"] = 1
-        work["납기(시작)"] = work["_due_date"]
-        work["납기(종료)"] = work["_due_date"]
+        if "_due_date" in work.columns:
+            work["납기일"] = work["_due_date"]
 
         order_num = work.groupby(group_key, dropna=False, as_index=False).agg(agg_spec)
-        sort_cols = [c for c in ["납기(시작)", new_code_col, "이니셜", "수주번호"] if c in order_num.columns]
+        sort_cols = [c for c in ["납기일", new_code_col, "이니셜", "수주번호"] if c in order_num.columns]
         if sort_cols:
             order_num = order_num.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
         order_num.insert(0, "우선순위", range(1, len(order_num) + 1))
@@ -1177,16 +1173,16 @@ def main() -> None:
         base_cols = ["우선순위", "이니셜", "수주번호"]
         if code == "전체":
             base_cols.append(new_code_col)
-        base_cols += ["품목수", "납기(시작)", "납기(종료)"]
+        base_cols += ["품목수", "납기일"]
         summary_cols = [c for c in base_cols if c in order_view.columns] + numeric_cols
 
         col_cfg_summary: dict[str, object] = {
             "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
             "이니셜": st.column_config.TextColumn(width="small"),
             "수주번호": st.column_config.TextColumn(width="medium"),
+            "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
             "품목수": st.column_config.NumberColumn(format="%d", width="small"),
-            "납기(시작)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-            "납기(종료)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+            "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         for c in numeric_cols:
             col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
@@ -1202,40 +1198,15 @@ def main() -> None:
         )
 
         order_show = order_view[summary_cols].copy()
-        # MultiIndex header: show stage totals like "납기별 상세" (blue numbers over numeric cols).
-        top = [stage_totals.get(c, "") if c in numeric_cols else "" for c in summary_cols]
-        # Prevent header cell merging when adjacent totals have the same text (Streamlit merges identical headers).
-        seen: dict[str, int] = {}
-        top_unique: list[str] = []
-        for t in top:
-            if not t:
-                top_unique.append("")
-                continue
-            n = seen.get(t, 0)
-            seen[t] = n + 1
-            top_unique.append(t + ("\u200b" * n))
-        top = top_unique
-        order_show.columns = pd.MultiIndex.from_arrays([top, summary_cols])
+        order_show.columns = summary_cols
 
-        # Keep the same nice column widths/formatting even with MultiIndex columns.
-        col_cfg_summary_mi: dict[str, object] = {}
-        for t, c in zip(top, summary_cols, strict=True):
-            key = (t, c)
-            key_str = str(key)
-            if c == "우선순위":
-                col_cfg_summary_mi[key_str] = st.column_config.NumberColumn(format="%d", width="small")
-            elif c == "이니셜":
-                col_cfg_summary_mi[key_str] = st.column_config.TextColumn(width="small")
-            elif c == "수주번호":
-                col_cfg_summary_mi[key_str] = st.column_config.TextColumn(width="medium")
-            elif c == "신규분류 요약코드":
-                col_cfg_summary_mi[key_str] = st.column_config.TextColumn(width="medium")
-            elif c == "품목수":
-                col_cfg_summary_mi[key_str] = st.column_config.NumberColumn(format="%d", width="small")
-            elif c in ["납기(시작)", "납기(종료)"]:
-                col_cfg_summary_mi[key_str] = st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small")
-            elif c in numeric_cols:
-                col_cfg_summary_mi[key_str] = st.column_config.NumberColumn(format="localized", width="small")
+        # Display totals as HTML above the table
+        if stage_totals:
+            totals_html = " ".join([
+                f"<span style='margin-right: 20px; font-size: 15px;'>{c}: <strong style='color: #0066cc;'>{stage_totals[c]}</strong></span>"
+                for c in numeric_cols if c in stage_totals
+            ])
+            st.markdown(f"<div style='margin-bottom: 8px; padding: 4px 8px;'>{totals_html}</div>", unsafe_allow_html=True)
 
         sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
         st.dataframe(
@@ -1243,7 +1214,7 @@ def main() -> None:
             use_container_width=True,
             height=sum_h,
             hide_index=True,
-            column_config=col_cfg_summary_mi,
+            column_config=col_cfg_summary,
         )
 
         st.divider()
