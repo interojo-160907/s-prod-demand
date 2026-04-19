@@ -900,6 +900,11 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
     prev_mode = st.session_state.get("_prev_view_mode")
     if prev_mode != view_mode:
         st.session_state["code_pill"] = "전체"
+        if view_mode == "납기별 상세":
+            # Reset due-date filter when entering due view.
+            st.session_state["due_due_quick"] = "해제"
+            st.session_state["due_due_end"] = date.today()
+            st.session_state["_prev_due_due_quick"] = "해제"
         if view_mode == "공정별 보기":
             st.session_state["process_pill"] = "사출"
             # Reset due-date filter when entering process view.
@@ -914,6 +919,40 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         st.session_state["_prev_view_mode"] = view_mode
 
     process_only = None
+    if view_mode == "납기별 상세":
+        # Due date end quick-picks for due view.
+        due_quick_options = ["해제", "직접", "+7일", "+14일"]
+        _pre_widget_single_select_fix(key="due_due_quick", default="해제", options=due_quick_options)
+        due_quick_raw = st.pills(
+            "납기일 종료 (빠른 선택)",
+            options=due_quick_options,
+            default="해제",
+            key="due_due_quick",
+            selection_mode="single",
+            on_change=_on_change_single_select,
+            args=("due_due_quick", "해제", due_quick_options),
+            label_visibility="collapsed",
+        )
+        due_quick = _coerce_single_value(due_quick_raw, default="해제", options=due_quick_options)
+        if due_quick == "+7일":
+            due_default_end = date.today() + timedelta(days=7)
+        elif due_quick == "+14일":
+            due_default_end = date.today() + timedelta(days=14)
+        else:
+            due_default_end = date.today()
+
+        prev_due_quick = st.session_state.get("_prev_due_due_quick")
+        if prev_due_quick != due_quick:
+            st.session_state["due_due_end"] = due_default_end
+            st.session_state["_prev_due_due_quick"] = due_quick
+
+        due_end_date = st.date_input(
+            "납기일 종료",
+            value=st.session_state.get("due_due_end", due_default_end),
+            key="due_due_end",
+            disabled=(due_quick == "해제"),
+        )
+
     if view_mode == "공정별 보기":
         _pre_widget_single_select_fix(key="process_pill", default="사출", options=DEFAULT_STAGE_COLS)
         process_only_raw = st.pills(
@@ -1006,6 +1045,13 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         value_col = "누수규격"
     else:
         codes_src = df
+        if view_mode == "납기별 상세":
+            due_quick_state = st.session_state.get("due_due_quick", "해제")
+            if due_quick_state != "해제":
+                codes_src = _apply_due_date_end_filter(
+                    codes_src,
+                    st.session_state.get("due_due_end", date.today()),
+                )
         if view_mode == "공정별 보기":
             proc_quick_state = st.session_state.get("proc_due_quick", "해제")
             if proc_quick_state != "해제":
@@ -1230,6 +1276,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         return
 
     base_df = df
+    if view_mode == "납기별 상세":
+        due_quick_state = st.session_state.get("due_due_quick", "해제")
+        if due_quick_state != "해제":
+            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("due_due_end", date.today()))
     if view_mode == "공정별 보기":
         proc_quick_state = st.session_state.get("proc_due_quick", "해제")
         if proc_quick_state != "해제":
