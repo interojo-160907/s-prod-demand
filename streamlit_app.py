@@ -198,6 +198,25 @@ def _load_theme_from_config() -> dict:
         return {}
 
 
+def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
+    theme = _load_theme_from_config()
+    bg = theme.get("backgroundColor", "#FBF7EE")
+    sbg = theme.get("secondaryBackgroundColor", "#F2EBDD")
+    text = theme.get("textColor", "#1B1B1B")
+    try:
+        return (
+            df.style.set_properties(**{"background-color": bg, "color": text})
+            .set_table_styles(
+                [
+                    {"selector": "th", "props": [("background-color", sbg), ("color", text)]},
+                    {"selector": "td", "props": [("background-color", bg), ("color", text)]},
+                ]
+            )
+        )
+    except Exception:
+        return df
+
+
 def _apply_local_theme_css() -> None:
     theme = _load_theme_from_config()
     bg = theme.get("backgroundColor", "#FBF7EE")
@@ -311,19 +330,51 @@ div[data-testid="stDownloadButton"] button:hover {{
  div[data-testid="stDataFrame"] {{
    background-color: {bg} !important;
  }}
+ .stDataFrame {{
+   background-color: {bg} !important;
+ }}
  div[data-testid="stDataFrame"] div[data-baseweb="data-table"] {{
+   background-color: {bg} !important;
+ }}
+ .stDataFrame div[data-baseweb="data-table"] {{
    background-color: {bg} !important;
  }}
  div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="gridcell"] {{
    background-color: {bg} !important;
  }}
+ .stDataFrame div[data-baseweb="data-table"] div[role="gridcell"] {{
+   background-color: {bg} !important;
+ }}
  div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="row"] {{
+   background-color: {bg} !important;
+ }}
+ .stDataFrame div[data-baseweb="data-table"] div[role="row"] {{
    background-color: {bg} !important;
  }}
  div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="columnheader"] {{
    background-color: {sbg} !important;
  }}
+ .stDataFrame div[data-baseweb="data-table"] div[role="columnheader"] {{
+   background-color: {sbg} !important;
+ }}
  div[data-testid="stDataFrame"] div[data-baseweb="data-table"] div[role="row"]:hover div[role="gridcell"] {{
+   background-color: {sbg} !important;
+ }}
+ .stDataFrame div[data-baseweb="data-table"] div[role="row"]:hover div[role="gridcell"] {{
+   background-color: {sbg} !important;
+ }}
+
+ /* DataFrame: fallback for table-based renderers */
+ .stDataFrame table {{
+   background-color: {bg} !important;
+ }}
+ .stDataFrame thead tr th {{
+   background-color: {sbg} !important;
+ }}
+ .stDataFrame tbody tr td {{
+   background-color: {bg} !important;
+ }}
+ .stDataFrame tbody tr:hover td {{
    background-color: {sbg} !important;
  }}
  </style>
@@ -904,7 +955,7 @@ def main() -> None:
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
         st.dataframe(
-            view_show,
+            _style_dataframe_like_dashboard(view_show),
             use_container_width=True,
             height=table_h,
             hide_index=True,
@@ -1235,7 +1286,7 @@ def main() -> None:
 
         sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
         st.dataframe(
-            order_show,
+            _style_dataframe_like_dashboard(order_show),
             use_container_width=True,
             height=sum_h,
             hide_index=True,
@@ -1279,7 +1330,7 @@ def main() -> None:
 
         detail_h = _table_height_for_rows(len(view), min_height=320, max_height=720)
         st.dataframe(
-            view[cols],
+            _style_dataframe_like_dashboard(view[cols]),
             use_container_width=True,
             height=detail_h,
             hide_index=True,
