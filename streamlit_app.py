@@ -626,6 +626,50 @@ def _apply_due_date_end_filter(df: pd.DataFrame, end: date) -> pd.DataFrame:
     return df.loc[mask].copy()
 
 
+def _render_totals_grid(
+    cols: list[str],
+    *,
+    totals: dict[str, str],
+    weights: list[int],
+    non_total_cols: set[str] | None = None,
+) -> None:
+    non_total_cols = non_total_cols or set()
+    tpl = " ".join(f"{max(1, int(w))}fr" for w in weights)
+
+    def cell(c: str) -> str:
+        if c in non_total_cols:
+            return "&nbsp;"
+        v = totals.get(c, "")
+        return v if v else "&nbsp;"
+
+    cells_html = "\n".join(f"<div class='totals-cell'>{cell(c)}</div>" for c in cols)
+    st.markdown(
+        f"""
+<style>
+.totals-grid {{
+  display: grid;
+  grid-template-columns: {tpl};
+  gap: 0;
+  align-items: end;
+  margin: 0 0 2px 0;
+  padding: 0;
+}}
+.totals-cell {{
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a73e8;
+  text-align: right;
+  white-space: nowrap;
+}}
+</style>
+<div class="totals-grid">
+{cells_html}
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
     st.title("S관 생산 필요수량 대시보드")
     _apply_local_theme_css()
@@ -837,21 +881,15 @@ def main() -> None:
             if s in view.columns:
                 view[s] = pd.to_numeric(view[s], errors="coerce").fillna(0).astype(int)
 
-        stage_totals = {c: int(df_num[c].sum()) for c in stage_cols_raw if c in df_num.columns}
+        stage_totals = {c: _format_int(df_num[c].sum()) for c in stage_cols_raw if c in df_num.columns}
 
         st.markdown(
             """
 <style>
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
-  white-space: pre-line !important;
 }
 div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
-div[data-testid="stDataFrame"] [role="columnheader"]::first-line,
-div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
-  color: #1a73e8;
-  font-weight: 800;
-}
 </style>
             """,
             unsafe_allow_html=True,
@@ -868,11 +906,25 @@ div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
         }
         for c in stage_cols_raw:
             if c in cols:
-                total = stage_totals.get(c, "")
-                total_s = _format_int(total) if total != "" else ""
-                label = f"{total_s}\n{c}" if total_s else c
-                column_config[c] = st.column_config.NumberColumn(label=label, format="localized", width="small")
+                column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
+
+        width_token_map: dict[str, str] = {
+            "신규분류 요약코드": "medium",
+            "품명": "large",
+            "POWER": "small",
+            "CP": "small",
+            "AXIS": "small",
+            "ADD": "small",
+            "납기일": "small",
+            "사출": "small",
+            "분리": "small",
+            "하이드레이션": "small",
+            "접착": "small",
+            "누수규격": "small",
+        }
+        weight_for = {"small": 1, "medium": 2, "large": 4}
+        weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in cols]
 
         # Download button should not push the totals row away from the table header,
         # so render it BEFORE totals grid.
@@ -883,6 +935,13 @@ div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
             file_name=f"{'공정' if process_only else '납기'}_{selected_code or '전체'}_{process_only or '전체'}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"{ui_key_prefix}_download",
+        )
+
+        _render_totals_grid(
+            cols,
+            totals=stage_totals,
+            weights=weights,
+            non_total_cols=set(cols) - set(stage_cols_raw),
         )
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
@@ -1130,21 +1189,17 @@ div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
             stage_sum = stage_sum + detail_num[c].fillna(0)
         detail_num = detail_num.loc[stage_sum.fillna(0).gt(0)].copy()
 
-        stage_totals = {c: int(pd.to_numeric(detail_num[c], errors="coerce").fillna(0).sum()) for c in numeric_cols}
+        stage_totals = {
+            c: _format_int(pd.to_numeric(detail_num[c], errors="coerce").fillna(0).sum()) for c in numeric_cols
+        }
 
         st.markdown(
             """
 <style>
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
-  white-space: pre-line !important;
 }
 div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
-div[data-testid="stDataFrame"] [role="columnheader"]::first-line,
-div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
-  color: #1a73e8;
-  font-weight: 800;
-}
 </style>
             """,
             unsafe_allow_html=True,
@@ -1204,11 +1259,24 @@ div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
             "납기(종료)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         for c in numeric_cols:
-            total = stage_totals.get(c, "")
-            total_s = _format_int(total) if total != "" else ""
-            label = f"{total_s}\n{c}" if total_s else c
-            col_cfg_summary[c] = st.column_config.NumberColumn(label=label, format="localized", width="small")
+            col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
         col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
+
+        width_token_map: dict[str, str] = {
+            "우선순위": "small",
+            "이니셜": "small",
+            "수주번호": "medium",
+            "품목수": "small",
+            "납기(시작)": "small",
+            "납기(종료)": "small",
+            "사출": "small",
+            "분리": "small",
+            "하이드레이션": "small",
+            "접착": "small",
+            "누수규격": "small",
+        }
+        weight_for = {"small": 1, "medium": 2, "large": 4}
+        weights = [weight_for.get(width_token_map.get(c, "small"), 1) for c in summary_cols]
 
         xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
         st.download_button(
@@ -1217,6 +1285,13 @@ div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
             file_name=f"수주요약_{code}_{date.today().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"order_{code}_download_sum",
+        )
+
+        _render_totals_grid(
+            summary_cols,
+            totals=stage_totals,
+            weights=weights,
+            non_total_cols=set(summary_cols) - set(numeric_cols),
         )
 
         sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
