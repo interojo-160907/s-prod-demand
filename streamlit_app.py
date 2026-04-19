@@ -890,6 +890,17 @@ div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
             if c in view_show.columns:
                 view_show[c] = pd.to_numeric(view_show[c], errors="coerce").fillna(0).map(_format_int)
         top = [stage_totals.get(c, "") if c in stage_cols_raw else "" for c in cols]
+        # Prevent header cell merging when adjacent totals have the same text (Streamlit merges identical headers).
+        seen: dict[str, int] = {}
+        top_unique: list[str] = []
+        for t in top:
+            if not t:
+                top_unique.append("")
+                continue
+            n = seen.get(t, 0)
+            seen[t] = n + 1
+            top_unique.append(t + ("\u200b" * n))
+        top = top_unique
         view_show.columns = pd.MultiIndex.from_arrays([top, cols])
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
@@ -1237,6 +1248,17 @@ div[data-testid="stDataFrame"] thead tr:nth-child(2) th {
         order_show = order_view[summary_cols].copy()
         # MultiIndex header: show stage totals like "납기별 상세" (blue numbers over numeric cols).
         top = [stage_totals.get(c, "") if c in numeric_cols else "" for c in summary_cols]
+        # Prevent header cell merging when adjacent totals have the same text (Streamlit merges identical headers).
+        seen: dict[str, int] = {}
+        top_unique: list[str] = []
+        for t in top:
+            if not t:
+                top_unique.append("")
+                continue
+            n = seen.get(t, 0)
+            seen[t] = n + 1
+            top_unique.append(t + ("\u200b" * n))
+        top = top_unique
         order_show.columns = pd.MultiIndex.from_arrays([top, summary_cols])
 
         # Keep the same nice column widths/formatting even with MultiIndex columns.
