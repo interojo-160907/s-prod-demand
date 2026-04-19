@@ -844,8 +844,14 @@ def main() -> None:
 <style>
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
+  white-space: pre-line !important;
 }
 div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
+div[data-testid="stDataFrame"] [role="columnheader"]::first-line,
+div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
+  color: #1a73e8;
+  font-weight: 800;
+}
 </style>
             """,
             unsafe_allow_html=True,
@@ -862,7 +868,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
         }
         for c in stage_cols_raw:
             if c in cols:
-                column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
+                total = stage_totals.get(c, "")
+                total_s = _format_int(total) if total != "" else ""
+                label = f"{total_s}\n{c}" if total_s else c
+                column_config[c] = st.column_config.NumberColumn(label=label, format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
         # Download button should not push the totals row away from the table header,
@@ -874,38 +883,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             file_name=f"{'공정' if process_only else '납기'}_{selected_code or '전체'}_{process_only or '전체'}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"{ui_key_prefix}_download",
-        )
-
-        # Render totals as a 1-row dataframe above the table so it stays aligned
-        # under sidebar drag/resize and doesn't rely on hand-rolled CSS grids.
-        st.markdown(
-            """
-<style>
-.totals-row-marker { height: 0; }
-div.element-container:has(.totals-row-marker) + div.element-container div[data-testid="stDataFrame"] thead {
-  display: none;
-}
-div.element-container:has(.totals-row-marker) + div.element-container div[data-testid="stDataFrame"] [role="cell"] {
-  color: #1a73e8;
-  font-weight: 800;
-  text-align: right;
-  white-space: nowrap;
-}
-div.element-container:has(.totals-row-marker) + div.element-container div[data-testid="stDataFrame"] [role="cell"] * {
-  color: inherit;
-}
-</style>
-<div class="totals-row-marker"></div>
-            """,
-            unsafe_allow_html=True,
-        )
-        totals_row = {c: (stage_totals.get(c, "") if c in stage_cols_raw else "") for c in cols}
-        st.dataframe(
-            pd.DataFrame([totals_row])[cols],
-            use_container_width=True,
-            height=40,
-            hide_index=True,
-            column_config=column_config,
         )
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
@@ -1160,8 +1137,14 @@ div.element-container:has(.totals-row-marker) + div.element-container div[data-t
 <style>
 div[data-testid="stDataFrame"] [role="columnheader"] {
   background-color: #e8f0fe;
+  white-space: pre-line !important;
 }
 div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !important; }
+div[data-testid="stDataFrame"] [role="columnheader"]::first-line,
+div[data-testid="stDataFrame"] [role="columnheader"] *::first-line {
+  color: #1a73e8;
+  font-weight: 800;
+}
 </style>
             """,
             unsafe_allow_html=True,
@@ -1221,7 +1204,10 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             "납기(종료)": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         for c in numeric_cols:
-            col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
+            total = stage_totals.get(c, "")
+            total_s = _format_int(total) if total != "" else ""
+            label = f"{total_s}\n{c}" if total_s else c
+            col_cfg_summary[c] = st.column_config.NumberColumn(label=label, format="localized", width="small")
         col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
 
         xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
@@ -1231,36 +1217,6 @@ div[data-testid="stDataFrame"] [role="columnheader"] * { white-space: pre-line !
             file_name=f"수주요약_{code}_{date.today().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key=f"order_{code}_download_sum",
-        )
-
-        st.markdown(
-            """
-<style>
-.totals-row-marker { height: 0; }
-div.element-container:has(.totals-row-marker) + div.element-container div[data-testid="stDataFrame"] thead {
-  display: none;
-}
-div.element-container:has(.totals-row-marker) + div.element-container div[data-testid="stDataFrame"] [role="cell"] {
-  color: #1a73e8;
-  font-weight: 800;
-  text-align: right;
-  white-space: nowrap;
-}
-div.element-container:has(.totals-row-marker) + div.element-container div[data-testid="stDataFrame"] [role="cell"] * {
-  color: inherit;
-}
-</style>
-<div class="totals-row-marker"></div>
-            """,
-            unsafe_allow_html=True,
-        )
-        totals_row = {c: (stage_totals.get(c, "") if c in numeric_cols else "") for c in summary_cols}
-        st.dataframe(
-            pd.DataFrame([totals_row])[summary_cols],
-            use_container_width=True,
-            height=40,
-            hide_index=True,
-            column_config=col_cfg_summary,
         )
 
         sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
