@@ -57,18 +57,6 @@ def _load_dashboard_links(path: str = DASHBOARD_LINKS_PATH) -> list[dict[str, st
         return []
 
 
-def _render_dashboard_link_buttons(links: list[dict[str, str]]) -> None:
-    if not links:
-        return
-    st.subheader("대시보드 바로가기")
-    ncols = min(4, len(links))
-    cols = st.columns(ncols)
-    for i, item in enumerate(links):
-        with cols[i % ncols]:
-            st.link_button(item["label"], item["url"], use_container_width=True)
-    st.divider()
-
-
 def _table_height_for_rows(
     n_rows: int,
     *,
@@ -660,7 +648,6 @@ def main() -> None:
     _apply_local_theme_css()
 
     dashboard_links = _load_dashboard_links()
-    _render_dashboard_link_buttons(dashboard_links)
     with st.sidebar:
         if dashboard_links:
             st.markdown("<div class='sb-title'>대시보드 링크</div>", unsafe_allow_html=True)

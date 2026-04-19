@@ -1,6 +1,5 @@
 [
   { "label": "통합 AIMS (내부)", "url": "http://192.168.2.29:1231/index.html" },
-  { "label": "통합 AIMS (외부)", "url": "https://plt.interojo.net/?aims_token=22141a64-1eff-4a7e-9f03-8615579e522e" },
   { "label": "생산 운영 현황 대시보드", "url": "https://aps-yield-dashboard.streamlit.app/" },
   { "label": "수주대시보드", "url": "https://interojo-order-dashboard.streamlit.app/" }
 ]
