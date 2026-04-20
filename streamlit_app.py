@@ -976,9 +976,10 @@ def main() -> None:
         if process_only:
             cols.append("제품코드")
         cols += ["POWER"]
+        cols += ["납기일"]
         if process_only:
             cols.append("최소목표일")
-        cols += ["납기일"] + stage_cols_raw
+        cols += stage_cols_raw
         if has_toric:
             power_idx = cols.index("POWER")
             cols[power_idx + 1 : power_idx + 1] = ["CP", "AXIS"]
