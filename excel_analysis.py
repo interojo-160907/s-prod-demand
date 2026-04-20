@@ -81,6 +81,27 @@ def _format_power(power) -> str:
 
 _RE_TORIC = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})(\d{3})$")
 _RE_TWO_FLOATS = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})$")
+_RE_ONE_FLOAT = re.compile(r"([+-]\d+\.\d{2})")
+
+
+def _parse_power_from_code(code) -> str:
+    """
+    Extract POWER (the first signed float) from a product code string.
+
+    Examples:
+      - P5416A+02.50+2.50 -> +02.50
+      - R1025-02.75+2.50  -> -02.75
+      - Q5294-01.50IGM    -> -01.50
+    """
+    if code is None or (isinstance(code, float) and math.isnan(code)):
+        return ""
+    s = str(code).strip()
+    if not s:
+        return ""
+    m = _RE_ONE_FLOAT.search(s)
+    if not m:
+        return ""
+    return _format_power(m.group(1))
 
 
 def _format_spec(value: float, *, zero_sign: str = "+") -> str:
@@ -502,18 +523,42 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     add_cp_axis = demand["제품 코드"].map(_parse_lens_spec_from_code)
     demand["ADD"], demand["CP"], demand["AXIS"] = zip(*add_cp_axis, strict=False)
 
-    product_family_map = _build_product_family_map(xl)
-    demand["제품군"] = demand["제품 코드"].map(product_family_map)
-    miss = demand.loc[demand["제품군"].isna()].copy() if product_family_map else demand.copy()
+    # 제품군(=대시보드 품명+POWER)은 수요 제품 이름 기준으로 구성해야
+    # P/Q/R 등 공정별 품번이 달라도 동일 품명으로 묶여 공정별 필요수량이 한 화면에 잡힌다.
+    #
+    # (기존 설비별 매핑은 품번별 제품 이름이 달라, 예: Q/R 품번이 다른 이름으로 매핑되면
+    # 납기별/공정별 화면에서 사출/분리 값이 누락된 것처럼 보일 수 있음.)
+    power_fmt = demand["제품 코드"].map(_parse_power_from_code)
+
+    base_family = None
     if "수요 제품 이름" in demand.columns:
-        fallback = (
-            demand["수요 제품 이름"].astype(str).str.strip()
-            + " | "
-            + demand["제품 코드"].astype(str).str.strip()
+        base_family = demand["수요 제품 이름"].astype(str).str.strip()
+        base_family = base_family.where(base_family.ne("") & base_family.str.lower().ne("nan"))
+        demand["제품군"] = pd.NA
+        has_name = base_family.notna()
+        has_power = power_fmt.fillna("").ne("")
+        demand.loc[has_name & has_power, "제품군"] = (
+            base_family.loc[has_name & has_power].astype(str) + " + " + power_fmt.loc[has_name & has_power].astype(str)
         )
+        demand.loc[has_name & (~has_power), "제품군"] = base_family.loc[has_name & (~has_power)]
+    else:
+        demand["제품군"] = pd.NA
+
+    # Fallback to 설비별 매핑 if needed (mainly for missing 수요 제품 이름 or POWER parsing).
+    product_family_map = _build_product_family_map(xl)
+    mapped = demand["제품 코드"].map(product_family_map) if product_family_map else pd.Series([pd.NA] * len(demand))
+    miss = demand.loc[mapped.isna()].copy() if product_family_map else demand.copy()
+    demand["제품군"] = demand["제품군"].where(
+        demand["제품군"].astype("string").fillna("").str.strip().ne(""),
+        mapped,
+    )
+
+    if "수요 제품 이름" in demand.columns:
+        fallback = base_family.fillna("").astype(str).str.strip() + " | " + demand["제품 코드"].astype(str).str.strip()
     else:
         fallback = demand["제품 코드"].astype(str).str.strip()
-    demand["제품군"] = demand["제품군"].fillna(fallback)
+    demand["제품군"] = demand["제품군"].astype("string").fillna("").str.strip()
+    demand.loc[demand["제품군"].eq(""), "제품군"] = fallback
     miss_out = os.path.join(out_dir, "제품코드_매핑누락.csv")
     miss_key_col = "제품 코드"
     (
