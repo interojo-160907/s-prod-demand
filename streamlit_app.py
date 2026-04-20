@@ -884,6 +884,7 @@ def main() -> None:
         sort_cols: list[str] = []
         for c in [
             "납기일",
+            "최소목표일",
             "신규분류 요약코드",
             "품명",
             "POWER_group",
