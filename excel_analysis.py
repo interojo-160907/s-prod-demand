@@ -586,6 +586,76 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
         }
     )
 
+    # Optional: 설비별 시트에서 공정별 "최소 목표일"을 제품군 기준으로 집계(공정별 보기에서 사용).
+    equip_target_path = None
+    equip_code_target_path = None
+    if "설비별" in xl.sheet_names:
+        equip = _clean_columns(xl.parse("설비별"))
+        equip = _to_datetime(equip, ["최소 목표일"])
+        if "최소 목표일" in equip.columns:
+            equip_stage_map = {
+                "[10]사출조립": "사출",
+                "[20]분리": "분리",
+                "[45]하이드레이션/전면검사": "하이드레이션",
+                "[55]접착/멸균": "접착",
+                "[80]누수/규격검사": "누수규격",
+            }
+
+            name_col = None
+            for c in ["제품 이름", "제품명"]:
+                if c in equip.columns:
+                    name_col = c
+                    break
+            group_col = None
+            for c in ["제품 그룹 코드", "제품그룹코드"]:
+                if c in equip.columns:
+                    group_col = c
+                    break
+            if name_col and group_col and "POWER" in equip.columns and "공정 코드" in equip.columns:
+                equip["POWER_fmt"] = equip["POWER"].map(_format_power)
+                equip["제품군"] = equip[name_col].astype("string").fillna("").str.strip() + " + " + equip["POWER_fmt"].astype(
+                    "string"
+                ).fillna("")
+                equip[group_col] = equip[group_col].astype("string").fillna("").str.strip()
+                equip["공정"] = (
+                    equip["공정 코드"]
+                    .astype("string")
+                    .fillna("")
+                    .map(lambda x: equip_stage_map.get(str(x).strip(), ""))
+                )
+
+                equip_min = equip.loc[equip["공정"].ne("") & equip["제품군"].astype("string").fillna("").str.strip().ne("")]
+                if not equip_min.empty:
+                    equip_min = equip_min.groupby([group_col, "제품군", "공정"], dropna=False, as_index=False).agg(
+                        최소목표일=("최소 목표일", "min")
+                    )
+                    equip_min = equip_min.rename(columns={group_col: "신규분류 요약코드"})
+                    equip_target_path = os.path.join(out_dir, "설비별_제품군_공정_최소목표일.csv")
+                    equip_min.to_csv(equip_target_path, index=False, encoding="utf-8-sig")
+
+            # Prefer product-code based mapping for reliable joins with order-detail ("제품 코드").
+            code_col = None
+            for c in ["제품코드(Full)", "제품 코드", "제품코드"]:
+                if c in equip.columns:
+                    code_col = c
+                    break
+            if code_col and "공정 코드" in equip.columns:
+                equip_code = equip.copy()
+                equip_code["제품 코드"] = equip_code[code_col].astype("string").fillna("").str.strip()
+                equip_code["공정"] = (
+                    equip_code["공정 코드"]
+                    .astype("string")
+                    .fillna("")
+                    .map(lambda x: equip_stage_map.get(str(x).strip(), ""))
+                )
+                equip_code = equip_code.loc[equip_code["공정"].ne("") & equip_code["제품 코드"].ne("")]
+                if not equip_code.empty:
+                    equip_code_min = equip_code.groupby(["공정", "제품 코드"], dropna=False, as_index=False).agg(
+                        최소목표일=("최소 목표일", "min")
+                    )
+                    equip_code_target_path = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
+                    equip_code_min.to_csv(equip_code_target_path, index=False, encoding="utf-8-sig")
+
     out_path = os.path.join(out_dir, "납기_제품군_공정별부족.csv")
     cols = []
     if "신규분류 요약코드" in g.columns:
@@ -639,10 +709,16 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     if "_map_key" in demand.columns:
         demand = demand.drop(columns=["_map_key"])
 
+    outputs = [out_path, detail_path, miss_out]
+    if equip_target_path:
+        outputs.append(equip_target_path)
+    if equip_code_target_path:
+        outputs.append(equip_code_target_path)
+
     return {
         "enabled": True,
         "rows": int(g.shape[0]),
-        "outputs": [out_path, detail_path, miss_out],
+        "outputs": outputs,
         "mapping_size": int(len(product_family_map)),
         "mapping_miss_unique_codes": int(miss[miss_key_col].nunique() if miss_key_col in miss.columns else 0),
     }

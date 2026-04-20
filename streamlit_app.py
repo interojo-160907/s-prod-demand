@@ -171,18 +171,46 @@ def _safe_mkdir(path: str) -> None:
 def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     due_csv = os.path.join(out_dir, "납기_제품군_공정별부족.csv")
     detail_csv = os.path.join(out_dir, "이니셜별_수주상세.csv")
+    equip_code_target_csv = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
     excel_mtime = os.path.getmtime(excel_path)
 
     if os.path.exists(due_csv) and os.path.exists(detail_csv):
         if os.path.getmtime(due_csv) >= excel_mtime and os.path.getmtime(detail_csv) >= excel_mtime:
-            return {"ok": True, "regenerated": False, "due_csv": due_csv, "detail_csv": detail_csv}
+            if os.path.exists(equip_code_target_csv) and os.path.getmtime(equip_code_target_csv) >= excel_mtime:
+                return {
+                    "ok": True,
+                    "regenerated": False,
+                    "due_csv": due_csv,
+                    "detail_csv": detail_csv,
+                    "equip_code_target_csv": equip_code_target_csv,
+                }
+            # If the workbook has 설비별 but the derived CSV is missing (old cache), regenerate once.
+            try:
+                xl = pd.ExcelFile(excel_path)
+                has_equip = "설비별" in xl.sheet_names
+            except Exception:
+                has_equip = False
+            if not has_equip:
+                return {
+                    "ok": True,
+                    "regenerated": False,
+                    "due_csv": due_csv,
+                    "detail_csv": detail_csv,
+                    "equip_code_target_csv": None,
+                }
 
     _safe_mkdir(out_dir)
     importlib.reload(excel_analysis)
     info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
     if not info.get("enabled"):
         return {"ok": False, "reason": info.get("reason") or "export failed"}
-    return {"ok": True, "regenerated": True, "due_csv": due_csv, "detail_csv": detail_csv}
+    return {
+        "ok": True,
+        "regenerated": True,
+        "due_csv": due_csv,
+        "detail_csv": detail_csv,
+        "equip_code_target_csv": equip_code_target_csv if os.path.exists(equip_code_target_csv) else None,
+    }
 
 
 def _load_theme_from_config() -> dict:
@@ -574,6 +602,25 @@ def _load_order_detail_csv(path: str, mtime: float) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def _load_equip_code_min_target_csv(path: str, mtime: float) -> pd.DataFrame:
+    _ = mtime  # cache-buster when file changes
+    if not path or not os.path.exists(path):
+        return pd.DataFrame()
+    header = pd.read_csv(path, nrows=0)
+    dtype: dict[str, str] = {}
+    for c in ["공정", "제품 코드"]:
+        if c in header.columns:
+            dtype[c] = "string"
+    df = pd.read_csv(path, dtype=dtype if dtype else None)
+    if "최소목표일" in df.columns:
+        df["최소목표일"] = pd.to_datetime(df["최소목표일"], errors="coerce")
+    for c in ["공정", "제품 코드"]:
+        if c in df.columns:
+            df[c] = df[c].astype("string").fillna("").str.strip()
+    return df
+
+
+@st.cache_data(show_spinner=False)
 def _load_due_prepared(path: str, mtime: float) -> pd.DataFrame:
     # One-shot cache: load + prepare (avoids recomputing _prepare_lens_df on every rerun).
     base = _load_due_csv(path, mtime)
@@ -756,12 +803,24 @@ def main() -> None:
 
         due_csv = str(ensure["due_csv"])
         detail_csv = str(ensure["detail_csv"])
+        equip_code_target_csv = ensure.get("equip_code_target_csv")
 
     detail_for_map: pd.DataFrame | None = None
     try:
         detail_for_map = _load_order_detail_prepared(detail_csv, os.path.getmtime(detail_csv))
     except Exception:
         detail_for_map = None
+
+    equip_code_target_df: pd.DataFrame | None = None
+    try:
+        if equip_code_target_csv:
+            equip_code_target_df = _load_equip_code_min_target_csv(
+                str(equip_code_target_csv), os.path.getmtime(str(equip_code_target_csv))
+            )
+        else:
+            equip_code_target_df = None
+    except Exception:
+        equip_code_target_df = None
 
     def _tab_sort_key(code: str) -> tuple[int, int, str]:
         s = str(code).strip()
@@ -852,6 +911,33 @@ def main() -> None:
             if "제품코드" not in view.columns:
                 view["제품코드"] = ""
 
+            if (
+                detail_for_map is not None
+                and equip_code_target_df is not None
+                and (not equip_code_target_df.empty)
+                and "제품 코드" in detail_for_map.columns
+                and "최소목표일" in equip_code_target_df.columns
+                and "제품 코드" in equip_code_target_df.columns
+                and "공정" in equip_code_target_df.columns
+            ):
+                d = detail_for_map.copy()
+                if "납기일" in d.columns:
+                    d["납기일"] = pd.to_datetime(d["납기일"], errors="coerce")
+                d["제품 코드"] = d["제품 코드"].astype("string").fillna("").str.strip()
+                if allowed_prefixes:
+                    prefixes = [str(p).strip().upper() for p in allowed_prefixes if str(p).strip()]
+                    if prefixes:
+                        d = d.loc[d["제품 코드"].map(lambda x: any(str(x).upper().startswith(p) for p in prefixes))]
+                t = equip_code_target_df.loc[equip_code_target_df["공정"].astype("string") == process_only, ["제품 코드", "최소목표일"]]
+                d = d.merge(t, on="제품 코드", how="left")
+                key_candidates = ["신규분류 요약코드", "제품군", "납기일"]
+                key_cols = [c for c in key_candidates if c in view.columns and c in d.columns]
+                if key_cols:
+                    tgt = d.groupby(key_cols, dropna=False, as_index=False).agg(최소목표일=("최소목표일", "min"))
+                    view = view.merge(tgt, on=key_cols, how="left")
+            if "최소목표일" not in view.columns:
+                view["최소목표일"] = pd.NaT
+
         # Export dataframe (keep numeric) BEFORE display formatting.
         export_df = view.copy()
         for s in stage_cols_raw:
@@ -888,7 +974,10 @@ def main() -> None:
         cols = ["신규분류 요약코드", "품명"]
         if process_only:
             cols.append("제품코드")
-        cols += ["POWER", "납기일"] + stage_cols_raw
+        cols += ["POWER"]
+        if process_only:
+            cols.append("최소목표일")
+        cols += ["납기일"] + stage_cols_raw
         if has_toric:
             power_idx = cols.index("POWER")
             cols[power_idx + 1 : power_idx + 1] = ["CP", "AXIS"]
@@ -928,6 +1017,7 @@ def main() -> None:
             "CP": st.column_config.TextColumn(width="small"),
             "AXIS": st.column_config.TextColumn(width="small"),
             "ADD": st.column_config.TextColumn(width="small"),
+            "최소목표일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
             "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         for c in stage_cols_raw:
