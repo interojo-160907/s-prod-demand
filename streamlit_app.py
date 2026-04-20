@@ -838,6 +838,20 @@ def main() -> None:
         if sort_cols:
             view = view.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
 
+        allowed_prefixes: list[str] | None = None
+        if process_only:
+            prefix_map: dict[str, list[str]] = {
+                "사출": ["R"],
+                "분리": ["Q"],
+                "하이드레이션": ["P"],
+                "접착": ["P"],
+                "누수규격": ["P"],
+            }
+            allowed_prefixes = prefix_map.get(process_only, None)
+            view = _attach_item_codes(view, detail_for_map, allowed_prefixes=allowed_prefixes)
+            if "제품코드" not in view.columns:
+                view["제품코드"] = ""
+
         # Export dataframe (keep numeric) BEFORE display formatting.
         export_df = view.copy()
         for s in stage_cols_raw:
@@ -871,7 +885,10 @@ def main() -> None:
             elif "sph" in sl or "spherical" in sl:
                 has_toric, has_multi = False, False
 
-        cols = ["신규분류 요약코드", "품명", "POWER", "납기일"] + stage_cols_raw
+        cols = ["신규분류 요약코드", "품명"]
+        if process_only:
+            cols.append("제품코드")
+        cols += ["POWER", "납기일"] + stage_cols_raw
         if has_toric:
             power_idx = cols.index("POWER")
             cols[power_idx + 1 : power_idx + 1] = ["CP", "AXIS"]
@@ -889,22 +906,12 @@ def main() -> None:
         # - 납기별 상세: 화면 그대로(제품코드 없음)
         # - 공정별 보기: 제품코드 포함 + 공정별 prefix 필터
         if process_only:
-            prefix_map = {
-                "사출": ["R"],
-                "분리": ["Q"],
-                "하이드레이션": ["P"],
-                "접착": ["P"],
-                "누수규격": ["P"],
-            }
-            export_df2 = _attach_item_codes(
-                export_df2,
-                detail_for_map,
-                allowed_prefixes=prefix_map.get(process_only, None),
-            )
             if "제품코드" in export_df2.columns and "제품코드" not in export_cols:
-                # 품명 앞에 제품코드
-                if "품명" in export_cols:
-                    export_cols.insert(export_cols.index("품명"), "제품코드")
+                # 품명과 POWER 사이에 제품코드
+                if "품명" in export_cols and "POWER" in export_cols:
+                    export_cols.insert(export_cols.index("POWER"), "제품코드")
+                elif "품명" in export_cols:
+                    export_cols.insert(export_cols.index("품명") + 1, "제품코드")
                 else:
                     export_cols.insert(0, "제품코드")
 
@@ -916,6 +923,7 @@ def main() -> None:
         column_config = {
             "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
             "품명": st.column_config.TextColumn(width="large"),
+            "제품코드": st.column_config.TextColumn(width="medium"),
             "POWER": st.column_config.TextColumn(width="small"),
             "CP": st.column_config.TextColumn(width="small"),
             "AXIS": st.column_config.TextColumn(width="small"),
