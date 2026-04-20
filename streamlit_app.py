@@ -38,6 +38,14 @@ def _today_kst() -> date:
     return datetime.now(tz=KST).date()
 
 
+def _end_of_month(d: date) -> date:
+    if d.month == 12:
+        first_next = date(d.year + 1, 1, 1)
+    else:
+        first_next = date(d.year, d.month + 1, 1)
+    return first_next - timedelta(days=1)
+
+
 def _load_dashboard_links(path: str = DASHBOARD_LINKS_PATH) -> list[dict[str, str]]:
     """
     Load external dashboard links from a local json file.
@@ -1103,7 +1111,7 @@ def main() -> None:
     process_only = None
     if view_mode == "납기별 상세":
         # Due date end quick-picks for due view.
-        due_quick_options = ["해제", "직접", "+7일", "+14일"]
+        due_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
         _pre_widget_single_select_fix(key="due_due_quick", default="해제", options=due_quick_options)
         due_quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
@@ -1116,7 +1124,9 @@ def main() -> None:
             label_visibility="collapsed",
         )
         due_quick = _coerce_single_value(due_quick_raw, default="해제", options=due_quick_options)
-        if due_quick == "+7일":
+        if due_quick == "당월":
+            due_default_end = _end_of_month(_today_kst())
+        elif due_quick == "+7일":
             due_default_end = _today_kst() + timedelta(days=7)
         elif due_quick == "+14일":
             due_default_end = _today_kst() + timedelta(days=14)
@@ -1149,7 +1159,7 @@ def main() -> None:
         process_only = _coerce_single_value(process_only_raw, default="사출", options=DEFAULT_STAGE_COLS)
 
         # Due date end quick-picks (same idea as order view).
-        proc_quick_options = ["해제", "직접", "+7일", "+14일"]
+        proc_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
         _pre_widget_single_select_fix(key="proc_due_quick", default="해제", options=proc_quick_options)
         proc_quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
@@ -1162,7 +1172,9 @@ def main() -> None:
             label_visibility="collapsed",
         )
         proc_quick = _coerce_single_value(proc_quick_raw, default="해제", options=proc_quick_options)
-        if proc_quick == "+7일":
+        if proc_quick == "당월":
+            proc_default_end = _end_of_month(_today_kst())
+        elif proc_quick == "+7일":
             proc_default_end = _today_kst() + timedelta(days=7)
         elif proc_quick == "+14일":
             proc_default_end = _today_kst() + timedelta(days=14)
@@ -1189,7 +1201,7 @@ def main() -> None:
         order_df = _load_order_detail_grouped(detail_csv, os.path.getmtime(detail_csv))
 
         # Due date end quick-picks
-        order_quick_options = ["해제", "직접", "+7일", "+14일"]
+        order_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
         _pre_widget_single_select_fix(key="order_due_quick", default="해제", options=order_quick_options)
         quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
@@ -1202,7 +1214,9 @@ def main() -> None:
             label_visibility="collapsed",
         )
         quick = _coerce_single_value(quick_raw, default="해제", options=order_quick_options)
-        if quick == "+7일":
+        if quick == "당월":
+            default_end = _end_of_month(_today_kst())
+        elif quick == "+7일":
             default_end = _today_kst() + timedelta(days=7)
         elif quick == "+14일":
             default_end = _today_kst() + timedelta(days=14)
