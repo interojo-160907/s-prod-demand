@@ -1005,7 +1005,7 @@ def _build_order_risk_table(
     # Join back representative meta columns
     rep = base.copy()
     rep_key = group_key.copy()
-    rep_cols = [c for c in ["품명", "납기일"] if c in rep.columns]
+    rep_cols = [c for c in ["품명", "품목수", "납기일"] if c in rep.columns]
     if rep_cols:
         rep = rep.groupby(rep_key, dropna=False, as_index=False).agg({c: "first" for c in rep_cols})
     else:
@@ -1029,77 +1029,119 @@ def _build_order_risk_table(
 
     out["리스크등급"] = out["_worst_rank"].map(_rank_to_grade)
 
-    def _reason_row(r) -> str:
-        due = r.get("납기일")
-        due_date = due.date() if isinstance(due, pd.Timestamp) else None
-        dday_s = ""
-        if isinstance(due_date, date):
-            d = (due_date - today).days
-            dday_s = f"D+{abs(d)}" if d < 0 else f"D-{d}"
+    # Determine "공정 범위"(시작~마지막 부족 공정) and forecast gate.
+    stage_agg = base[group_key + stage_cols].copy()
+    stage_agg = stage_agg.groupby(group_key, dropna=False, as_index=False)[stage_cols].sum(numeric_only=True)
 
-        if pd.isna(r.get("병목공정")) and pd.isna(r.get("시작공정")):
+    def _last_short_stage(row) -> str:
+        last = ""
+        last_ord = -1
+        for p in DEFAULT_STAGE_COLS:
+            if p in stage_cols:
+                v = float(row.get(p, 0) or 0)
+                if v > 0 and proc_order.get(p, -1) >= last_ord:
+                    last = p
+                    last_ord = proc_order.get(p, -1)
+        return last
+
+    def _gate_stage(row) -> str:
+        last = _last_short_stage(row)
+        if not last:
             return ""
-        start_proc_name = str(r.get("시작공정") or "").strip()
-        bn_proc_name = str(r.get("병목공정") or "").strip()
-        start_short = r.get("시작_부족수량")
-        bn_short = r.get("병목_부족수량")
-        bn_capa = float(r.get("병목_CAPA") or 0)
-        bn_capa_days = int(r.get("병목_CAPA_days") or 0)
-        bn_need = r.get("병목_필요일수")
-        bn_rem = r.get("병목_남은일수")
+        # If only 사출/분리까지만 부족(후공정 0)이라면 S관 기준 완료는 분리(또는 사출)로 본다.
+        downstream = ["하이드레이션", "접착", "누수규격"]
+        has_downstream = any(float(row.get(p, 0) or 0) > 0 for p in downstream if p in stage_cols)
+        if not has_downstream and last in ("사출", "분리"):
+            return last
+        return "누수규격" if "누수규격" in stage_cols else last
 
-        parts: list[str] = []
-        if dday_s:
-            parts.append(dday_s)
-        if start_proc_name and bn_proc_name and start_proc_name != bn_proc_name:
-            try:
-                parts.append(f"시작:{start_proc_name}({float(start_short or 0):,.0f})")
-            except Exception:
-                parts.append(f"시작:{start_proc_name}")
+    stage_agg["마지막공정"] = stage_agg.apply(_last_short_stage, axis=1)
+    stage_agg["게이트공정"] = stage_agg.apply(_gate_stage, axis=1)
+    out = out.merge(stage_agg[group_key + ["마지막공정", "게이트공정"]], on=group_key, how="left")
 
-        # Bottleneck detail (always)
-        if bn_proc_name:
-            if bn_capa <= 0:
-                parts.append(f"병목:{bn_proc_name} CAPA=0(최근 {bn_capa_days}가동일)")
-            else:
-                try:
-                    parts.append(
-                        f"병목:{bn_proc_name} 부족 {float(bn_short or 0):,.0f} / CAPA {bn_capa:,.0f}/일 / 필요 {float(bn_need or 0):.2f}일 / 남은 {float(bn_rem or 0):.0f}일"
-                    )
-                except Exception:
-                    parts.append(f"병목:{bn_proc_name}")
+    # Completion forecast (게이트공정 기준)
+    def _forecast_row(r) -> pd.Timestamp:
+        gate = str(r.get("게이트공정") or "").strip()
+        if not gate or gate not in base.columns:
+            return pd.NaT
+        short = float(r.get(gate) or 0)
+        if short <= 0:
+            return pd.NaT
+        capa = float(capa_map.get(gate, 0.0) or 0.0)
+        if capa <= 0:
+            return pd.NaT
+        days = int(math.ceil(short / capa))
+        return pd.Timestamp(today + timedelta(days=int(start_offset_days) + days))
 
-        return " · ".join([p for p in parts if str(p).strip()])
+    # Attach per-order gate shortage (from stage_agg)
+    for c in stage_cols:
+        if c in stage_agg.columns and c not in out.columns:
+            out = out.merge(stage_agg[group_key + [c]], on=group_key, how="left")
 
-    out["리스크사유"] = out.apply(_reason_row, axis=1)
-
-    # Completion forecast (누수규격 기준)
-    if "누수규격" in base.columns:
-        leak_need = base[group_key + ["누수규격"]].copy()
-        leak_need = leak_need.groupby(group_key, dropna=False, as_index=False)["누수규격"].sum(numeric_only=True)
-        leak_need["누수규격"] = pd.to_numeric(leak_need["누수규격"], errors="coerce").fillna(0)
-        leak_capa = float(capa_map.get("누수규격", 0.0) or 0.0)
-        leak_need["누수규격_CAPA"] = leak_capa
-        leak_need["누수규격_필요일수"] = leak_need.apply(
-            lambda r: (float(r["누수규격"]) / leak_capa) if leak_capa > 0 else float("inf"),
-            axis=1,
-        )
-        leak_need["완료예상일"] = leak_need.apply(
-            lambda r: (today + timedelta(days=int(start_offset_days) + int(math.ceil(float(r["누수규격"]) / leak_capa))))
-            if (float(r["누수규격"]) > 0 and leak_capa > 0)
-            else pd.NaT,
-            axis=1,
-        )
-        out = out.merge(leak_need[group_key + ["누수규격", "누수규격_CAPA", "누수규격_필요일수", "완료예상일"]], on=group_key, how="left")
-        if "납기일" in out.columns:
-            out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
-            out["완료예상일"] = pd.to_datetime(out["완료예상일"], errors="coerce")
-            due_norm = out["납기일"].dt.normalize()
-            done_norm = out["완료예상일"].dt.normalize()
-            delay = (done_norm - due_norm).dt.days
-            out["예상지연일"] = pd.to_numeric(delay, errors="coerce").fillna(0).clip(lower=0).astype(int)
+    out["완료예상일"] = out.apply(_forecast_row, axis=1)
+    if "납기일" in out.columns:
+        out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
+        out["완료예상일"] = pd.to_datetime(out["완료예상일"], errors="coerce")
+        due_norm = out["납기일"].dt.normalize()
+        done_norm = out["완료예상일"].dt.normalize()
+        delay = (done_norm - due_norm).dt.days
+        out["예상지연일"] = pd.to_numeric(delay, errors="coerce").fillna(0).clip(lower=0).astype(int)
     else:
         out["예상지연일"] = 0
+
+    def _reason_row(r) -> str:
+        if pd.isna(r.get("병목공정")) and pd.isna(r.get("시작공정")):
+            return ""
+
+        due = r.get("납기일")
+        due_date = due.date() if isinstance(due, pd.Timestamp) else None
+        overdue = False
+        if isinstance(due_date, date):
+            overdue = (due_date - today).days < 0
+
+        start_proc_name = str(r.get("시작공정") or "").strip()
+        last_proc_name = str(r.get("마지막공정") or "").strip()
+        bn_proc_name = str(r.get("병목공정") or "").strip()
+        gate_proc_name = str(r.get("게이트공정") or "").strip()
+
+        # S관 공정 범위 표시
+        route = ""
+        if start_proc_name and last_proc_name:
+            route = f"{start_proc_name}~{last_proc_name}"
+        elif bn_proc_name:
+            route = bn_proc_name
+
+        # 후공정 타관(=S관 공정이 사출/분리까지만 부족)
+        is_transfer = (last_proc_name in ("사출", "분리")) and all(
+            float(r.get(p) or 0) <= 0 for p in ["하이드레이션", "접착", "누수규격"] if p in out.columns
+        )
+
+        parts: list[str] = []
+        if overdue:
+            parts.append("납기경과")
+        if route:
+            parts.append(f"S관:{route} 부족" + ("(후공정 타관)" if is_transfer else ""))
+        if bn_proc_name:
+            bn_capa = float(capa_map.get(bn_proc_name, 0.0) or 0.0)
+            if bn_capa <= 0:
+                parts.append(f"막힘:{bn_proc_name}(CAPA=0)")
+            else:
+                # No number spam: show only qualitative cause by grade.
+                if str(r.get("리스크등급") or "").strip() == "RED":
+                    parts.append(f"막힘:{bn_proc_name}(CAPA부족)")
+                elif str(r.get("리스크등급") or "").strip() == "YELLOW":
+                    parts.append(f"막힘:{bn_proc_name}(여유부족)")
+                else:
+                    parts.append(f"막힘:{bn_proc_name}")
+        if gate_proc_name:
+            gate_capa = float(capa_map.get(gate_proc_name, 0.0) or 0.0)
+            if gate_capa <= 0:
+                parts.append(f"완료예상:{gate_proc_name}(CAPA=0)")
+            else:
+                parts.append(f"완료예상:{gate_proc_name}")
+        return " / ".join([p for p in parts if str(p).strip()])
+
+    out["리스크사유"] = out.apply(_reason_row, axis=1)
 
     # Priority sort: grade, due date, delay
     sort_grade = {"RED": 0, "YELLOW": 1, "GREEN": 2}
@@ -1908,8 +1950,6 @@ def main() -> None:
             "품명",
             "납기일",
             "리스크등급",
-            "시작공정",
-            "병목공정",
             "리스크사유",
             "완료예상일",
             "예상지연일",
@@ -1934,8 +1974,6 @@ def main() -> None:
             "품명": st.column_config.TextColumn(width="large"),
             "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
             "리스크등급": st.column_config.TextColumn(width="small"),
-            "시작공정": st.column_config.TextColumn(width="small"),
-            "병목공정": st.column_config.TextColumn(width="small"),
             "리스크사유": st.column_config.TextColumn(width="large"),
             "완료예상일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
             "예상지연일": st.column_config.NumberColumn(format="%d", width="small"),
