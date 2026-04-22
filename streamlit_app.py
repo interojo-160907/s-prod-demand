@@ -128,6 +128,21 @@ def _on_change_single_select(key: str, default: str, options: list[str]) -> None
         st.session_state[key] = default
 
 
+def _on_change_risk_grade_pills(*, key: str, grade_options: list[str]) -> None:
+    """
+    Risk tab grade filter callback.
+    Selecting '해제' sets selection to all grades.
+    """
+    v = st.session_state.get(key)
+    if not isinstance(v, list):
+        v = [v] if v else []
+    v = [str(x).strip() for x in v if str(x).strip()]
+    if "해제" in v:
+        st.session_state[key] = grade_options
+        return
+    st.session_state[key] = [g for g in v if g in grade_options]
+
+
 def _coerce_single_value(value: str | None, *, default: str, options: list[str]) -> str:
     v = (value or "").strip()
     return v if v in options else default
@@ -1983,28 +1998,6 @@ def main() -> None:
             "등급: RED=납기내 불가(필요일수>남은일수) · YELLOW=여유부족(버퍼 1일 이내) · GREEN=가능"
         )
 
-        grade_options = ["RED", "YELLOW", "GREEN"]
-        g1, g2 = st.columns([0.82, 0.18])
-        with g1:
-            grade_raw = st.pills(
-                "등급 필터",
-                options=grade_options,
-                default=st.session_state.get("risk_grade_pill", ["RED", "YELLOW"]),
-                key="risk_grade_pill",
-                selection_mode="multi",
-                label_visibility="collapsed",
-            )
-        with g2:
-            if st.button("해제", use_container_width=True, key="risk_clear_filters"):
-                st.session_state["risk_grade_pill"] = grade_options
-                st.session_state["risk_due_quick"] = "해제"
-                # best-effort reset for current search box
-                st.session_state[f"risk_{code}_search"] = ""
-
-        selected_grades = grade_raw if isinstance(grade_raw, list) else ([grade_raw] if grade_raw else [])
-        if not selected_grades:
-            selected_grades = ["RED", "YELLOW"]
-
         # 완료예정일(스케줄)은 전체 backlog 기준으로 계산하고, 화면 표시만 필터 적용한다.
         schedule_src = order_df_all if isinstance(order_df_all, pd.DataFrame) and not order_df_all.empty else order_df
         view_src = order_df
@@ -2058,13 +2051,46 @@ def main() -> None:
             st.caption("표시할 리스크 대상이 없습니다.")
             st.stop()
 
-        # Apply same filters to the computed result.
-        risk_df = risk_all.copy()
-        if code != "전체" and new_code_col in risk_df.columns:
-            risk_df = risk_df.loc[risk_df[new_code_col].astype("string") == code].copy()
-        if quick != "해제" and "납기일" in risk_df.columns:
-            risk_df = _apply_due_date_end_filter(risk_df, st.session_state.get("risk_due_end", _today_kst()))
-        risk_df = _filter_by_any_contains(risk_df, ["품명", "이니셜", "수주번호"], search_raw)
+        # Base filters (code + due) for counts/pills.
+        risk_base = risk_all.copy()
+        if code != "전체" and new_code_col in risk_base.columns:
+            risk_base = risk_base.loc[risk_base[new_code_col].astype("string") == code].copy()
+        if quick != "해제" and "납기일" in risk_base.columns:
+            risk_base = _apply_due_date_end_filter(risk_base, st.session_state.get("risk_due_end", _today_kst()))
+
+        grade_options = ["RED", "YELLOW", "GREEN"]
+        counts = risk_base["리스크등급"].value_counts().to_dict() if "리스크등급" in risk_base.columns else {}
+        filter_options = ["해제", *grade_options]
+
+        def _grade_label(opt: str) -> str:
+            s = str(opt)
+            if s in grade_options:
+                return f"{s} ({int(counts.get(s, 0))})"
+            return s
+
+        grade_raw = st.pills(
+            "등급 필터",
+            options=filter_options,
+            default=st.session_state.get("risk_grade_pill", ["RED", "YELLOW"]),
+            key="risk_grade_pill",
+            format_func=_grade_label,
+            selection_mode="multi",
+            on_change=_on_change_risk_grade_pills,
+            kwargs={"key": "risk_grade_pill", "grade_options": grade_options},
+            label_visibility="collapsed",
+        )
+        selected_grades = grade_raw if isinstance(grade_raw, list) else ([grade_raw] if grade_raw else [])
+        selected_grades = [g for g in selected_grades if g in grade_options]
+        if not selected_grades:
+            selected_grades = ["RED", "YELLOW"]
+
+        search_raw = st.text_input(
+            "검색 (이니셜/수주번호/품명)",
+            placeholder="예: 해외, 202601, O2O2",
+            key=f"risk_{code}_search",
+        )
+
+        risk_df = _filter_by_any_contains(risk_base, ["품명", "이니셜", "수주번호"], search_raw)
         risk_df = risk_df.loc[risk_df["리스크등급"].isin(selected_grades)].copy()
         if risk_df.empty:
             st.caption("필터 조건에 해당하는 항목이 없습니다.")
