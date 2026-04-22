@@ -1608,9 +1608,9 @@ def main() -> None:
             st.session_state["order_due_end"] = _today_kst()
             st.session_state["_prev_order_due_quick"] = "해제"
         if view_mode == "리스크":
-            st.session_state["risk_due_quick"] = "+14일"
-            st.session_state["risk_due_end"] = _today_kst() + timedelta(days=14)
-            st.session_state["_prev_risk_due_quick"] = "+14일"
+            st.session_state["risk_due_quick"] = "해제"
+            st.session_state["risk_due_end"] = _today_kst()
+            st.session_state["_prev_risk_due_quick"] = "해제"
             st.session_state["risk_grade_pill"] = ["RED", "YELLOW"]
         st.session_state["_prev_view_mode"] = view_mode
 
@@ -1717,7 +1717,7 @@ def main() -> None:
         end_key = "order_due_end" if view_mode == "수주별 현황" else "risk_due_end"
 
         quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
-        default_quick = "해제" if view_mode == "수주별 현황" else "+14일"
+        default_quick = "해제"
         _pre_widget_single_select_fix(key=quick_key, default=default_quick, options=quick_options)
         quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
@@ -1979,16 +1979,28 @@ def main() -> None:
             f"기준: CAPA=최근 {RISK_CAPA_RUN_DAYS} 가동일(전일까지, 양품>0) 평균 · "
             f"YELLOW 버퍼={RISK_YELLOW_BUFFER_DAYS:.0f}일 · 24/7 연속운영 가정"
         )
+        st.caption(
+            "등급: RED=납기내 불가(필요일수>남은일수) · YELLOW=여유부족(버퍼 1일 이내) · GREEN=가능"
+        )
 
         grade_options = ["RED", "YELLOW", "GREEN"]
-        grade_raw = st.pills(
-            "등급 필터",
-            options=grade_options,
-            default=st.session_state.get("risk_grade_pill", ["RED", "YELLOW"]),
-            key="risk_grade_pill",
-            selection_mode="multi",
-            label_visibility="collapsed",
-        )
+        g1, g2 = st.columns([0.82, 0.18])
+        with g1:
+            grade_raw = st.pills(
+                "등급 필터",
+                options=grade_options,
+                default=st.session_state.get("risk_grade_pill", ["RED", "YELLOW"]),
+                key="risk_grade_pill",
+                selection_mode="multi",
+                label_visibility="collapsed",
+            )
+        with g2:
+            if st.button("해제", use_container_width=True, key="risk_clear_filters"):
+                st.session_state["risk_grade_pill"] = grade_options
+                st.session_state["risk_due_quick"] = "해제"
+                # best-effort reset for current search box
+                st.session_state[f"risk_{code}_search"] = ""
+
         selected_grades = grade_raw if isinstance(grade_raw, list) else ([grade_raw] if grade_raw else [])
         if not selected_grades:
             selected_grades = ["RED", "YELLOW"]
@@ -2057,13 +2069,7 @@ def main() -> None:
         if risk_df.empty:
             st.caption("필터 조건에 해당하는 항목이 없습니다.")
             st.stop()
-
-        # Summary metrics
-        c = risk_df["리스크등급"].value_counts().to_dict()
-        m1, m2, m3 = st.columns(3)
-        m1.metric("RED", int(c.get("RED", 0)))
-        m2.metric("YELLOW", int(c.get("YELLOW", 0)))
-        m3.metric("GREEN", int(c.get("GREEN", 0)))
+        st.caption(f"표시 건수: {len(risk_df):,}")
 
         show_cols = [
             "우선순위",
