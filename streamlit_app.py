@@ -701,7 +701,7 @@ def _load_order_detail_grouped(path: str, mtime: float) -> pd.DataFrame:
     Filters (due-date/search/code) can be applied afterwards without regrouping.
     """
     df = _load_order_detail_prepared(path, mtime)
-    numeric_cols = [c for c in DEFAULT_STAGE_COLS if c in df.columns]
+    numeric_cols = [c for c in [*DEFAULT_STAGE_COLS, "필요수량"] if c in df.columns]
     if numeric_cols:
         work = df.copy()
         for c in numeric_cols:
@@ -1164,7 +1164,9 @@ def _build_order_risk_table(
         if capa <= 0:
             continue
         gg = g.copy()
-        gg["_qty"] = pd.to_numeric(gg[proc], errors="coerce").fillna(0)
+        # For RED/YELLOW, compute completion based on total request qty ("필요수량") when available.
+        qty_src_col = "필요수량" if "필요수량" in gg.columns else proc
+        gg["_qty"] = pd.to_numeric(gg[qty_src_col], errors="coerce").fillna(0)
         gg = gg.loc[gg["_qty"].gt(0)].copy()
         if gg.empty:
             continue
@@ -1965,7 +1967,7 @@ def main() -> None:
         view_src = order_df
 
         def _to_order_level(df0: pd.DataFrame) -> pd.DataFrame:
-            stage_cols = [c for c in DEFAULT_STAGE_COLS if c in df0.columns]
+            stage_cols = [c for c in [*DEFAULT_STAGE_COLS, "필요수량"] if c in df0.columns]
             if not stage_cols:
                 return df0
             work = df0.copy()
