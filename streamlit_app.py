@@ -1228,6 +1228,39 @@ def _build_order_risk_table(
     if "누수규격" in out.columns:
         out["누수규격"] = pd.to_numeric(out["누수규격"], errors="coerce").fillna(0).astype(int)
 
+    # Final risk grade should be consistent with the scheduled completion date.
+    # (Theoretical "부족/CAPA" can say GREEN even when queue-based schedule pushes completion past due.)
+    if "납기일" in out.columns:
+        out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
+    if "완료예정일" in out.columns:
+        out["완료예정일"] = pd.to_datetime(out["완료예정일"], errors="coerce")
+
+    def _grade_from_schedule(r) -> str | None:
+        due = r.get("납기일")
+        done = r.get("완료예정일")
+        if not isinstance(due, pd.Timestamp) or pd.isna(due):
+            return None
+        if not isinstance(done, pd.Timestamp) or pd.isna(done):
+            # If we can't schedule (e.g., CAPA=0), treat as RED.
+            return "RED"
+        due_d = due.normalize()
+        done_d = done.normalize()
+        if done_d > due_d:
+            return "RED"
+        slack = (due_d - done_d).days
+        if slack <= int(math.ceil(max(0.0, float(buffer_days)))):
+            return "YELLOW"
+        return "GREEN"
+
+    # Promote grade if schedule implies higher risk
+    sched_grade = out.apply(_grade_from_schedule, axis=1)
+    rank = {"GREEN": 1, "YELLOW": 2, "RED": 3}
+    cur = out["리스크등급"].map(lambda x: rank.get(str(x), 0))
+    sch = sched_grade.map(lambda x: rank.get(str(x), 0) if isinstance(x, str) else 0)
+    use = cur.where(cur.ge(sch), sch)
+    inv = {v: k for k, v in rank.items()}
+    out["리스크등급"] = use.map(lambda x: inv.get(int(x), "GREEN"))
+
     def _reason_row(r) -> str:
         if pd.isna(r.get("병목공정")) and pd.isna(r.get("시작공정")):
             return ""
