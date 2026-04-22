@@ -2026,15 +2026,6 @@ def main() -> None:
         schedule_orders = _to_order_level(schedule_src)
         view_orders = _to_order_level(view_src)
 
-        # Apply code filter on the VIEW (not on schedule)
-        subset = view_orders if code == "전체" else view_orders[view_orders[new_code_col].astype("string") == code].copy()
-        search_raw = st.text_input(
-            "검색 (이니셜/수주번호/품명)",
-            placeholder="예: 해외, 202601, O2O2",
-            key=f"risk_{code}_search",
-        )
-        subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
-
         prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
         as_of = _today_kst() - timedelta(days=1)
         capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
