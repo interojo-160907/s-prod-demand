@@ -1121,9 +1121,10 @@ def _build_order_risk_table(
 
     stage_agg["막힘공정"] = stage_agg.apply(_pick_block_stage, axis=1)
 
-    # 완료예정일(원복: 게이트공정 backlog 기준, 평균 CAPA):
-    # - 게이트공정(타관이면 분리, 아니면 누수규격) 기준으로 남은 수량을 backlog로 보고
-    # - 납기일 오름차순(EDD)으로 누적 수량을 CAPA로 나눠 완료일을 산정한다.
+    # 완료예정일(요청수량 기반 + 공정반영형):
+    # - 공정별 필요수량(사출/분리/하이드/접착/누수)을 그대로 사용
+    # - 공정 간 WIP/대기일은 공정당 1일로 고정
+    # - 납기순(EDD)으로 수주를 정렬해 공정별 1라인(flow-shop) 스케줄링으로 완료예정일 산정
     due_agg = base[group_key + (["납기일"] if "납기일" in base.columns else [])].copy()
     if "납기일" in due_agg.columns:
         due_agg["납기일"] = pd.to_datetime(due_agg["납기일"], errors="coerce")
@@ -1154,28 +1155,70 @@ def _build_order_risk_table(
     stage_agg["게이트공정"] = stage_agg.apply(_gate_for_done, axis=1)
 
     stage_agg["납기일"] = pd.to_datetime(stage_agg["납기일"], errors="coerce")
-    stage_agg["완료예정일"] = pd.NaT
 
-    for gate_proc, g in stage_agg.groupby("게이트공정", dropna=False):
-        proc = str(gate_proc or "").strip()
-        if not proc or proc not in stage_cols:
-            continue
-        capa = float(capa_map.get(proc, 0.0) or 0.0)
-        if capa <= 0:
-            continue
-        gg = g.copy()
-        # For RED/YELLOW, compute completion based on total request qty ("필요수량") when available.
-        qty_src_col = "필요수량" if "필요수량" in gg.columns else proc
-        gg["_qty"] = pd.to_numeric(gg[qty_src_col], errors="coerce").fillna(0)
-        gg = gg.loc[gg["_qty"].gt(0)].copy()
-        if gg.empty:
-            continue
-        gg = gg.sort_values(["납기일", "_qty"], ascending=[True, False], na_position="last")
-        cum = gg["_qty"].cumsum()
-        days = (cum / capa).map(lambda x: int(math.ceil(float(x))) if float(x) > 0 else 0)
-        done = days.map(lambda d: pd.Timestamp(today + timedelta(days=int(start_offset_days) + int(d))) if int(d) > 0 else pd.NaT)
-        stage_agg.loc[gg.index, "완료예정일"] = done.values
-    stage_agg = stage_agg.drop(columns=[c for c in ["_qty"] if c in stage_agg.columns])
+    sched = stage_agg.copy()
+    sched = sched.sort_values(["납기일"], ascending=[True], na_position="last")
+
+    proc_path_all = ["사출", "분리", "하이드레이션", "접착", "누수규격"]
+    proc_path_all = [p for p in proc_path_all if p in stage_cols]
+
+    completion: dict[str, list[float]] = {p: [] for p in proc_path_all}
+    available: dict[str, float] = {p: 0.0 for p in proc_path_all}
+
+    for _, row in sched.iterrows():
+        is_transfer = bool(row.get("후공정_타관"))
+        path = ["사출", "분리"] if is_transfer else proc_path_all
+        prev_done = 0.0
+        for p in proc_path_all:
+            qty = float(row.get(p, 0) or 0)
+            capa = float(capa_map.get(p, 0.0) or 0.0)
+            # If process not in this order's path or has no qty, treat as no-op.
+            if p not in path or qty <= 0:
+                done = max(available[p], prev_done)
+                completion[p].append(done)
+                prev_done = done
+                continue
+            if capa <= 0:
+                done = float("inf")
+                completion[p].append(done)
+                prev_done = done
+                available[p] = max(available[p], done)
+                continue
+            start = max(available[p], prev_done + float(RISK_WIP_DAYS_PER_PROCESS))
+            dur = qty / capa
+            done = start + dur
+            completion[p].append(done)
+            available[p] = done
+            prev_done = done
+
+    for p in proc_path_all:
+        sched[f"_done_{p}"] = completion[p]
+
+    def _done_day(row) -> float:
+        gate = str(row.get("게이트공정") or "").strip()
+        if not gate:
+            return float("nan")
+        try:
+            return float(row.get(f"_done_{gate}", float("nan")))
+        except Exception:
+            return float("nan")
+
+    sched["_done_days"] = sched.apply(_done_day, axis=1)
+
+    def _to_date(x) -> pd.Timestamp:
+        try:
+            v = float(x)
+        except Exception:
+            return pd.NaT
+        if not pd.notna(v) or v == float("inf"):
+            return pd.NaT
+        d = int(math.ceil(max(0.0, v + float(start_offset_days))))
+        return pd.Timestamp(today + timedelta(days=d))
+
+    sched["완료예정일"] = sched["_done_days"].map(_to_date)
+    # NOTE: do not pre-create stage_agg["완료예정일"] before merge, otherwise pandas will suffix
+    # columns (완료예정일_x/완료예정일_y) and downstream column selection will break.
+    stage_agg = stage_agg.merge(sched[group_key + ["완료예정일"]], on=group_key, how="left")
 
     out = out.merge(
         stage_agg[group_key + ["후공정_타관", "누수규격", "막힘공정", "게이트공정", "완료예정일"]],
