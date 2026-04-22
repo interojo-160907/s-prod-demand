@@ -1121,9 +1121,9 @@ def _build_order_risk_table(
 
     stage_agg["막힘공정"] = stage_agg.apply(_pick_block_stage, axis=1)
 
-    # 완료예정일(공정반영형, 평균 CAPA 기반):
-    # 공정별 CAPA를 고정(평균)으로 두고, 납기순(EDD)으로 수주를 나열한 뒤
-    # Flow-shop(공정 선후행 + 공정별 1라인) 방식으로 "언제까지 끝나는지"를 계산한다.
+    # 완료예정일(원복: 게이트공정 backlog 기준, 평균 CAPA):
+    # - 게이트공정(타관이면 분리, 아니면 누수규격) 기준으로 남은 수량을 backlog로 보고
+    # - 납기일 오름차순(EDD)으로 누적 수량을 CAPA로 나눠 완료일을 산정한다.
     due_agg = base[group_key + (["납기일"] if "납기일" in base.columns else [])].copy()
     if "납기일" in due_agg.columns:
         due_agg["납기일"] = pd.to_datetime(due_agg["납기일"], errors="coerce")
@@ -1153,71 +1153,27 @@ def _build_order_risk_table(
 
     stage_agg["게이트공정"] = stage_agg.apply(_gate_for_done, axis=1)
 
-    # Flow-shop schedule (EDD): completion time per process (in days from start)
-    sched = stage_agg.copy()
-    sched["납기일"] = pd.to_datetime(sched["납기일"], errors="coerce")
-    sched = sched.sort_values(["납기일"], ascending=[True], na_position="last")
+    stage_agg["납기일"] = pd.to_datetime(stage_agg["납기일"], errors="coerce")
+    stage_agg["완료예정일"] = pd.NaT
 
-    proc_path_all = ["사출", "분리", "하이드레이션", "접착", "누수규격"]
-    proc_path_all = [p for p in proc_path_all if p in stage_cols]
-
-    # Keep completion times as floats (days since start)
-    completion: dict[str, list[float]] = {p: [] for p in proc_path_all}
-    available: dict[str, float] = {p: 0.0 for p in proc_path_all}
-
-    for _, row in sched.iterrows():
-        is_transfer = bool(row.get("후공정_타관"))
-        path = ["사출", "분리"] if is_transfer else proc_path_all
-        prev_done = 0.0
-        for p in proc_path_all:
-            qty = float(row.get(p, 0) or 0)
-            capa = float(capa_map.get(p, 0.0) or 0.0)
-            # If process not in this order's path, treat as no-op.
-            if p not in path or qty <= 0:
-                done = max(available[p], prev_done)
-                completion[p].append(done)
-                # available does not advance on no-op
-                prev_done = done
-                continue
-            if capa <= 0:
-                # Unschedulable: mark as inf to bubble through
-                done = float("inf")
-                completion[p].append(done)
-                prev_done = done
-                available[p] = max(available[p], done)
-                continue
-            start = max(available[p], prev_done + float(RISK_WIP_DAYS_PER_PROCESS))
-            dur = qty / capa
-            done = start + dur
-            completion[p].append(done)
-            available[p] = done
-            prev_done = done
-
-    for p in proc_path_all:
-        sched[f"_done_{p}"] = completion[p]
-
-    def _done_day(row) -> float:
-        gate = str(row.get("게이트공정") or "").strip()
-        if not gate:
-            return float("nan")
-        v = float(row.get(f"_done_{gate}", float("nan")))
-        return v
-
-    sched["_done_days"] = sched.apply(_done_day, axis=1)
-    # Convert to date: today + ceil(done_days + start_offset)
-    def _to_date(x) -> pd.Timestamp:
-        try:
-            v = float(x)
-        except Exception:
-            return pd.NaT
-        if not pd.notna(v) or v == float("inf"):
-            return pd.NaT
-        d = int(math.ceil(max(0.0, v + float(RISK_SCHED_START_OFFSET_DAYS))))
-        return pd.Timestamp(today + timedelta(days=d))
-
-    sched["완료예정일"] = sched["_done_days"].map(_to_date)
-
-    stage_agg = stage_agg.merge(sched[group_key + ["완료예정일"]], on=group_key, how="left")
+    for gate_proc, g in stage_agg.groupby("게이트공정", dropna=False):
+        proc = str(gate_proc or "").strip()
+        if not proc or proc not in stage_cols:
+            continue
+        capa = float(capa_map.get(proc, 0.0) or 0.0)
+        if capa <= 0:
+            continue
+        gg = g.copy()
+        gg["_qty"] = pd.to_numeric(gg[proc], errors="coerce").fillna(0)
+        gg = gg.loc[gg["_qty"].gt(0)].copy()
+        if gg.empty:
+            continue
+        gg = gg.sort_values(["납기일", "_qty"], ascending=[True, False], na_position="last")
+        cum = gg["_qty"].cumsum()
+        days = (cum / capa).map(lambda x: int(math.ceil(float(x))) if float(x) > 0 else 0)
+        done = days.map(lambda d: pd.Timestamp(today + timedelta(days=int(start_offset_days) + int(d))) if int(d) > 0 else pd.NaT)
+        stage_agg.loc[gg.index, "완료예정일"] = done.values
+    stage_agg = stage_agg.drop(columns=[c for c in ["_qty"] if c in stage_agg.columns])
 
     out = out.merge(
         stage_agg[group_key + ["후공정_타관", "누수규격", "막힘공정", "게이트공정", "완료예정일"]],
@@ -1228,38 +1184,14 @@ def _build_order_risk_table(
     if "누수규격" in out.columns:
         out["누수규격"] = pd.to_numeric(out["누수규격"], errors="coerce").fillna(0).astype(int)
 
-    # Final risk grade should be consistent with the scheduled completion date.
-    # (Theoretical "부족/CAPA" can say GREEN even when queue-based schedule pushes completion past due.)
+    # 리스크가 없는(GREEN) 경우 완료예정일은 납기일로 표시(혼란 방지).
     if "납기일" in out.columns:
         out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
     if "완료예정일" in out.columns:
         out["완료예정일"] = pd.to_datetime(out["완료예정일"], errors="coerce")
-
-    def _grade_from_schedule(r) -> str | None:
-        due = r.get("납기일")
-        done = r.get("완료예정일")
-        if not isinstance(due, pd.Timestamp) or pd.isna(due):
-            return None
-        if not isinstance(done, pd.Timestamp) or pd.isna(done):
-            # If we can't schedule (e.g., CAPA=0), treat as RED.
-            return "RED"
-        due_d = due.normalize()
-        done_d = done.normalize()
-        if done_d > due_d:
-            return "RED"
-        slack = (due_d - done_d).days
-        if slack <= int(math.ceil(max(0.0, float(buffer_days)))):
-            return "YELLOW"
-        return "GREEN"
-
-    # Promote grade if schedule implies higher risk
-    sched_grade = out.apply(_grade_from_schedule, axis=1)
-    rank = {"GREEN": 1, "YELLOW": 2, "RED": 3}
-    cur = out["리스크등급"].map(lambda x: rank.get(str(x), 0))
-    sch = sched_grade.map(lambda x: rank.get(str(x), 0) if isinstance(x, str) else 0)
-    use = cur.where(cur.ge(sch), sch)
-    inv = {v: k for k, v in rank.items()}
-    out["리스크등급"] = use.map(lambda x: inv.get(int(x), "GREEN"))
+    if "리스크등급" in out.columns and "완료예정일" in out.columns and "납기일" in out.columns:
+        mask_green = out["리스크등급"].astype(str).eq("GREEN") & out["납기일"].notna()
+        out.loc[mask_green, "완료예정일"] = out.loc[mask_green, "납기일"]
 
     def _reason_row(r) -> str:
         if pd.isna(r.get("병목공정")) and pd.isna(r.get("시작공정")):
