@@ -39,6 +39,8 @@ RISK_CAPA_RUN_DAYS = 7
 RISK_YELLOW_BUFFER_DAYS = 1.0
 # Fixed WIP/queue lead time per process (calendar days)
 RISK_WIP_DAYS_PER_PROCESS = 1.0
+# Scheduling start offset (calendar days). Use 0 to allow same-day completion dates like 4/22.
+RISK_SCHED_START_OFFSET_DAYS = 0.0
 
 
 def _today_kst() -> date:
@@ -1107,29 +1109,9 @@ def _build_order_risk_table(
 
     stage_agg["막힘공정"] = stage_agg.apply(_pick_block_stage, axis=1)
 
-    # 게이트공정(완료예정일 기준): 타관이면 분리(없으면 사출), 아니면 누수규격(없으면 마지막 부족 공정)
-    def _pick_gate_stage(row) -> str:
-        if bool(row.get("후공정_타관")):
-            if "분리" in stage_cols and float(row.get("분리", 0) or 0) > 0:
-                return "분리"
-            if "사출" in stage_cols and float(row.get("사출", 0) or 0) > 0:
-                return "사출"
-        if "누수규격" in stage_cols and float(row.get("누수규격", 0) or 0) > 0:
-            return "누수규격"
-        # fallback: last shortage stage
-        last = ""
-        last_ord = -1
-        for p in DEFAULT_STAGE_COLS:
-            if p in stage_cols and float(row.get(p, 0) or 0) > 0 and proc_order.get(p, -1) >= last_ord:
-                last = p
-                last_ord = proc_order.get(p, -1)
-        return last
-
-    stage_agg["게이트공정"] = stage_agg.apply(_pick_gate_stage, axis=1)
-
     # 완료예정일(공정반영형, 평균 CAPA 기반):
-    # 각 공정의 필요일수(부족/CAPA)와 공정별 WIP(고정 1일)를 누적해서,
-    # 납기일까지 남은 시간 대비 "오바"되는 일수만큼 납기일을 뒤로 미는 방식으로 산정한다.
+    # 공정별 CAPA를 고정(평균)으로 두고, 납기순(EDD)으로 수주를 나열한 뒤
+    # Flow-shop(공정 선후행 + 공정별 1라인) 방식으로 "언제까지 끝나는지"를 계산한다.
     due_agg = base[group_key + (["납기일"] if "납기일" in base.columns else [])].copy()
     if "납기일" in due_agg.columns:
         due_agg["납기일"] = pd.to_datetime(due_agg["납기일"], errors="coerce")
@@ -1140,39 +1122,90 @@ def _build_order_risk_table(
 
     stage_agg = stage_agg.merge(due_agg, on=group_key, how="left")
 
-    def _completion_date(row) -> pd.Timestamp:
-        due = row.get("납기일")
-        due_dt = pd.to_datetime(due, errors="coerce")
-        if pd.isna(due_dt):
-            return pd.NaT
+    # Gate stage for completion date: transfer -> 분리(없으면 사출), else 누수규격(없으면 마지막 부족 공정)
+    def _gate_for_done(row) -> str:
+        if bool(row.get("후공정_타관")):
+            if "분리" in stage_cols and float(row.get("분리", 0) or 0) > 0:
+                return "분리"
+            if "사출" in stage_cols and float(row.get("사출", 0) or 0) > 0:
+                return "사출"
+        if "누수규격" in stage_cols and float(row.get("누수규격", 0) or 0) > 0:
+            return "누수규격"
+        last = ""
+        last_ord = -1
+        for p in DEFAULT_STAGE_COLS:
+            if p in stage_cols and float(row.get(p, 0) or 0) > 0 and proc_order.get(p, -1) >= last_ord:
+                last = p
+                last_ord = proc_order.get(p, -1)
+        return last
 
-        # Consider only processes that are relevant to this order.
+    stage_agg["게이트공정"] = stage_agg.apply(_gate_for_done, axis=1)
+
+    # Flow-shop schedule (EDD): completion time per process (in days from start)
+    sched = stage_agg.copy()
+    sched["납기일"] = pd.to_datetime(sched["납기일"], errors="coerce")
+    sched = sched.sort_values(["납기일"], ascending=[True], na_position="last")
+
+    proc_path_all = ["사출", "분리", "하이드레이션", "접착", "누수규격"]
+    proc_path_all = [p for p in proc_path_all if p in stage_cols]
+
+    # Keep completion times as floats (days since start)
+    completion: dict[str, list[float]] = {p: [] for p in proc_path_all}
+    available: dict[str, float] = {p: 0.0 for p in proc_path_all}
+
+    for _, row in sched.iterrows():
         is_transfer = bool(row.get("후공정_타관"))
-        proc_path = ["사출", "분리"] if is_transfer else ["사출", "분리", "하이드레이션", "접착", "누수규격"]
-
-        total_days = 0.0
-        for p in proc_path:
-            if p not in stage_cols:
-                continue
+        path = ["사출", "분리"] if is_transfer else proc_path_all
+        prev_done = 0.0
+        for p in proc_path_all:
             qty = float(row.get(p, 0) or 0)
-            if qty <= 0:
-                continue
             capa = float(capa_map.get(p, 0.0) or 0.0)
+            # If process not in this order's path, treat as no-op.
+            if p not in path or qty <= 0:
+                done = max(available[p], prev_done)
+                completion[p].append(done)
+                # available does not advance on no-op
+                prev_done = done
+                continue
             if capa <= 0:
-                return pd.NaT
-            need_days = qty / capa
-            total_days += float(RISK_WIP_DAYS_PER_PROCESS) + need_days
+                # Unschedulable: mark as inf to bubble through
+                done = float("inf")
+                completion[p].append(done)
+                prev_done = done
+                available[p] = max(available[p], done)
+                continue
+            start = max(available[p], prev_done + float(RISK_WIP_DAYS_PER_PROCESS))
+            dur = qty / capa
+            done = start + dur
+            completion[p].append(done)
+            available[p] = done
+            prev_done = done
 
-        # If nothing to do, assume on-time.
-        if total_days <= 0:
-            return due_dt.normalize()
+    for p in proc_path_all:
+        sched[f"_done_{p}"] = completion[p]
 
-        remaining = (due_dt.normalize().date() - today).days
-        over = total_days - float(remaining)
-        over_days = int(math.ceil(max(0.0, over)))
-        return (due_dt.normalize() + pd.Timedelta(days=over_days))
+    def _done_day(row) -> float:
+        gate = str(row.get("게이트공정") or "").strip()
+        if not gate:
+            return float("nan")
+        v = float(row.get(f"_done_{gate}", float("nan")))
+        return v
 
-    stage_agg["완료예정일"] = stage_agg.apply(_completion_date, axis=1)
+    sched["_done_days"] = sched.apply(_done_day, axis=1)
+    # Convert to date: today + ceil(done_days + start_offset)
+    def _to_date(x) -> pd.Timestamp:
+        try:
+            v = float(x)
+        except Exception:
+            return pd.NaT
+        if not pd.notna(v) or v == float("inf"):
+            return pd.NaT
+        d = int(math.ceil(max(0.0, v + float(RISK_SCHED_START_OFFSET_DAYS))))
+        return pd.Timestamp(today + timedelta(days=d))
+
+    sched["완료예정일"] = sched["_done_days"].map(_to_date)
+
+    stage_agg = stage_agg.merge(sched[group_key + ["완료예정일"]], on=group_key, how="left")
 
     out = out.merge(
         stage_agg[group_key + ["후공정_타관", "누수규격", "막힘공정", "게이트공정", "완료예정일"]],
@@ -1197,10 +1230,10 @@ def _build_order_risk_table(
             return ""
 
         if bn_capa <= 0:
-            msg = f"{bn_proc_name} 막힘(CAPA=0)"
+            msg = f"{bn_proc_name} 병목(CAPA=0)"
         else:
             if grade == "RED":
-                msg = f"{bn_proc_name} 막힘(납기내 불가)"
+                msg = f"{bn_proc_name} 병목(납기내 불가)"
             elif grade == "YELLOW":
                 msg = f"{bn_proc_name} 주의(여유부족)"
             else:
@@ -1667,11 +1700,16 @@ def main() -> None:
         )
 
     # 분류 pills (view-mode별로 totals 계산 데이터가 다름)
+    order_df_all: pd.DataFrame | None = None
     if view_mode in ("수주별 현황", "리스크"):
         if detail_for_map is None:
             st.error("수주별/리스크 데이터가 없습니다. 엑셀 시트/컬럼을 확인하세요.")
             st.stop()
         order_df = _load_order_detail_grouped(detail_csv, os.path.getmtime(detail_csv))
+        if view_mode == "리스크":
+            # 리스크의 완료예정일(스케줄)은 전체 backlog 기준으로 계산해야 하므로,
+            # 표시 필터(납기일 종료) 적용 전 원본을 별도로 보관한다.
+            order_df_all = order_df.copy()
 
         # Due date end quick-picks
         quick_key = "order_due_quick" if view_mode == "수주별 현황" else "risk_due_quick"
@@ -1955,18 +1993,15 @@ def main() -> None:
         if not selected_grades:
             selected_grades = ["RED", "YELLOW"]
 
-        subset = order_df if code == "전체" else order_df[order_df[new_code_col].astype("string") == code].copy()
-        search_raw = st.text_input(
-            "검색 (이니셜/수주번호/품명)",
-            placeholder="예: 해외, 202601, O2O2",
-            key=f"risk_{code}_search",
-        )
-        subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
+        # 완료예정일(스케줄)은 전체 backlog 기준으로 계산하고, 화면 표시만 필터 적용한다.
+        schedule_src = order_df_all if isinstance(order_df_all, pd.DataFrame) and not order_df_all.empty else order_df
+        view_src = order_df
 
-        # Risk는 '수주 단위'로 1줄만 보이도록 요약(품명별 중복 제거)
-        stage_cols = [c for c in DEFAULT_STAGE_COLS if c in subset.columns]
-        if stage_cols:
-            work = subset.copy()
+        def _to_order_level(df0: pd.DataFrame) -> pd.DataFrame:
+            stage_cols = [c for c in DEFAULT_STAGE_COLS if c in df0.columns]
+            if not stage_cols:
+                return df0
+            work = df0.copy()
             for c in stage_cols:
                 work[c] = pd.to_numeric(work[c], errors="coerce").fillna(0)
             if "납기일" in work.columns:
@@ -1974,28 +2009,50 @@ def main() -> None:
             group_key = [c for c in ["이니셜", "수주번호", "신규분류 요약코드"] if c in work.columns]
             if not group_key:
                 group_key = ["수주번호"] if "수주번호" in work.columns else []
-            if group_key:
-                agg: dict[str, str] = {c: "sum" for c in stage_cols}
-                if "납기일" in work.columns:
-                    agg["납기일"] = "min"
-                if "품명" in work.columns:
-                    agg["품명"] = "first"
-                subset = work.groupby(group_key, dropna=False, as_index=False).agg(agg)
+            if not group_key:
+                return work
+            agg: dict[str, str] = {c: "sum" for c in stage_cols}
+            if "납기일" in work.columns:
+                agg["납기일"] = "min"
+            if "품명" in work.columns:
+                agg["품명"] = "first"
+            return work.groupby(group_key, dropna=False, as_index=False).agg(agg)
+
+        schedule_orders = _to_order_level(schedule_src)
+        view_orders = _to_order_level(view_src)
+
+        # Apply code filter on the VIEW (not on schedule)
+        subset = view_orders if code == "전체" else view_orders[view_orders[new_code_col].astype("string") == code].copy()
+        search_raw = st.text_input(
+            "검색 (이니셜/수주번호/품명)",
+            placeholder="예: 해외, 202601, O2O2",
+            key=f"risk_{code}_search",
+        )
+        subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
 
         prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
         as_of = _today_kst() - timedelta(days=1)
         capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
 
-        risk_df = _build_order_risk_table(
-            subset,
+        # Compute risk/schedule on ALL orders (schedule_orders), then filter down for display (subset).
+        risk_all = _build_order_risk_table(
+            schedule_orders,
             capa_table,
             today=_today_kst(),
             buffer_days=float(RISK_YELLOW_BUFFER_DAYS),
+            start_offset_days=int(RISK_SCHED_START_OFFSET_DAYS),
         )
-        if risk_df.empty:
+        if risk_all.empty:
             st.caption("표시할 리스크 대상이 없습니다.")
             st.stop()
 
+        # Apply same filters to the computed result.
+        risk_df = risk_all.copy()
+        if code != "전체" and new_code_col in risk_df.columns:
+            risk_df = risk_df.loc[risk_df[new_code_col].astype("string") == code].copy()
+        if quick != "해제" and "납기일" in risk_df.columns:
+            risk_df = _apply_due_date_end_filter(risk_df, st.session_state.get("risk_due_end", _today_kst()))
+        risk_df = _filter_by_any_contains(risk_df, ["품명", "이니셜", "수주번호"], search_raw)
         risk_df = risk_df.loc[risk_df["리스크등급"].isin(selected_grades)].copy()
         if risk_df.empty:
             st.caption("필터 조건에 해당하는 항목이 없습니다.")
