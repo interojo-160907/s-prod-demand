@@ -34,6 +34,10 @@ OUT_DIR = "out"
 STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
 DASHBOARD_LINKS_PATH = "dashboard_links.json"
 
+# Risk tab business defaults (fixed; no user settings)
+RISK_CAPA_RUN_DAYS = 7
+RISK_YELLOW_BUFFER_DAYS = 1.0
+
 
 def _today_kst() -> date:
     return datetime.now(tz=KST).date()
@@ -1464,8 +1468,6 @@ def main() -> None:
             st.session_state["risk_due_end"] = _today_kst() + timedelta(days=14)
             st.session_state["_prev_risk_due_quick"] = "+14일"
             st.session_state["risk_grade_pill"] = ["RED", "YELLOW"]
-            st.session_state["risk_capa_days"] = 5
-            st.session_state["risk_buffer_days"] = 1.0
         st.session_state["_prev_view_mode"] = view_mode
 
     process_only = None
@@ -1824,21 +1826,9 @@ def main() -> None:
             st.error("`생산실적` 시트 기반 CAPA 데이터가 없습니다. 엑셀에 `생산실적` 시트가 있는지 확인하세요.")
             st.stop()
 
-        capa_days = st.selectbox(
-            "CAPA 기준 가동일(N)",
-            options=[3, 5, 7, 10],
-            index=[3, 5, 7, 10].index(int(st.session_state.get("risk_capa_days", 5) or 5))
-            if int(st.session_state.get("risk_capa_days", 5) or 5) in [3, 5, 7, 10]
-            else 1,
-            key="risk_capa_days",
-        )
-        buffer_days = st.number_input(
-            "YELLOW 버퍼(일)",
-            min_value=0.0,
-            max_value=30.0,
-            value=float(st.session_state.get("risk_buffer_days", 1.0) or 1.0),
-            step=0.5,
-            key="risk_buffer_days",
+        st.caption(
+            f"기준: CAPA=최근 {RISK_CAPA_RUN_DAYS} 가동일(전일까지, 양품>0) 평균 · "
+            f"YELLOW 버퍼={RISK_YELLOW_BUFFER_DAYS:.0f}일 · 24/7 연속운영 가정"
         )
 
         grade_options = ["RED", "YELLOW", "GREEN"]
@@ -1885,9 +1875,14 @@ def main() -> None:
 
         prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
         as_of = _today_kst() - timedelta(days=1)
-        capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(capa_days), as_of=as_of)
+        capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
 
-        risk_df = _build_order_risk_table(subset, capa_table, today=_today_kst(), buffer_days=float(buffer_days))
+        risk_df = _build_order_risk_table(
+            subset,
+            capa_table,
+            today=_today_kst(),
+            buffer_days=float(RISK_YELLOW_BUFFER_DAYS),
+        )
         if risk_df.empty:
             st.caption("표시할 리스크 대상이 없습니다.")
             st.stop()
