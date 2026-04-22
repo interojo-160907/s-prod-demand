@@ -1125,20 +1125,39 @@ def _build_order_risk_table(
 
     stage_agg["게이트공정"] = stage_agg.apply(_pick_gate_stage, axis=1)
 
-    def _forecast_done_date(row) -> pd.Timestamp:
-        gate = str(row.get("게이트공정") or "").strip()
-        if not gate:
-            return pd.NaT
-        short = float(row.get(gate, 0) or 0)
-        if short <= 0:
-            return pd.NaT
-        capa = float(capa_map.get(gate, 0.0) or 0.0)
-        if capa <= 0:
-            return pd.NaT
-        days = int(math.ceil(short / capa))
-        return pd.Timestamp(today + timedelta(days=int(start_offset_days) + days))
+    # 완료예정일(현실형): 개별 부족/필요수량만으로 계산하지 않고,
+    # 공정별 전체 backlog(같은 게이트공정) 누적을 CAPA로 나눠 순번별 완료일을 산정한다.
+    due_agg = base[group_key + (["납기일"] if "납기일" in base.columns else [])].copy()
+    if "납기일" in due_agg.columns:
+        due_agg["납기일"] = pd.to_datetime(due_agg["납기일"], errors="coerce")
+        due_agg = due_agg.groupby(group_key, dropna=False, as_index=False)["납기일"].min()
+    else:
+        due_agg = base[group_key].drop_duplicates()
+        due_agg["납기일"] = pd.NaT
 
-    stage_agg["완료예정일"] = stage_agg.apply(_forecast_done_date, axis=1)
+    stage_agg = stage_agg.merge(due_agg, on=group_key, how="left")
+
+    stage_agg["완료예정일"] = pd.NaT
+    for gate_proc, g in stage_agg.groupby("게이트공정", dropna=False):
+        proc = str(gate_proc or "").strip()
+        if not proc:
+            continue
+        capa = float(capa_map.get(proc, 0.0) or 0.0)
+        if capa <= 0:
+            continue
+        # Demand quantity for this gate process
+        qty = pd.to_numeric(g.get(proc, 0), errors="coerce").fillna(0)
+        # Order by due date (earlier first), then larger qty first for stability
+        sort_due = pd.to_datetime(g["납기일"], errors="coerce")
+        gg = g.copy()
+        gg["_due_sort"] = sort_due
+        gg["_qty"] = qty
+        gg = gg.sort_values(["_due_sort", "_qty"], ascending=[True, False], na_position="last")
+        cum = gg["_qty"].cumsum()
+        days = (cum / capa).apply(lambda x: int(math.ceil(float(x))) if float(x) > 0 else 0)
+        done = [pd.Timestamp(today + timedelta(days=int(start_offset_days) + int(d))) if d > 0 else pd.NaT for d in days]
+        stage_agg.loc[gg.index, "완료예정일"] = done
+    stage_agg = stage_agg.drop(columns=[c for c in ["_due_sort", "_qty"] if c in stage_agg.columns])
 
     out = out.merge(
         stage_agg[group_key + ["후공정_타관", "누수규격", "막힘공정", "게이트공정", "완료예정일"]],
@@ -1158,6 +1177,9 @@ def _build_order_risk_table(
 
         bn_capa = float(capa_map.get(bn_proc_name, 0.0) or 0.0)
         grade = str(r.get("리스크등급") or "").strip()
+
+        if grade == "GREEN":
+            return ""
 
         if bn_capa <= 0:
             msg = f"{bn_proc_name} 막힘(CAPA=0)"
