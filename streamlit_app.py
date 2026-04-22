@@ -37,6 +37,8 @@ DASHBOARD_LINKS_PATH = "dashboard_links.json"
 # Risk tab business defaults (fixed; no user settings)
 RISK_CAPA_RUN_DAYS = 7
 RISK_YELLOW_BUFFER_DAYS = 1.0
+# Fixed WIP/queue lead time per process (calendar days)
+RISK_WIP_DAYS_PER_PROCESS = 1.0
 
 
 def _today_kst() -> date:
@@ -1125,8 +1127,9 @@ def _build_order_risk_table(
 
     stage_agg["게이트공정"] = stage_agg.apply(_pick_gate_stage, axis=1)
 
-    # 완료예정일(현실형): 개별 부족/필요수량만으로 계산하지 않고,
-    # 공정별 전체 backlog(같은 게이트공정) 누적을 CAPA로 나눠 순번별 완료일을 산정한다.
+    # 완료예정일(공정반영형, 평균 CAPA 기반):
+    # 각 공정의 필요일수(부족/CAPA)와 공정별 WIP(고정 1일)를 누적해서,
+    # 납기일까지 남은 시간 대비 "오바"되는 일수만큼 납기일을 뒤로 미는 방식으로 산정한다.
     due_agg = base[group_key + (["납기일"] if "납기일" in base.columns else [])].copy()
     if "납기일" in due_agg.columns:
         due_agg["납기일"] = pd.to_datetime(due_agg["납기일"], errors="coerce")
@@ -1137,27 +1140,39 @@ def _build_order_risk_table(
 
     stage_agg = stage_agg.merge(due_agg, on=group_key, how="left")
 
-    stage_agg["완료예정일"] = pd.NaT
-    for gate_proc, g in stage_agg.groupby("게이트공정", dropna=False):
-        proc = str(gate_proc or "").strip()
-        if not proc:
-            continue
-        capa = float(capa_map.get(proc, 0.0) or 0.0)
-        if capa <= 0:
-            continue
-        # Demand quantity for this gate process
-        qty = pd.to_numeric(g.get(proc, 0), errors="coerce").fillna(0)
-        # Order by due date (earlier first), then larger qty first for stability
-        sort_due = pd.to_datetime(g["납기일"], errors="coerce")
-        gg = g.copy()
-        gg["_due_sort"] = sort_due
-        gg["_qty"] = qty
-        gg = gg.sort_values(["_due_sort", "_qty"], ascending=[True, False], na_position="last")
-        cum = gg["_qty"].cumsum()
-        days = (cum / capa).apply(lambda x: int(math.ceil(float(x))) if float(x) > 0 else 0)
-        done = [pd.Timestamp(today + timedelta(days=int(start_offset_days) + int(d))) if d > 0 else pd.NaT for d in days]
-        stage_agg.loc[gg.index, "완료예정일"] = done
-    stage_agg = stage_agg.drop(columns=[c for c in ["_due_sort", "_qty"] if c in stage_agg.columns])
+    def _completion_date(row) -> pd.Timestamp:
+        due = row.get("납기일")
+        due_dt = pd.to_datetime(due, errors="coerce")
+        if pd.isna(due_dt):
+            return pd.NaT
+
+        # Consider only processes that are relevant to this order.
+        is_transfer = bool(row.get("후공정_타관"))
+        proc_path = ["사출", "분리"] if is_transfer else ["사출", "분리", "하이드레이션", "접착", "누수규격"]
+
+        total_days = 0.0
+        for p in proc_path:
+            if p not in stage_cols:
+                continue
+            qty = float(row.get(p, 0) or 0)
+            if qty <= 0:
+                continue
+            capa = float(capa_map.get(p, 0.0) or 0.0)
+            if capa <= 0:
+                return pd.NaT
+            need_days = qty / capa
+            total_days += float(RISK_WIP_DAYS_PER_PROCESS) + need_days
+
+        # If nothing to do, assume on-time.
+        if total_days <= 0:
+            return due_dt.normalize()
+
+        remaining = (due_dt.normalize().date() - today).days
+        over = total_days - float(remaining)
+        over_days = int(math.ceil(max(0.0, over)))
+        return (due_dt.normalize() + pd.Timedelta(days=over_days))
+
+    stage_agg["완료예정일"] = stage_agg.apply(_completion_date, axis=1)
 
     out = out.merge(
         stage_agg[group_key + ["후공정_타관", "누수규격", "막힘공정", "게이트공정", "완료예정일"]],
