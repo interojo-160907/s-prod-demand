@@ -1787,8 +1787,6 @@ def main() -> None:
             st.error("`생산실적` 시트 기반 CAPA 데이터가 없습니다. 엑셀에 `생산실적` 시트가 있는지 확인하세요.")
             st.stop()
 
-        include_overdue = st.checkbox("납기 경과(과거 납기) 포함", value=False, key="risk_include_overdue")
-
         capa_days = st.selectbox(
             "CAPA 기준 가동일(N)",
             options=[3, 5, 7, 10],
@@ -1826,9 +1824,6 @@ def main() -> None:
             key=f"risk_{code}_search",
         )
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
-        if not include_overdue and "납기일" in subset.columns:
-            subset["납기일"] = pd.to_datetime(subset["납기일"], errors="coerce")
-            subset = subset.loc[subset["납기일"].dt.date.ge(_today_kst())].copy()
 
         prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
         as_of = _today_kst() - timedelta(days=1)
@@ -1862,9 +1857,6 @@ def main() -> None:
             "시작공정",
             "병목공정",
             "리스크사유",
-            "누수규격",
-            "누수규격_CAPA",
-            "누수규격_필요일수",
             "완료예상일",
             "예상지연일",
         ]
@@ -1890,9 +1882,6 @@ def main() -> None:
             "시작공정": st.column_config.TextColumn(width="small"),
             "병목공정": st.column_config.TextColumn(width="small"),
             "리스크사유": st.column_config.TextColumn(width="large"),
-            "누수규격": st.column_config.NumberColumn(format="localized", width="small"),
-            "누수규격_CAPA": st.column_config.NumberColumn(format="localized", width="small"),
-            "누수규격_필요일수": st.column_config.NumberColumn(format="%.2f", width="small"),
             "완료예상일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
             "예상지연일": st.column_config.NumberColumn(format="%d", width="small"),
         }
