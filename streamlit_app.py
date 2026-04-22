@@ -1,4 +1,5 @@
 import os
+import math
 import importlib
 import json
 import re
@@ -1028,7 +1029,11 @@ def _build_order_risk_table(
 
     out["리스크등급"] = out["_worst_rank"].map(_rank_to_grade)
 
-    # Flag: 후공정 타관(사출/분리까지만 부족이고, 하이드/접착/누수는 0)
+    # Order-level shortage summary for risk display/forecast:
+    # - 후공정 타관(사출/분리까지만 부족이고, 하이드/접착/누수는 0)
+    # - 누수규격(표시용 필요수량): 기본은 누수규격 부족수량, 타관이면 분리(없으면 사출)
+    # - 막힘공정(표시용): 공정간 부족 "증분"과 CAPA를 반영해 선택
+    # - 완료예정일: 게이트공정 기준(타관이면 분리, 아니면 누수규격; 24/7 연속운영 가정)
     stage_agg = base[group_key + stage_cols].copy()
     stage_agg = stage_agg.groupby(group_key, dropna=False, as_index=False)[stage_cols].sum(numeric_only=True)
     for c in stage_cols:
@@ -1039,24 +1044,115 @@ def _build_order_risk_table(
     s55 = stage_agg["접착"] if "접착" in stage_agg.columns else 0
     s80 = stage_agg["누수규격"] if "누수규격" in stage_agg.columns else 0
     stage_agg["후공정_타관"] = ((s10 > 0) | (s20 > 0)) & (s45 <= 0) & (s55 <= 0) & (s80 <= 0)
-    # 누수규격기준 필요수량: 기본은 누수규격 부족수량.
-    # 후공정 타관(=누수규격이 0인 케이스)은 분리(없으면 사출)를 기준값으로 사용한다.
-    if "누수규격" in stage_agg.columns:
-        base_need = stage_agg["누수규격"]
-    else:
-        base_need = 0
+
+    # 표시용 "누수규격"(필요수량)
+    base_need = stage_agg["누수규격"] if "누수규격" in stage_agg.columns else 0
     alt_need = stage_agg["분리"] if "분리" in stage_agg.columns else (stage_agg["사출"] if "사출" in stage_agg.columns else 0)
-    stage_agg["누수규격기준 필요수량"] = base_need.where(~stage_agg["후공정_타관"], alt_need)
-    out = out.merge(stage_agg[group_key + ["후공정_타관"]], on=group_key, how="left")
+    stage_agg["누수규격"] = base_need.where(~stage_agg["후공정_타관"], alt_need)
+
+    # 부족 "증분" 계산(부족이 실제로 새로 생기는 구간)
+    d10 = s10
+    d20 = (s20 - s10).clip(lower=0)
+    d45 = (s45 - s20).clip(lower=0)
+    d55 = (s55 - s45).clip(lower=0)
+    d80 = (s80 - s55).clip(lower=0)
+    stage_agg["_d10"] = d10
+    stage_agg["_d20"] = d20
+    stage_agg["_d45"] = d45
+    stage_agg["_d55"] = d55
+    stage_agg["_d80"] = d80
+
+    # 막힘공정 선택: (증분/CAPA) 최대 (CAPA=0이면 inf), 동률이면 증분 큰 공정, 그 다음 공정순서
+    def _pick_block_stage(row) -> str:
+        candidates = [
+            ("사출", float(row.get("_d10") or 0)),
+            ("분리", float(row.get("_d20") or 0)),
+            ("하이드레이션", float(row.get("_d45") or 0)),
+            ("접착", float(row.get("_d55") or 0)),
+            ("누수규격", float(row.get("_d80") or 0)),
+        ]
+        best = ""
+        best_score = -1.0
+        best_delta = -1.0
+        best_ord = 999
+        for proc, delta in candidates:
+            if delta <= 0:
+                continue
+            capa = float(capa_map.get(proc, 0.0) or 0.0)
+            if capa <= 0:
+                score = float("inf")
+            else:
+                score = delta / capa
+            ordv = proc_order.get(proc, 999)
+            if (
+                (score > best_score)
+                or (score == best_score and delta > best_delta)
+                or (score == best_score and delta == best_delta and ordv < best_ord)
+            ):
+                best = proc
+                best_score = score
+                best_delta = delta
+                best_ord = ordv
+        # fallback: no incremental diff -> treat as first shortage stage
+        if not best:
+            for proc in DEFAULT_STAGE_COLS:
+                try:
+                    if float(row.get(proc, 0) or 0) > 0:
+                        return proc
+                except Exception:
+                    continue
+        return best
+
+    stage_agg["막힘공정"] = stage_agg.apply(_pick_block_stage, axis=1)
+
+    # 게이트공정(완료예정일 기준): 타관이면 분리(없으면 사출), 아니면 누수규격(없으면 마지막 부족 공정)
+    def _pick_gate_stage(row) -> str:
+        if bool(row.get("후공정_타관")):
+            if "분리" in stage_cols and float(row.get("분리", 0) or 0) > 0:
+                return "분리"
+            if "사출" in stage_cols and float(row.get("사출", 0) or 0) > 0:
+                return "사출"
+        if "누수규격" in stage_cols and float(row.get("누수규격", 0) or 0) > 0:
+            return "누수규격"
+        # fallback: last shortage stage
+        last = ""
+        last_ord = -1
+        for p in DEFAULT_STAGE_COLS:
+            if p in stage_cols and float(row.get(p, 0) or 0) > 0 and proc_order.get(p, -1) >= last_ord:
+                last = p
+                last_ord = proc_order.get(p, -1)
+        return last
+
+    stage_agg["게이트공정"] = stage_agg.apply(_pick_gate_stage, axis=1)
+
+    def _forecast_done_date(row) -> pd.Timestamp:
+        gate = str(row.get("게이트공정") or "").strip()
+        if not gate:
+            return pd.NaT
+        short = float(row.get(gate, 0) or 0)
+        if short <= 0:
+            return pd.NaT
+        capa = float(capa_map.get(gate, 0.0) or 0.0)
+        if capa <= 0:
+            return pd.NaT
+        days = int(math.ceil(short / capa))
+        return pd.Timestamp(today + timedelta(days=int(start_offset_days) + days))
+
+    stage_agg["완료예정일"] = stage_agg.apply(_forecast_done_date, axis=1)
+
+    out = out.merge(
+        stage_agg[group_key + ["후공정_타관", "누수규격", "막힘공정", "게이트공정", "완료예정일"]],
+        on=group_key,
+        how="left",
+    )
     out["후공정_타관"] = out["후공정_타관"].fillna(False).astype(bool)
-    out = out.merge(stage_agg[group_key + ["누수규격기준 필요수량"]], on=group_key, how="left")
-    if "누수규격기준 필요수량" in out.columns:
-        out["누수규격기준 필요수량"] = pd.to_numeric(out["누수규격기준 필요수량"], errors="coerce").fillna(0).astype(int)
+    if "누수규격" in out.columns:
+        out["누수규격"] = pd.to_numeric(out["누수규격"], errors="coerce").fillna(0).astype(int)
 
     def _reason_row(r) -> str:
         if pd.isna(r.get("병목공정")) and pd.isna(r.get("시작공정")):
             return ""
-        bn_proc_name = str(r.get("병목공정") or "").strip()
+        bn_proc_name = str(r.get("막힘공정") or r.get("병목공정") or "").strip()
         if not bn_proc_name:
             return ""
 
@@ -1882,9 +1978,10 @@ def main() -> None:
             "신규분류 요약코드",
             "품명",
             "납기일",
-            "누수규격기준 필요수량",
             "리스크등급",
             "리스크사유",
+            "누수규격",
+            "완료예정일",
         ]
         show_cols = [c for c in show_cols if c in risk_df.columns]
 
@@ -1904,9 +2001,10 @@ def main() -> None:
             "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
             "품명": st.column_config.TextColumn(width="large"),
             "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-            "누수규격기준 필요수량": st.column_config.NumberColumn(format="localized", width="small"),
             "리스크등급": st.column_config.TextColumn(width="small"),
             "리스크사유": st.column_config.TextColumn(width="large"),
+            "누수규격": st.column_config.NumberColumn(format="localized", width="small"),
+            "완료예정일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
         }
         column_config = {k: v for k, v in column_config.items() if k in show_cols}
 
