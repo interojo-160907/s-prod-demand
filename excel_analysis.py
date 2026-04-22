@@ -724,6 +724,67 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     }
 
 
+def export_production_daily_good_qty(file_path: str | bytes, out_dir: str) -> dict:
+    """
+    Export 생산실적 시트의 공정별 일별 양품수량(샘플 제외 우선)을 CSV로 저장한다.
+
+    - 공정코드에서 [10]/[20]/[45]/[55]/[80] 코드를 추출해 대시보드 공정명(사출/분리/하이드레이션/접착/누수규격)으로 매핑
+    - 동일 일자/공정 다건은 합산
+    """
+    _safe_mkdir(out_dir)
+    xl = _open_excel(file_path)
+    if "생산실적" not in xl.sheet_names:
+        return {"enabled": False, "reason": "Missing sheet: 생산실적"}
+
+    prod = _clean_columns(xl.parse("생산실적"))
+    prod = _to_datetime(prod, ["생산일자"])
+
+    good_candidates = ["샘플제외 양품수량", "양품수량"]
+    good_col = next((c for c in good_candidates if c in prod.columns), None)
+    required_cols = ["생산일자", "공정코드"]
+    for c in required_cols:
+        if c not in prod.columns:
+            return {"enabled": False, "reason": f"Missing column: {c}"}
+    if good_col is None:
+        return {"enabled": False, "reason": "Missing column: 샘플제외 양품수량/양품수량"}
+
+    prod = _coerce_numeric(prod, [good_col])
+
+    def _map_process(x) -> str:
+        s = "" if pd.isna(x) else str(x)
+        m = re.search(r"\[(\d+)\]", s)
+        if not m:
+            return ""
+        code = m.group(1)
+        return {
+            "10": "사출",
+            "20": "분리",
+            "45": "하이드레이션",
+            "55": "접착",
+            "80": "누수규격",
+        }.get(code, "")
+
+    prod["공정"] = prod["공정코드"].map(_map_process).astype(str)
+    prod = prod.loc[prod["공정"].astype(str).str.strip().ne("")].copy()
+    prod["양품"] = pd.to_numeric(prod[good_col], errors="coerce").fillna(0)
+    prod = prod.loc[prod["생산일자"].notna()].copy()
+
+    g = (
+        prod.groupby(["공정", "생산일자"], dropna=False, as_index=False)[["양품"]]
+        .sum(numeric_only=True)
+        .sort_values(["공정", "생산일자"], ascending=[True, True])
+    )
+
+    out_path = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
+    g.to_csv(out_path, index=False, encoding="utf-8-sig")
+    return {
+        "enabled": True,
+        "rows": int(g.shape[0]),
+        "outputs": [out_path],
+        "good_col": good_col,
+    }
+
+
 def analyze(file_path: str | bytes, out_dir: str) -> dict:
     _safe_mkdir(out_dir)
 

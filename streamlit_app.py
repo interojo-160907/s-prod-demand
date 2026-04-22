@@ -1,4 +1,5 @@
 import os
+import math
 import importlib
 import json
 import re
@@ -180,31 +181,31 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     due_csv = os.path.join(out_dir, "납기_제품군_공정별부족.csv")
     detail_csv = os.path.join(out_dir, "이니셜별_수주상세.csv")
     equip_code_target_csv = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
+    prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
     excel_mtime = os.path.getmtime(excel_path)
 
     if os.path.exists(due_csv) and os.path.exists(detail_csv):
         if os.path.getmtime(due_csv) >= excel_mtime and os.path.getmtime(detail_csv) >= excel_mtime:
-            if os.path.exists(equip_code_target_csv) and os.path.getmtime(equip_code_target_csv) >= excel_mtime:
-                return {
-                    "ok": True,
-                    "regenerated": False,
-                    "due_csv": due_csv,
-                    "detail_csv": detail_csv,
-                    "equip_code_target_csv": equip_code_target_csv,
-                }
-            # If the workbook has 설비별 but the derived CSV is missing (old cache), regenerate once.
             try:
                 xl = pd.ExcelFile(excel_path)
                 has_equip = "설비별" in xl.sheet_names
+                has_prod = "생산실적" in xl.sheet_names
             except Exception:
                 has_equip = False
-            if not has_equip:
+                has_prod = False
+
+            equip_ok = os.path.exists(equip_code_target_csv) and os.path.getmtime(equip_code_target_csv) >= excel_mtime
+            prod_ok = os.path.exists(prod_daily_csv) and os.path.getmtime(prod_daily_csv) >= excel_mtime
+
+            # All required/available outputs exist and are up-to-date.
+            if (not has_equip or equip_ok) and (not has_prod or prod_ok):
                 return {
                     "ok": True,
                     "regenerated": False,
                     "due_csv": due_csv,
                     "detail_csv": detail_csv,
-                    "equip_code_target_csv": None,
+                    "equip_code_target_csv": equip_code_target_csv if has_equip and equip_ok else None,
+                    "prod_daily_csv": prod_daily_csv if has_prod and prod_ok else None,
                 }
 
     _safe_mkdir(out_dir)
@@ -212,12 +213,19 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
     if not info.get("enabled"):
         return {"ok": False, "reason": info.get("reason") or "export failed"}
+    # Optional: production actuals (for risk tab)
+    try:
+        prod_info = excel_analysis.export_production_daily_good_qty(file_path=excel_path, out_dir=out_dir)
+        _ = prod_info
+    except Exception:
+        pass
     return {
         "ok": True,
         "regenerated": True,
         "due_csv": due_csv,
         "detail_csv": detail_csv,
         "equip_code_target_csv": equip_code_target_csv if os.path.exists(equip_code_target_csv) else None,
+        "prod_daily_csv": prod_daily_csv if os.path.exists(prod_daily_csv) else None,
     }
 
 
@@ -629,6 +637,27 @@ def _load_equip_code_min_target_csv(path: str, mtime: float) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def _load_prod_daily_csv(path: str | None, mtime: float) -> pd.DataFrame:
+    _ = mtime  # cache-buster when file changes
+    if not path or not os.path.exists(path):
+        return pd.DataFrame()
+    header = pd.read_csv(path, nrows=0)
+    dtype: dict[str, str] = {}
+    for c in ["공정"]:
+        if c in header.columns:
+            dtype[c] = "string"
+    df = pd.read_csv(path, dtype=dtype if dtype else None)
+    if "생산일자" in df.columns:
+        df["생산일자"] = pd.to_datetime(df["생산일자"], errors="coerce")
+    for c in ["공정"]:
+        if c in df.columns:
+            df[c] = df[c].astype("string").fillna("").str.strip()
+    if "양품" in df.columns:
+        df["양품"] = pd.to_numeric(df["양품"], errors="coerce").fillna(0)
+    return df
+
+
+@st.cache_data(show_spinner=False)
 def _load_due_prepared(path: str, mtime: float) -> pd.DataFrame:
     # One-shot cache: load + prepare (avoids recomputing _prepare_lens_df on every rerun).
     base = _load_due_csv(path, mtime)
@@ -757,6 +786,258 @@ def _apply_due_date_end_filter(df: pd.DataFrame, end: date) -> pd.DataFrame:
     return df.loc[mask].copy()
 
 
+def _compute_capa_table_from_prod_daily(
+    prod_daily: pd.DataFrame,
+    *,
+    n_run_days: int,
+    as_of: date,
+) -> pd.DataFrame:
+    """
+    CAPA 산정: 최근 N개 '가동일'(실적>0) 기준 일평균 양품수량.
+    - prod_daily는 (공정, 생산일자, 양품) 일별 집계 CSV 기준
+    - as_of는 기준일(전일까지)로 자른다
+    """
+    if prod_daily is None or prod_daily.empty:
+        return pd.DataFrame(columns=["공정", "CAPA", "capa_days", "last_run_date"])
+
+    df = prod_daily.copy()
+    if "생산일자" not in df.columns or "공정" not in df.columns or "양품" not in df.columns:
+        return pd.DataFrame(columns=["공정", "CAPA", "capa_days", "last_run_date"])
+
+    df["생산일자"] = pd.to_datetime(df["생산일자"], errors="coerce")
+    df["양품"] = pd.to_numeric(df["양품"], errors="coerce").fillna(0)
+    df["공정"] = df["공정"].astype("string").fillna("").str.strip()
+
+    df = df.loc[df["공정"].ne("") & df["생산일자"].notna()].copy()
+    df = df.loc[df["생산일자"].dt.date.le(as_of)].copy()
+    df = df.loc[df["양품"].gt(0)].copy()
+
+    rows: list[dict] = []
+    for proc, g in df.groupby("공정", dropna=False):
+        g = g.sort_values("생산일자", ascending=True)
+        # 일별 집계 형태를 다시 보장(동일일자 다건 대비)
+        by_day = (
+            g.groupby(g["생산일자"].dt.date, dropna=False)["양품"]
+            .sum()
+            .sort_index()
+        )
+        if by_day.empty:
+            continue
+        last_days = by_day.tail(max(1, int(n_run_days)))
+        rows.append(
+            {
+                "공정": str(proc),
+                "CAPA": float(last_days.mean()),
+                "capa_days": int(last_days.shape[0]),
+                "last_run_date": pd.to_datetime(last_days.index[-1]),
+            }
+        )
+
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out["CAPA"] = pd.to_numeric(out["CAPA"], errors="coerce").fillna(0)
+    return out
+
+
+def _grade_from_days(*, required_days: float, remaining_days: float, buffer_days: float) -> str:
+    if required_days is None or remaining_days is None:
+        return "NO_DUE"
+    try:
+        r = float(required_days)
+        rem = float(remaining_days)
+        buf = float(buffer_days)
+    except Exception:
+        return "NO_DUE"
+    if rem < 0:
+        rem = 0.0
+    if r == 0.0:
+        return "GREEN"
+    if not pd.notna(r):
+        return "NO_CAPA"
+    if r == float("inf"):
+        return "NO_CAPA"
+    if r > rem:
+        return "RED"
+    if (rem - r) <= max(0.0, buf):
+        return "YELLOW"
+    return "GREEN"
+
+
+def _build_order_risk_table(
+    order_df: pd.DataFrame,
+    capa_table: pd.DataFrame,
+    *,
+    today: date,
+    buffer_days: float,
+    start_offset_days: int = 1,
+) -> pd.DataFrame:
+    """
+    수주별 리스크 산출.
+    - 부족수량(order_df의 공정 컬럼) vs CAPA(공정별)
+    - 수주 등급은 최악 공정 기준
+    - 완료예상/지연은 누수규격 기준(연속 24/7 가정)
+    """
+    if order_df is None or order_df.empty:
+        return pd.DataFrame()
+
+    base = order_df.copy()
+    if "납기일" in base.columns:
+        base["납기일"] = pd.to_datetime(base["납기일"], errors="coerce")
+
+    stage_cols = [c for c in DEFAULT_STAGE_COLS if c in base.columns]
+    if not stage_cols:
+        return pd.DataFrame()
+
+    for c in stage_cols:
+        base[c] = pd.to_numeric(base[c], errors="coerce").fillna(0)
+
+    # Remaining calendar days (24/7 운영 전제)
+    due_dt = pd.to_datetime(base["납기일"], errors="coerce") if "납기일" in base.columns else pd.Series([pd.NaT] * len(base))
+    base["_due_date"] = due_dt.dt.date
+    base["남은일수"] = base["_due_date"].map(lambda d: (d - today).days if isinstance(d, date) else None)
+
+    capa_map = {}
+    if capa_table is not None and (not capa_table.empty) and "공정" in capa_table.columns:
+        tmp = capa_table.copy()
+        tmp["공정"] = tmp["공정"].astype("string").fillna("").str.strip()
+        if "CAPA" in tmp.columns:
+            tmp["CAPA"] = pd.to_numeric(tmp["CAPA"], errors="coerce").fillna(0)
+        capa_map = {str(r["공정"]): float(r.get("CAPA", 0) or 0) for r in tmp.to_dict("records")}
+
+    meta_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in base.columns]
+    melt = base[meta_cols + ["남은일수"] + stage_cols].melt(
+        id_vars=meta_cols + ["남은일수"],
+        value_vars=stage_cols,
+        var_name="공정",
+        value_name="부족수량",
+    )
+    melt["부족수량"] = pd.to_numeric(melt["부족수량"], errors="coerce").fillna(0)
+    melt = melt.loc[melt["부족수량"].gt(0)].copy()
+    if melt.empty:
+        return pd.DataFrame()
+
+    melt["CAPA"] = melt["공정"].map(lambda x: capa_map.get(str(x), 0.0))
+    melt["필요일수"] = melt.apply(
+        lambda r: (float(r["부족수량"]) / float(r["CAPA"])) if float(r["CAPA"]) > 0 else float("inf"),
+        axis=1,
+    )
+    melt["슬랙"] = melt.apply(
+        lambda r: (float(r["남은일수"]) - float(r["필요일수"])) if r["남은일수"] is not None else float("nan"),
+        axis=1,
+    )
+    melt["등급"] = melt.apply(
+        lambda r: _grade_from_days(required_days=r["필요일수"], remaining_days=r["남은일수"], buffer_days=buffer_days),
+        axis=1,
+    )
+
+    grade_rank = {"RED": 3, "YELLOW": 2, "GREEN": 1, "NO_CAPA": 4, "NO_DUE": 0}
+    melt["_grade_rank"] = melt["등급"].map(lambda x: grade_rank.get(str(x), 0))
+
+    group_key = [c for c in ["이니셜", "수주번호", "신규분류 요약코드"] if c in melt.columns]
+    if not group_key:
+        group_key = ["수주번호"] if "수주번호" in melt.columns else []
+    if not group_key:
+        return pd.DataFrame()
+
+    # Worst grade per order: NO_CAPA > RED > YELLOW > GREEN
+    worst = (
+        melt.groupby(group_key, dropna=False)["_grade_rank"]
+        .max()
+        .reset_index()
+        .rename(columns={"_grade_rank": "_worst_rank"})
+    )
+
+    # Bottleneck: minimum slack; if CAPA missing(inf required) slack becomes -inf -> selected automatically.
+    idx = melt.groupby(group_key, dropna=False)["슬랙"].idxmin()
+    bottleneck = melt.loc[idx, group_key + ["공정", "부족수량", "CAPA", "필요일수", "남은일수", "등급"]].copy()
+    bottleneck = bottleneck.rename(
+        columns={
+            "공정": "병목공정",
+            "부족수량": "병목_부족수량",
+            "CAPA": "병목_CAPA",
+            "필요일수": "병목_필요일수",
+            "남은일수": "병목_남은일수",
+            "등급": "병목_등급",
+        }
+    )
+
+    # Join back representative meta columns
+    rep = base.copy()
+    rep_key = group_key.copy()
+    rep_cols = [c for c in ["품명", "납기일"] if c in rep.columns]
+    if rep_cols:
+        rep = rep.groupby(rep_key, dropna=False, as_index=False).agg({c: "first" for c in rep_cols})
+    else:
+        rep = rep[group_key].drop_duplicates()
+
+    out = rep.merge(worst, on=group_key, how="left").merge(bottleneck, on=group_key, how="left")
+
+    def _rank_to_grade(n) -> str:
+        try:
+            n = int(n)
+        except Exception:
+            return "GREEN"
+        inv = {v: k for k, v in grade_rank.items()}
+        # Prefer business order: NO_CAPA as RED-equivalent alert
+        g = inv.get(n, "GREEN")
+        return "RED" if g == "NO_CAPA" else g
+
+    out["리스크등급"] = out["_worst_rank"].map(_rank_to_grade)
+
+    def _reason_row(r) -> str:
+        if pd.isna(r.get("병목공정")):
+            return ""
+        if float(r.get("병목_CAPA") or 0) <= 0:
+            return f"{r.get('병목공정')} CAPA=0"
+        try:
+            need_days = float(r.get("병목_필요일수") or 0)
+            rem = float(r.get("병목_남은일수") or 0)
+            return f"{r.get('병목공정')} 필요 {need_days:.2f}일 > 남은 {rem:.0f}일"
+        except Exception:
+            return str(r.get("병목공정") or "")
+
+    out["리스크사유"] = out.apply(_reason_row, axis=1)
+
+    # Completion forecast (누수규격 기준)
+    if "누수규격" in base.columns:
+        leak_need = base[group_key + ["누수규격"]].copy()
+        leak_need = leak_need.groupby(group_key, dropna=False, as_index=False)["누수규격"].sum(numeric_only=True)
+        leak_need["누수규격"] = pd.to_numeric(leak_need["누수규격"], errors="coerce").fillna(0)
+        leak_capa = float(capa_map.get("누수규격", 0.0) or 0.0)
+        leak_need["누수규격_CAPA"] = leak_capa
+        leak_need["누수규격_필요일수"] = leak_need.apply(
+            lambda r: (float(r["누수규격"]) / leak_capa) if leak_capa > 0 else float("inf"),
+            axis=1,
+        )
+        leak_need["완료예상일"] = leak_need.apply(
+            lambda r: (today + timedelta(days=int(start_offset_days) + int(math.ceil(float(r["누수규격"]) / leak_capa))))
+            if (float(r["누수규격"]) > 0 and leak_capa > 0)
+            else pd.NaT,
+            axis=1,
+        )
+        out = out.merge(leak_need[group_key + ["누수규격", "누수규격_CAPA", "누수규격_필요일수", "완료예상일"]], on=group_key, how="left")
+        if "납기일" in out.columns:
+            out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
+            out["완료예상일"] = pd.to_datetime(out["완료예상일"], errors="coerce")
+            due_norm = out["납기일"].dt.normalize()
+            done_norm = out["완료예상일"].dt.normalize()
+            delay = (done_norm - due_norm).dt.days
+            out["예상지연일"] = pd.to_numeric(delay, errors="coerce").fillna(0).clip(lower=0).astype(int)
+    else:
+        out["예상지연일"] = 0
+
+    # Priority sort: grade, due date, delay
+    sort_grade = {"RED": 0, "YELLOW": 1, "GREEN": 2}
+    out["_g"] = out["리스크등급"].map(lambda x: sort_grade.get(str(x), 9))
+    if "납기일" in out.columns:
+        out = out.sort_values(["_g", "납기일", "예상지연일"], ascending=[True, True, False], na_position="last")
+    else:
+        out = out.sort_values(["_g", "예상지연일"], ascending=[True, False], na_position="last")
+    out.insert(0, "우선순위", range(1, len(out) + 1))
+    out = out.drop(columns=[c for c in ["_g", "_worst_rank"] if c in out.columns])
+    return out
+
+
 def main() -> None:
     st.title("S관 생산 필요수량 대시보드")
     _apply_local_theme_css()
@@ -812,6 +1093,7 @@ def main() -> None:
         due_csv = str(ensure["due_csv"])
         detail_csv = str(ensure["detail_csv"])
         equip_code_target_csv = ensure.get("equip_code_target_csv")
+        prod_daily_csv = ensure.get("prod_daily_csv")
 
     detail_for_map: pd.DataFrame | None = None
     try:
@@ -1074,7 +1356,7 @@ def main() -> None:
         render(df, ui_key_prefix="all")
         return
 
-    view_options = ["납기별 상세", "공정별 보기", "수주별 현황"]
+    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크"]
     _pre_widget_single_select_fix(key="view_mode", default="납기별 상세", options=view_options)
     view_mode_raw = st.segmented_control(
         "보기",
@@ -1106,6 +1388,13 @@ def main() -> None:
             st.session_state["order_due_quick"] = "해제"
             st.session_state["order_due_end"] = _today_kst()
             st.session_state["_prev_order_due_quick"] = "해제"
+        if view_mode == "리스크":
+            st.session_state["risk_due_quick"] = "+14일"
+            st.session_state["risk_due_end"] = _today_kst() + timedelta(days=14)
+            st.session_state["_prev_risk_due_quick"] = "+14일"
+            st.session_state["risk_grade_pill"] = ["RED", "YELLOW"]
+            st.session_state["risk_capa_days"] = 5
+            st.session_state["risk_buffer_days"] = 1.0
         st.session_state["_prev_view_mode"] = view_mode
 
     process_only = None
@@ -1194,26 +1483,31 @@ def main() -> None:
         )
 
     # 분류 pills (view-mode별로 totals 계산 데이터가 다름)
-    if view_mode == "수주별 현황":
+    if view_mode in ("수주별 현황", "리스크"):
         if detail_for_map is None:
-            st.error("수주별 현황 데이터가 없습니다. 엑셀 시트/컬럼을 확인하세요.")
+            st.error("수주별/리스크 데이터가 없습니다. 엑셀 시트/컬럼을 확인하세요.")
             st.stop()
         order_df = _load_order_detail_grouped(detail_csv, os.path.getmtime(detail_csv))
 
         # Due date end quick-picks
-        order_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
-        _pre_widget_single_select_fix(key="order_due_quick", default="해제", options=order_quick_options)
+        quick_key = "order_due_quick" if view_mode == "수주별 현황" else "risk_due_quick"
+        prev_quick_key = "_prev_order_due_quick" if view_mode == "수주별 현황" else "_prev_risk_due_quick"
+        end_key = "order_due_end" if view_mode == "수주별 현황" else "risk_due_end"
+
+        quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
+        default_quick = "해제" if view_mode == "수주별 현황" else "+14일"
+        _pre_widget_single_select_fix(key=quick_key, default=default_quick, options=quick_options)
         quick_raw = st.pills(
             "납기일 종료 (빠른 선택)",
-            options=order_quick_options,
-            default="해제",
-            key="order_due_quick",
+            options=quick_options,
+            default=default_quick,
+            key=quick_key,
             selection_mode="single",
             on_change=_on_change_single_select,
-            args=("order_due_quick", "해제", order_quick_options),
+            args=(quick_key, default_quick, quick_options),
             label_visibility="collapsed",
         )
-        quick = _coerce_single_value(quick_raw, default="해제", options=order_quick_options)
+        quick = _coerce_single_value(quick_raw, default=default_quick, options=quick_options)
         if quick == "당월":
             default_end = _end_of_month(_today_kst())
         elif quick == "+7일":
@@ -1224,15 +1518,15 @@ def main() -> None:
             default_end = _today_kst()
 
         # Ensure quick pick actually updates the date_input (Streamlit keeps widget state by key).
-        prev_quick = st.session_state.get("_prev_order_due_quick")
+        prev_quick = st.session_state.get(prev_quick_key)
         if prev_quick != quick:
-            st.session_state["order_due_end"] = default_end
-            st.session_state["_prev_order_due_quick"] = quick
+            st.session_state[end_key] = default_end
+            st.session_state[prev_quick_key] = quick
 
         end_date = st.date_input(
             "납기일 종료",
-            value=st.session_state.get("order_due_end", default_end),
-            key="order_due_end",
+            value=st.session_state.get(end_key, default_end),
+            key=end_key,
             disabled=(quick == "해제"),
         )
         if quick != "해제":
@@ -1447,6 +1741,127 @@ def main() -> None:
             _style_dataframe_like_dashboard(view[cols]),
             use_container_width=True,
             height=detail_h,
+            hide_index=True,
+            column_config=column_config,
+        )
+        return
+
+    if view_mode == "리스크":
+        st.subheader("리스크 (수주 기준)")
+
+        if not prod_daily_csv:
+            st.error("`생산실적` 시트 기반 CAPA 데이터가 없습니다. 엑셀에 `생산실적` 시트가 있는지 확인하세요.")
+            st.stop()
+
+        capa_days = st.selectbox(
+            "CAPA 기준 가동일(N)",
+            options=[3, 5, 7, 10],
+            index=[3, 5, 7, 10].index(int(st.session_state.get("risk_capa_days", 5) or 5))
+            if int(st.session_state.get("risk_capa_days", 5) or 5) in [3, 5, 7, 10]
+            else 1,
+            key="risk_capa_days",
+        )
+        buffer_days = st.number_input(
+            "YELLOW 버퍼(일)",
+            min_value=0.0,
+            max_value=30.0,
+            value=float(st.session_state.get("risk_buffer_days", 1.0) or 1.0),
+            step=0.5,
+            key="risk_buffer_days",
+        )
+
+        grade_options = ["RED", "YELLOW", "GREEN"]
+        grade_raw = st.pills(
+            "등급 필터",
+            options=grade_options,
+            default=st.session_state.get("risk_grade_pill", ["RED", "YELLOW"]),
+            key="risk_grade_pill",
+            selection_mode="multi",
+            label_visibility="collapsed",
+        )
+        selected_grades = grade_raw if isinstance(grade_raw, list) else ([grade_raw] if grade_raw else [])
+        if not selected_grades:
+            selected_grades = ["RED", "YELLOW"]
+
+        subset = order_df if code == "전체" else order_df[order_df[new_code_col].astype("string") == code].copy()
+        search_raw = st.text_input(
+            "검색 (이니셜/수주번호/품명)",
+            placeholder="예: 해외, 202601, O2O2",
+            key=f"risk_{code}_search",
+        )
+        subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
+
+        prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
+        as_of = _today_kst() - timedelta(days=1)
+        capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(capa_days), as_of=as_of)
+
+        risk_df = _build_order_risk_table(subset, capa_table, today=_today_kst(), buffer_days=float(buffer_days))
+        if risk_df.empty:
+            st.caption("표시할 리스크 대상이 없습니다.")
+            st.stop()
+
+        risk_df = risk_df.loc[risk_df["리스크등급"].isin(selected_grades)].copy()
+        if risk_df.empty:
+            st.caption("필터 조건에 해당하는 항목이 없습니다.")
+            st.stop()
+
+        # Summary metrics
+        c = risk_df["리스크등급"].value_counts().to_dict()
+        m1, m2, m3 = st.columns(3)
+        m1.metric("RED", int(c.get("RED", 0)))
+        m2.metric("YELLOW", int(c.get("YELLOW", 0)))
+        m3.metric("GREEN", int(c.get("GREEN", 0)))
+
+        show_cols = [
+            "우선순위",
+            "이니셜",
+            "수주번호",
+            "신규분류 요약코드",
+            "품명",
+            "납기일",
+            "리스크등급",
+            "병목공정",
+            "리스크사유",
+            "누수규격",
+            "누수규격_CAPA",
+            "누수규격_필요일수",
+            "완료예상일",
+            "예상지연일",
+        ]
+        show_cols = [c for c in show_cols if c in risk_df.columns]
+
+        xlsx_bytes_risk = _to_excel_bytes(risk_df[show_cols], sheet_name="리스크")
+        st.download_button(
+            "엑셀 다운로드",
+            data=xlsx_bytes_risk,
+            file_name=f"리스크_{code}_{_today_kst().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"risk_{code}_download",
+        )
+
+        column_config = {
+            "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
+            "이니셜": st.column_config.TextColumn(width="small"),
+            "수주번호": st.column_config.TextColumn(width="medium"),
+            "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
+            "품명": st.column_config.TextColumn(width="large"),
+            "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+            "리스크등급": st.column_config.TextColumn(width="small"),
+            "병목공정": st.column_config.TextColumn(width="small"),
+            "리스크사유": st.column_config.TextColumn(width="large"),
+            "누수규격": st.column_config.NumberColumn(format="localized", width="small"),
+            "누수규격_CAPA": st.column_config.NumberColumn(format="localized", width="small"),
+            "누수규격_필요일수": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "완료예상일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+            "예상지연일": st.column_config.NumberColumn(format="%d", width="small"),
+        }
+        column_config = {k: v for k, v in column_config.items() if k in show_cols}
+
+        table_h = _table_height_for_rows(len(risk_df), min_height=320, max_height=780)
+        st.dataframe(
+            _style_dataframe_like_dashboard(risk_df[show_cols]),
+            use_container_width=True,
+            height=table_h,
             hide_index=True,
             column_config=column_config,
         )
