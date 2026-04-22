@@ -137,9 +137,6 @@ def _on_change_risk_grade_pills(*, key: str, grade_options: list[str]) -> None:
     if not isinstance(v, list):
         v = [v] if v else []
     v = [str(x).strip() for x in v if str(x).strip()]
-    if "해제" in v:
-        st.session_state[key] = grade_options
-        return
     st.session_state[key] = [g for g in v if g in grade_options]
 
 
@@ -2051,7 +2048,7 @@ def main() -> None:
 
         grade_options = ["RED", "YELLOW", "GREEN"]
         counts = risk_base["리스크등급"].value_counts().to_dict() if "리스크등급" in risk_base.columns else {}
-        filter_options = ["해제", *grade_options]
+        filter_options = grade_options
 
         def _grade_label(opt: str) -> str:
             s = str(opt)
