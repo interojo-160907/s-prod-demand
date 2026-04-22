@@ -894,7 +894,8 @@ def _build_order_risk_table(
     # Remaining calendar days (24/7 운영 전제)
     due_dt = pd.to_datetime(base["납기일"], errors="coerce") if "납기일" in base.columns else pd.Series([pd.NaT] * len(base))
     base["_due_date"] = due_dt.dt.date
-    base["남은일수"] = base["_due_date"].map(lambda d: (d - today).days if isinstance(d, date) else None)
+    base["남은일수_raw"] = base["_due_date"].map(lambda d: (d - today).days if isinstance(d, date) else None)
+    base["남은일수"] = base["남은일수_raw"].map(lambda x: max(0, int(x)) if isinstance(x, int) else (max(0, int(x)) if isinstance(x, float) else None))
 
     capa_map = {}
     if capa_table is not None and (not capa_table.empty) and "공정" in capa_table.columns:
@@ -905,8 +906,8 @@ def _build_order_risk_table(
         capa_map = {str(r["공정"]): float(r.get("CAPA", 0) or 0) for r in tmp.to_dict("records")}
 
     meta_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in base.columns]
-    melt = base[meta_cols + ["남은일수"] + stage_cols].melt(
-        id_vars=meta_cols + ["남은일수"],
+    melt = base[meta_cols + ["남은일수_raw", "남은일수"] + stage_cols].melt(
+        id_vars=meta_cols + ["남은일수_raw", "남은일수"],
         value_vars=stage_cols,
         var_name="공정",
         value_name="부족수량",
@@ -947,9 +948,26 @@ def _build_order_risk_table(
         .rename(columns={"_grade_rank": "_worst_rank"})
     )
 
-    # Bottleneck: minimum slack; if CAPA missing(inf required) slack becomes -inf -> selected automatically.
-    idx = melt.groupby(group_key, dropna=False)["슬랙"].idxmin()
-    bottleneck = melt.loc[idx, group_key + ["공정", "부족수량", "CAPA", "필요일수", "남은일수", "등급"]].copy()
+    proc_order = {"사출": 0, "분리": 1, "하이드레이션": 2, "접착": 3, "누수규격": 4}
+    melt["_proc_order"] = melt["공정"].map(lambda x: proc_order.get(str(x), 999))
+
+    # Start process: 가장 앞 공정(사출->...->누수규격) 중 부족수량>0인 공정
+    idx_start = melt.groupby(group_key, dropna=False)["_proc_order"].idxmin()
+    start_proc = melt.loc[idx_start, group_key + ["공정", "부족수량", "CAPA", "필요일수", "남은일수", "등급"]].copy()
+    start_proc = start_proc.rename(
+        columns={
+            "공정": "시작공정",
+            "부족수량": "시작_부족수량",
+            "CAPA": "시작_CAPA",
+            "필요일수": "시작_필요일수",
+            "남은일수": "시작_남은일수",
+            "등급": "시작_등급",
+        }
+    )
+
+    # Bottleneck: 최소 슬랙(일정상 가장 타이트한 공정)
+    idx_bn = melt.groupby(group_key, dropna=False)["슬랙"].idxmin()
+    bottleneck = melt.loc[idx_bn, group_key + ["공정", "부족수량", "CAPA", "필요일수", "남은일수", "등급", "슬랙"]].copy()
     bottleneck = bottleneck.rename(
         columns={
             "공정": "병목공정",
@@ -958,6 +976,7 @@ def _build_order_risk_table(
             "필요일수": "병목_필요일수",
             "남은일수": "병목_남은일수",
             "등급": "병목_등급",
+            "슬랙": "병목_슬랙",
         }
     )
 
@@ -970,7 +989,11 @@ def _build_order_risk_table(
     else:
         rep = rep[group_key].drop_duplicates()
 
-    out = rep.merge(worst, on=group_key, how="left").merge(bottleneck, on=group_key, how="left")
+    out = (
+        rep.merge(worst, on=group_key, how="left")
+        .merge(start_proc, on=group_key, how="left")
+        .merge(bottleneck, on=group_key, how="left")
+    )
 
     def _rank_to_grade(n) -> str:
         try:
@@ -985,8 +1008,19 @@ def _build_order_risk_table(
     out["리스크등급"] = out["_worst_rank"].map(_rank_to_grade)
 
     def _reason_row(r) -> str:
-        if pd.isna(r.get("병목공정")):
+        due = r.get("납기일")
+        if isinstance(due, pd.Timestamp):
+            due_date = due.date()
+        else:
+            due_date = None
+        if isinstance(due_date, date) and (due_date - today).days < 0:
+            return f"납기 경과 D+{abs((due_date - today).days)}"
+
+        if pd.isna(r.get("병목공정")) and pd.isna(r.get("시작공정")):
             return ""
+        # Prefer start-process visibility when upstream shortage exists.
+        if pd.notna(r.get("시작공정")) and (str(r.get("시작공정")) != str(r.get("병목공정"))):
+            return f"시작:{r.get('시작공정')} / 병목:{r.get('병목공정')}"
         if float(r.get("병목_CAPA") or 0) <= 0:
             return f"{r.get('병목공정')} CAPA=0"
         try:
@@ -1753,6 +1787,8 @@ def main() -> None:
             st.error("`생산실적` 시트 기반 CAPA 데이터가 없습니다. 엑셀에 `생산실적` 시트가 있는지 확인하세요.")
             st.stop()
 
+        include_overdue = st.checkbox("납기 경과(과거 납기) 포함", value=False, key="risk_include_overdue")
+
         capa_days = st.selectbox(
             "CAPA 기준 가동일(N)",
             options=[3, 5, 7, 10],
@@ -1790,6 +1826,9 @@ def main() -> None:
             key=f"risk_{code}_search",
         )
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
+        if not include_overdue and "납기일" in subset.columns:
+            subset["납기일"] = pd.to_datetime(subset["납기일"], errors="coerce")
+            subset = subset.loc[subset["납기일"].dt.date.ge(_today_kst())].copy()
 
         prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
         as_of = _today_kst() - timedelta(days=1)
@@ -1820,6 +1859,7 @@ def main() -> None:
             "품명",
             "납기일",
             "리스크등급",
+            "시작공정",
             "병목공정",
             "리스크사유",
             "누수규격",
@@ -1847,6 +1887,7 @@ def main() -> None:
             "품명": st.column_config.TextColumn(width="large"),
             "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
             "리스크등급": st.column_config.TextColumn(width="small"),
+            "시작공정": st.column_config.TextColumn(width="small"),
             "병목공정": st.column_config.TextColumn(width="small"),
             "리스크사유": st.column_config.TextColumn(width="large"),
             "누수규격": st.column_config.NumberColumn(format="localized", width="small"),
