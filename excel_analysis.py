@@ -33,6 +33,69 @@ def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+_EQUIP_SECOND_HEADER_TOKENS = {
+    "설비 사이트 코드",
+    "공정 코드",
+    "제품 그룹 코드",
+    "제품 이름",
+    "제품명",
+    "제품 코드",
+    "제품코드",
+    "제품코드(Full)",
+    "POWER",
+    "주문 대응 수량",
+    "계획 수량",
+    "최소 납기일",
+    "최소 남기일",
+    "최소 목표일",
+}
+
+
+def _looks_like_header_row(values) -> bool:
+    tokens: set[str] = set()
+    for v in values:
+        if v is None:
+            continue
+        try:
+            if pd.isna(v):
+                continue
+        except Exception:
+            pass
+        s = str(v).strip()
+        if not s:
+            continue
+        tokens.add(s)
+    # Heuristic: if a row contains multiple known header tokens, treat it as a header row.
+    return len(tokens & _EQUIP_SECOND_HEADER_TOKENS) >= 3
+
+
+def _parse_equip_sheet(xl: pd.ExcelFile) -> pd.DataFrame:
+    """
+    Parse "설비별" sheet with backward compatibility.
+
+    Some workbooks include two header rows:
+      - Row 1: legacy column names
+      - Row 2: updated column names
+      - Row 3+: data
+
+    In that case, parse with header=1 so row 2 becomes the actual header.
+    """
+    try:
+        preview = xl.parse("설비별", header=0, nrows=1)
+        use_second_header = (not preview.empty) and _looks_like_header_row(preview.iloc[0].tolist())
+    except Exception:
+        use_second_header = False
+
+    df = xl.parse("설비별", header=1 if use_second_header else 0)
+    df = _clean_columns(df)
+
+    # Column aliases (new -> old) to keep downstream logic stable.
+    if "계획 수량" not in df.columns and "주문 대응 수량" in df.columns:
+        df = df.rename(columns={"주문 대응 수량": "계획 수량"})
+
+    return df
+
+
 def _normalize_code(value) -> str | None:
     if value is None:
         return None
@@ -69,7 +132,13 @@ def _to_datetime(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
             s_num = pd.to_numeric(s, errors="coerce")
             mask_excel = s_num.notna() & (s_num >= 20000) & (s_num <= 80000)
             if mask_excel.any():
-                dt_excel = pd.to_datetime(s_num, unit="D", origin="1899-12-30", errors="coerce")
+                # Convert only the excel-serial-looking values to avoid overflow on outliers.
+                dt_excel = pd.to_datetime(
+                    s_num.where(mask_excel),
+                    unit="D",
+                    origin="1899-12-30",
+                    errors="coerce",
+                )
                 dt = dt.where(~mask_excel, dt_excel)
             df[c] = dt
     return df
@@ -170,7 +239,7 @@ def _build_product_family_map(xl: pd.ExcelFile) -> dict[str, str]:
     if "설비별" not in xl.sheet_names:
         return {}
 
-    equip = _clean_columns(xl.parse("설비별"))
+    equip = _parse_equip_sheet(xl)
 
     name_col = None
     for c in ["제품 이름", "제품명"]:
@@ -184,7 +253,7 @@ def _build_product_family_map(xl: pd.ExcelFile) -> dict[str, str]:
     for c in ["제품 그룹 코드", "제품그룹코드"]:
         if c in equip.columns:
             key_cols.append(c)
-    for c in ["제품코드(Full)", "제품코드"]:
+    for c in ["제품코드(Full)", "제품 코드", "제품코드"]:
         if c in equip.columns:
             key_cols.append(c)
     if not key_cols:
@@ -608,7 +677,7 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     equip_target_path = None
     equip_code_target_path = None
     if "설비별" in xl.sheet_names:
-        equip = _clean_columns(xl.parse("설비별"))
+        equip = _parse_equip_sheet(xl)
         equip = _to_datetime(equip, ["최소 목표일"])
         if "최소 목표일" in equip.columns:
             equip_stage_map = {
@@ -856,7 +925,7 @@ def analyze(file_path: str | bytes, out_dir: str) -> dict:
 
     # Sheet: 설비별
     if "설비별" in sheets:
-        equip = _clean_columns(xl.parse("설비별"))
+        equip = _parse_equip_sheet(xl)
         equip = _coerce_numeric(equip, ["계획 수량"])
         equip = _to_datetime(equip, ["최소 납기일", "최소 목표일"])
 
