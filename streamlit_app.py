@@ -43,6 +43,21 @@ RISK_WIP_DAYS_PER_PROCESS = 1.0
 RISK_SCHED_START_OFFSET_DAYS = 0.0
 
 
+@st.cache_data(show_spinner=False)
+def _load_theme_from_config_cached(_mtime: float) -> dict:
+    _ = _mtime  # cache-buster when file changes
+    try:
+        if not os.path.exists(STREAMLIT_CONFIG_PATH):
+            return {}
+        with open(STREAMLIT_CONFIG_PATH, "rb") as f:
+            import tomllib  # py3.11+
+
+            data = tomllib.load(f)
+        return data.get("theme", {}) if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
 def _today_kst() -> date:
     return datetime.now(tz=KST).date()
 
@@ -250,16 +265,18 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
 
 
 def _load_theme_from_config() -> dict:
-    try:
-        if not os.path.exists(STREAMLIT_CONFIG_PATH):
-            return {}
-        with open(STREAMLIT_CONFIG_PATH, "rb") as f:
-            import tomllib  # py3.11+
+    """
+    Load Streamlit theme config (cached by file mtime).
 
-            data = tomllib.load(f)
-        return data.get("theme", {}) if isinstance(data, dict) else {}
+    This is called frequently (table styling / CSS injection), so we cache to reduce
+    redundant disk reads while keeping behavior identical when config changes.
+    """
+
+    try:
+        mtime = os.path.getmtime(STREAMLIT_CONFIG_PATH) if os.path.exists(STREAMLIT_CONFIG_PATH) else -1.0
     except Exception:
-        return {}
+        mtime = -1.0
+    return _load_theme_from_config_cached(float(mtime))
 
 
 def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
@@ -524,9 +541,11 @@ def _to_excel_bytes(df: pd.DataFrame, *, sheet_name: str = "data") -> bytes:
 
     # Ensure date columns export as YYYY-MM-DD (no time component).
     for c in xdf.columns:
-        if c == "납기일" or pd.api.types.is_datetime64_any_dtype(xdf[c]):
+        if c == "납기일":
             dt = pd.to_datetime(xdf[c], errors="coerce")
             xdf[c] = dt.dt.strftime("%Y-%m-%d")
+        elif pd.api.types.is_datetime64_any_dtype(xdf[c]):
+            xdf[c] = xdf[c].dt.strftime("%Y-%m-%d")
     try:
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             xdf.to_excel(writer, index=False, sheet_name=sheet_name[:31])
@@ -801,7 +820,8 @@ def _prepare_lens_df(df: pd.DataFrame) -> pd.DataFrame:
 def _apply_due_date_end_filter(df: pd.DataFrame, end: date) -> pd.DataFrame:
     if "납기일" not in df.columns:
         return df
-    due = pd.to_datetime(df["납기일"], errors="coerce")
+    col = df["납기일"]
+    due = col if pd.api.types.is_datetime64_any_dtype(col) else pd.to_datetime(col, errors="coerce")
     mask = due.dt.date.le(end)
     return df.loc[mask].copy()
 
@@ -820,21 +840,29 @@ def _compute_capa_table_from_prod_daily(
     if prod_daily is None or prod_daily.empty:
         return pd.DataFrame(columns=["공정", "CAPA", "capa_days", "last_run_date"])
 
-    df = prod_daily.copy()
+    df = prod_daily
     if "생산일자" not in df.columns or "공정" not in df.columns or "양품" not in df.columns:
         return pd.DataFrame(columns=["공정", "CAPA", "capa_days", "last_run_date"])
 
+    df = df.copy()
     df["생산일자"] = pd.to_datetime(df["생산일자"], errors="coerce")
     df["양품"] = pd.to_numeric(df["양품"], errors="coerce").fillna(0)
     df["공정"] = df["공정"].astype("string").fillna("").str.strip()
 
-    df = df.loc[df["공정"].ne("") & df["생산일자"].notna()].copy()
-    df = df.loc[df["생산일자"].dt.date.le(as_of)].copy()
-    df = df.loc[df["양품"].gt(0)].copy()
+    # Filter once (avoid repeated .copy()).
+    mask = df["공정"].ne("") & df["생산일자"].notna() & df["양품"].gt(0)
+    if mask.any():
+        df = df.loc[mask]
+    else:
+        return pd.DataFrame(columns=["공정", "CAPA", "capa_days", "last_run_date"])
+    df = df.loc[df["생산일자"].dt.date.le(as_of)]
+    if df.empty:
+        return pd.DataFrame(columns=["공정", "CAPA", "capa_days", "last_run_date"])
+
+    df = df.sort_values(["공정", "생산일자"], ascending=[True, True])
 
     rows: list[dict] = []
     for proc, g in df.groupby("공정", dropna=False):
-        g = g.sort_values("생산일자", ascending=True)
         # 일별 집계 형태를 다시 보장(동일일자 다건 대비)
         by_day = (
             g.groupby(g["생산일자"].dt.date, dropna=False)["양품"]
@@ -902,7 +930,10 @@ def _build_order_risk_table(
 
     base = order_df.copy()
     if "납기일" in base.columns:
-        base["납기일"] = pd.to_datetime(base["납기일"], errors="coerce")
+        due_col = base["납기일"]
+        base["납기일"] = (
+            due_col if pd.api.types.is_datetime64_any_dtype(due_col) else pd.to_datetime(due_col, errors="coerce")
+        )
 
     stage_cols = [c for c in DEFAULT_STAGE_COLS if c in base.columns]
     if not stage_cols:
@@ -912,7 +943,7 @@ def _build_order_risk_table(
         base[c] = pd.to_numeric(base[c], errors="coerce").fillna(0)
 
     # Remaining calendar days (24/7 운영 전제)
-    due_dt = pd.to_datetime(base["납기일"], errors="coerce") if "납기일" in base.columns else pd.Series([pd.NaT] * len(base))
+    due_dt = base["납기일"] if "납기일" in base.columns else pd.Series([pd.NaT] * len(base))
     base["_due_date"] = due_dt.dt.date
     base["남은일수_raw"] = base["_due_date"].map(lambda d: (d - today).days if isinstance(d, date) else None)
     base["남은일수"] = base["남은일수_raw"].map(lambda x: max(0, int(x)) if isinstance(x, int) else (max(0, int(x)) if isinstance(x, float) else None))
@@ -1154,7 +1185,11 @@ def _build_order_risk_table(
 
     stage_agg["게이트공정"] = stage_agg.apply(_gate_for_done, axis=1)
 
-    stage_agg["납기일"] = pd.to_datetime(stage_agg["납기일"], errors="coerce")
+    if "납기일" in stage_agg.columns:
+        due_col2 = stage_agg["납기일"]
+        stage_agg["납기일"] = (
+            due_col2 if pd.api.types.is_datetime64_any_dtype(due_col2) else pd.to_datetime(due_col2, errors="coerce")
+        )
 
     sched = stage_agg.copy()
     sched = sched.sort_values(["납기일"], ascending=[True], na_position="last")
