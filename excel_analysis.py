@@ -33,6 +33,23 @@ def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _normalize_code(value) -> str | None:
+    if value is None:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
+    s = str(value).strip()
+    if not s:
+        return None
+    if s.lower() in {"nan", "<na>", "none"}:
+        return None
+    return s
+
+
 def _coerce_numeric(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     df = df.copy()
     for c in cols:
@@ -178,10 +195,11 @@ def _build_product_family_map(xl: pd.ExcelFile) -> dict[str, str]:
 
     m: dict[str, str] = {}
     for code_col in key_cols:
-        codes = equip[code_col].astype(str).str.strip()
+        codes = equip[code_col]
         fams = equip["제품군"].astype(str)
-        for code, fam in zip(codes, fams, strict=False):
-            if not code or code.lower() == "nan":
+        for raw_code, fam in zip(codes, fams, strict=False):
+            code = _normalize_code(raw_code)
+            if code is None:
                 continue
             # Prefer first-seen mapping to keep deterministic behavior.
             if code not in m:
