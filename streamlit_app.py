@@ -212,6 +212,97 @@ def _safe_mkdir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
+@st.cache_data(show_spinner=False)
+def _xlsx_sheet_names_cached(path: str, _mtime: float) -> set[str]:
+    _ = _mtime  # cache-buster when file changes
+    try:
+        if not path or (not os.path.exists(path)):
+            return set()
+        with zipfile.ZipFile(path) as zf:
+            wb = zf.read("xl/workbook.xml")
+        root = ET.fromstring(wb)
+        ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        sheets_el = root.find("m:sheets", ns)
+        if sheets_el is None:
+            return set()
+        out: set[str] = set()
+        for sh in sheets_el.findall("m:sheet", ns):
+            name = (sh.attrib.get("name") or "").strip()
+            if name:
+                out.add(name)
+        return out
+    except Exception:
+        # Fallback (should be rare): use pandas engine if workbook.xml is unavailable.
+        try:
+            xl = pd.ExcelFile(path)
+            return set(str(x).strip() for x in xl.sheet_names if str(x).strip())
+        except Exception:
+            return set()
+
+
+def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
+    """
+    Fast up-to-date check for derived CSV outputs.
+
+    Important UX: tab switches cause reruns; keep this check lightweight so the
+    app feels instant when nothing changed.
+    """
+    due_csv = os.path.join(out_dir, "납기_제품군_공정별부족.csv")
+    detail_csv = os.path.join(out_dir, "이니셜별_수주상세.csv")
+    equip_code_target_csv = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
+    prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
+
+    try:
+        excel_mtime = float(os.path.getmtime(excel_path))
+    except Exception:
+        return {"ok": False, "reason": "엑셀 파일을 찾을 수 없습니다."}
+
+    # Base outputs must exist and be newer than the Excel file.
+    base_ok = (
+        os.path.exists(due_csv)
+        and os.path.exists(detail_csv)
+        and (os.path.getmtime(due_csv) >= excel_mtime)
+        and (os.path.getmtime(detail_csv) >= excel_mtime)
+    )
+    if not base_ok:
+        return {
+            "ok": True,
+            "needs_regen": True,
+            "due_csv": due_csv,
+            "detail_csv": detail_csv,
+            "equip_code_target_csv": None,
+            "prod_daily_csv": None,
+        }
+
+    # Optional outputs are required only if the corresponding sheets exist.
+    sheet_names = _xlsx_sheet_names_cached(excel_path, excel_mtime)
+    has_equip = "설비별" in sheet_names
+    has_prod = "생산실적" in sheet_names
+
+    equip_ok = os.path.exists(equip_code_target_csv) and (os.path.getmtime(equip_code_target_csv) >= excel_mtime)
+    prod_ok = os.path.exists(prod_daily_csv) and (os.path.getmtime(prod_daily_csv) >= excel_mtime)
+
+    if (has_equip and (not equip_ok)) or (has_prod and (not prod_ok)):
+        return {
+            "ok": True,
+            "needs_regen": True,
+            "due_csv": due_csv,
+            "detail_csv": detail_csv,
+            "equip_code_target_csv": equip_code_target_csv if has_equip else None,
+            "prod_daily_csv": prod_daily_csv if has_prod else None,
+        }
+
+    return {
+        "ok": True,
+        "needs_regen": False,
+        "regenerated": False,
+        "due_csv": due_csv,
+        "detail_csv": detail_csv,
+        "equip_code_target_csv": equip_code_target_csv if (has_equip and equip_ok) else None,
+        "prod_daily_csv": prod_daily_csv if (has_prod and prod_ok) else None,
+    }
+
+
 def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     due_csv = os.path.join(out_dir, "납기_제품군_공정별부족.csv")
     detail_csv = os.path.join(out_dir, "이니셜별_수주상세.csv")
@@ -222,9 +313,9 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     if os.path.exists(due_csv) and os.path.exists(detail_csv):
         if os.path.getmtime(due_csv) >= excel_mtime and os.path.getmtime(detail_csv) >= excel_mtime:
             try:
-                xl = pd.ExcelFile(excel_path)
-                has_equip = "설비별" in xl.sheet_names
-                has_prod = "생산실적" in xl.sheet_names
+                sheet_names = _xlsx_sheet_names_cached(excel_path, float(excel_mtime))
+                has_equip = "설비별" in sheet_names
+                has_prod = "생산실적" in sheet_names
             except Exception:
                 has_equip = False
                 has_prod = False
@@ -237,6 +328,7 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
                 return {
                     "ok": True,
                     "regenerated": False,
+                    "needs_regen": False,
                     "due_csv": due_csv,
                     "detail_csv": detail_csv,
                     "equip_code_target_csv": equip_code_target_csv if has_equip and equip_ok else None,
@@ -257,6 +349,7 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     return {
         "ok": True,
         "regenerated": True,
+        "needs_regen": False,
         "due_csv": due_csv,
         "detail_csv": detail_csv,
         "equip_code_target_csv": equip_code_target_csv if os.path.exists(equip_code_target_csv) else None,
@@ -1357,19 +1450,28 @@ def main() -> None:
         st.caption("기대 위치: `s관 부족수량.xlsx` 또는 `data/s관 부족수량.xlsx`")
         st.stop()
 
-    with st.spinner("엑셀에서 데이터 생성/로딩 중..."):
-        out_dir = OUT_DIR
-        ensure = _ensure_latest_outputs(excel_path=excel_path, out_dir=out_dir)
-        if not ensure.get("ok"):
-            st.error(f"데이터 생성 실패: {ensure.get('reason')}")
-            st.stop()
-        if ensure.get("regenerated"):
-            st.cache_data.clear()
+    out_dir = OUT_DIR
+    status = _outputs_status(excel_path=excel_path, out_dir=out_dir)
+    if not status.get("ok"):
+        st.error(f"데이터 로딩 실패: {status.get('reason') or '-'}")
+        st.stop()
 
-        due_csv = str(ensure["due_csv"])
-        detail_csv = str(ensure["detail_csv"])
-        equip_code_target_csv = ensure.get("equip_code_target_csv")
-        prod_daily_csv = ensure.get("prod_daily_csv")
+    if status.get("needs_regen"):
+        with st.spinner("엑셀 변경 감지: 데이터 생성 중..."):
+            ensure = _ensure_latest_outputs(excel_path=excel_path, out_dir=out_dir)
+    else:
+        ensure = status
+
+    if not ensure.get("ok"):
+        st.error(f"데이터 생성 실패: {ensure.get('reason')}")
+        st.stop()
+    if ensure.get("regenerated"):
+        st.cache_data.clear()
+
+    due_csv = str(ensure["due_csv"])
+    detail_csv = str(ensure["detail_csv"])
+    equip_code_target_csv = ensure.get("equip_code_target_csv")
+    prod_daily_csv = ensure.get("prod_daily_csv")
 
     detail_for_map: pd.DataFrame | None = None
     try:
