@@ -817,6 +817,10 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
     except Exception:
         return {"equip": pd.DataFrame(), "arrange": pd.DataFrame()}
 
+    # Note: in current xlsx, columns map as:
+    # - 사출 호기: A1/A2... (equipment code)
+    # - 구분: 라인구분(예: "S관 사출조립 인라인")
+    # - 구분2: 설비 타입(예: CLEAR/COLOR)
     equip_cols = ["위치", "사출 호기", "구분", "구분2", "생산 제품", "비고"]
     if "사출 호기" in raw.columns:
         equip = raw.loc[raw["사출 호기"].notna(), [c for c in equip_cols if c in raw.columns]].copy()
@@ -1010,6 +1014,12 @@ def _build_injection_schedule(
         warnings.append("사출 시트 설비 테이블에서 설비코드를 찾지 못했습니다.")
         return (pd.DataFrame(), pd.DataFrame(), warnings)
 
+    def _norm_space(v: object) -> str:
+        s = str(v or "").strip()
+        if not s:
+            return ""
+        return " ".join(s.split())
+
     arrange_map: dict[str, str] = {}
     arrange_name_map: dict[str, str] = {}
     if not arrange.empty and ("제품명코드" in arrange.columns):
@@ -1017,20 +1027,18 @@ def _build_injection_schedule(
             k = str(r.get("제품명코드") or "").strip().upper()
             if not k:
                 continue
-            v = str(r.get("구분.1") or "").strip() if "구분.1" in arrange.columns else ""
-            nm = str(r.get("제품명") or "").strip() if "제품명" in arrange.columns else ""
+            v = _norm_space(r.get("구분.1")) if "구분.1" in arrange.columns else ""
+            nm = _norm_space(r.get("제품명")) if "제품명" in arrange.columns else ""
             if v and k not in arrange_map:
                 arrange_map[k] = v
             if nm and k not in arrange_name_map:
                 arrange_name_map[k] = nm
 
-    arrange_labels = sorted({v for v in arrange_map.values() if v}, key=lambda x: -len(x))
-    inj_equip["라인구분"] = ""
-    if arrange_labels and ("사출 호기" in inj_equip.columns):
-        text = inj_equip["사출 호기"].astype("string").fillna("").astype(str)
-        for lbl in arrange_labels:
-            mask = inj_equip["라인구분"].eq("") & text.str.contains(re.escape(lbl), na=False)
-            inj_equip.loc[mask, "라인구분"] = lbl
+    # Equipment line type: prefer '구분' column (line label). Fallback to blank.
+    if "구분" in inj_equip.columns:
+        inj_equip["라인구분"] = inj_equip["구분"].map(_norm_space)
+    else:
+        inj_equip["라인구분"] = ""
 
     name_to_base: dict[str, str] = {}
     if (not arrange.empty) and ("제품명" in arrange.columns) and ("제품명코드" in arrange.columns):
@@ -1039,7 +1047,7 @@ def _build_injection_schedule(
             ["제품명", "제품명코드"],
         ].copy()
         for _, r in tmp.iterrows():
-            nm = str(r.get("제품명") or "").strip()
+            nm = _norm_space(r.get("제품명"))
             br = str(r.get("제품명코드") or "").strip().upper()
             if nm and br and nm not in name_to_base:
                 name_to_base[nm] = br
@@ -1067,6 +1075,12 @@ def _build_injection_schedule(
     if usable.empty:
         warnings.append("사출 시트에서 배정 가능한 설비가 없습니다(E 공란 + F 기입 설비는 배정 불가).")
         return (pd.DataFrame(), pd.DataFrame(), warnings)
+
+    if "라인구분" in usable.columns:
+        blank_line = usable["라인구분"].map(_norm_space).eq("")
+        if bool(blank_line.any()):
+            examples = usable.loc[blank_line, "설비명"].astype("string").fillna("").astype(str).head(6).tolist()
+            warnings.append(f"설비 라인구분(구분 컬럼) 인식 실패: {', '.join([e for e in examples if e])}")
 
     med_info = _load_injection_machine_medians_cached(excel_path, float(excel_mtime))
     med_by_machine: dict[str, float] = med_info.get("med_by_machine", {}) if isinstance(med_info, dict) else {}
@@ -1140,13 +1154,8 @@ def _build_injection_schedule(
         powers: dict[float, int] = info["powers"]  # type: ignore[assignment]
         powers[float(p)] = int(powers.get(float(p), 0) + need)
 
-    for base_r in list(product_info.keys()):
-        if not str(product_info[base_r].get("라인구분") or "").strip():
-            warnings.append(f"어레인지 누락: {base_r} (사출 시트 I~K에 제품명코드 매핑 필요)")
-            product_info.pop(base_r, None)
-
     if not product_info:
-        return (pd.DataFrame(), pd.DataFrame(), warnings or ["어레인지 매칭 가능한 제품이 없습니다."])
+        return (pd.DataFrame(), pd.DataFrame(), warnings or ["사출 수요가 없습니다."])
 
     def _product_remaining(base_r: str) -> int:
         info = product_info.get(base_r) or {}
@@ -1158,13 +1167,13 @@ def _build_injection_schedule(
         return d if isinstance(d, date) else date(2099, 12, 31)
 
     def _eligible_products_for_equipment(equip_row: pd.Series) -> list[str]:
-        line = str(equip_row.get("라인구분") or "").strip()
+        line = _norm_space(equip_row.get("라인구분"))
         if not line:
             return []
         out = [
             k
             for k, v in product_info.items()
-            if str(v.get("라인구분") or "").strip() == line and _product_remaining(k) > 0
+            if _norm_space(v.get("라인구분")) == line and _product_remaining(k) > 0
         ]
         out.sort(key=lambda k: (_product_due(k), -_product_remaining(k), k))
         return out
@@ -1255,6 +1264,7 @@ def _build_injection_schedule(
                         "설비명": equip_name,
                         "제품명코드": cur_prod,
                         "제품명": prod_name,
+                        "납기일": (product_info.get(cur_prod, {}).get("납기일") if cur_prod else None),
                         "Block": block,
                         "POWER 리스트": ", ".join([p for p in powers_list if str(p).strip()]),
                         "POWER 개수": int(sum(1 for p in powers_list if str(p).strip())),
@@ -1270,21 +1280,81 @@ def _build_injection_schedule(
 
     sched = pd.DataFrame(rows)
 
+    all_lines = set(inj_equip["라인구분"].map(_norm_space).tolist()) if "라인구분" in inj_equip.columns else set()
+    all_lines = {x for x in all_lines if x}
+    usable_lines = set(usable["라인구분"].map(_norm_space).tolist()) if "라인구분" in usable.columns else set()
+    usable_lines = {x for x in usable_lines if x}
+
+    missing_arrange: list[str] = []
     rem_rows: list[dict[str, object]] = []
     for base_r, info in sorted(product_info.items(), key=lambda kv: (_product_due(kv[0]), kv[0])):
         rem = _product_remaining(base_r)
         if rem <= 0:
             continue
+        line = _norm_space(info.get("라인구분"))
+        if not line:
+            reason = "어레인지 누락(I~K)"
+            missing_arrange.append(base_r)
+        elif line not in all_lines:
+            reason = f"설비 라인 없음({line})"
+        elif line not in usable_lines:
+            reason = f"라인 설비 배정불가({line})"
+        else:
+            reason = "기간 CAPA 부족"
         rem_rows.append(
             {
                 "제품명코드": base_r,
                 "제품명": str(info.get("제품명") or "").strip(),
                 "납기일": info.get("납기일"),
                 "잔여수량": rem,
+                "미배정사유": reason,
             }
         )
     remaining = pd.DataFrame(rem_rows)
+
+    if missing_arrange:
+        missing_arrange = sorted(set(missing_arrange))
+        previews = ", ".join(missing_arrange[:6])
+        more = f" 외 {len(missing_arrange) - 6}개" if len(missing_arrange) > 6 else ""
+        warnings.append(f"어레인지 누락({len(missing_arrange)}): {previews}{more} (사출 시트 I~K에 base R코드 매핑 필요)")
     return (sched, remaining, warnings)
+
+
+def _injection_schedule_to_blocks(sched: pd.DataFrame) -> pd.DataFrame:
+    """
+    Convert schedule table into time blocks for gantt/grid rendering.
+    Block 1 = 주간(08:00~20:00), Block 2 = 야간(20:00~익일 08:00).
+    """
+    if sched is None or sched.empty:
+        return pd.DataFrame()
+    df = sched.copy()
+    if "날짜" not in df.columns or "Block" not in df.columns or "설비명" not in df.columns:
+        return pd.DataFrame()
+
+    df["날짜"] = pd.to_datetime(df["날짜"], errors="coerce").dt.date
+    df["Block"] = pd.to_numeric(df["Block"], errors="coerce").fillna(0).astype(int)
+    df["shift"] = df["Block"].map(lambda b: "주간" if int(b) == 1 else ("야간" if int(b) == 2 else ""))
+
+    def _start_end(row: pd.Series) -> tuple[datetime | None, datetime | None]:
+        d = row.get("날짜")
+        if not isinstance(d, date):
+            return (None, None)
+        b = int(row.get("Block") or 0)
+        if b == 1:
+            s = datetime(d.year, d.month, d.day, 8, 0, 0)
+            e = datetime(d.year, d.month, d.day, 20, 0, 0)
+            return (s, e)
+        if b == 2:
+            s = datetime(d.year, d.month, d.day, 20, 0, 0)
+            e = s + timedelta(hours=12)
+            return (s, e)
+        return (None, None)
+
+    se = df.apply(_start_end, axis=1, result_type="expand")
+    df["start"] = se[0]
+    df["end"] = se[1]
+    df = df.loc[df["start"].notna() & df["end"].notna()].copy()
+    return df
 
 
 @st.cache_data(show_spinner=False)
@@ -2836,6 +2906,14 @@ def main() -> None:
         with col3:
             st.caption("설비 1대/일=2블록, 블록당 POWER 최대 8칸(중복 허용). E 공란+F 기입 설비는 배정하지 않습니다.")
 
+        view_kind = st.segmented_control(
+            "표시",
+            options=["간트", "그리드", "상세표"],
+            default="간트",
+            key="inj_view_kind",
+            label_visibility="collapsed",
+        )
+
         excel_mtime = float(os.path.getmtime(excel_path))
         base_df = df
         inj_quick_state = st.session_state.get("inj_due_quick", "해제")
@@ -2880,27 +2958,132 @@ def main() -> None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key=f"inj_{code}_download",
             )
-            col_cfg = {
-                "날짜": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-                "설비명": st.column_config.TextColumn(width="small"),
-                "제품명코드": st.column_config.TextColumn(width="small"),
-                "제품명": st.column_config.TextColumn(width="large"),
-                "Block": st.column_config.NumberColumn(format="%d", width="small"),
-                "POWER 리스트": st.column_config.TextColumn(width="large"),
-                "POWER 개수": st.column_config.NumberColumn(format="%d", width="small"),
-                "배정수량": st.column_config.NumberColumn(format="localized", width="small"),
-                "잔여수량": st.column_config.NumberColumn(format="localized", width="small"),
-                "세팅구분": st.column_config.TextColumn(width="small"),
-            }
-            show_cols = [c for c in col_cfg.keys() if c in sched.columns]
-            table_h = _table_height_for_rows(len(sched), min_height=360, max_height=860)
-            st.dataframe(
-                _style_dataframe_like_dashboard(sched[show_cols]),
-                use_container_width=True,
-                height=table_h,
-                hide_index=True,
-                column_config={k: v for k, v in col_cfg.items() if k in show_cols},
-            )
+
+            blocks = _injection_schedule_to_blocks(sched)
+            has_assigned = bool(blocks.get("제품명코드", pd.Series(dtype=str)).astype("string").fillna("").str.strip().ne("").any())
+            if not has_assigned:
+                st.info("현재 조건에서 배정 가능한 제품 후보가 없어 모든 블록이 유휴로 표시됩니다. (어레인지/라인구분/배정불가 설비를 확인하세요)")
+
+            if view_kind == "간트":
+                chart_df = blocks.copy()
+                chart_df["제품명코드"] = chart_df["제품명코드"].astype("string").fillna("").astype(str).str.strip()
+                chart_df = chart_df.loc[chart_df["제품명코드"].ne("")].copy()
+                if chart_df.empty:
+                    st.caption("간트 표시할 배정 블록이 없습니다.")
+                else:
+                    chart_df["start"] = pd.to_datetime(chart_df["start"], errors="coerce")
+                    chart_df["end"] = pd.to_datetime(chart_df["end"], errors="coerce")
+                    chart_df["start_iso"] = chart_df["start"].dt.strftime("%Y-%m-%dT%H:%M:%S")
+                    chart_df["end_iso"] = chart_df["end"].dt.strftime("%Y-%m-%dT%H:%M:%S")
+                    chart_df["tooltip_power"] = chart_df.get("POWER 리스트", "").astype("string").fillna("").astype(str)
+                    chart_df["tooltip_qty"] = pd.to_numeric(chart_df.get("배정수량", 0), errors="coerce").fillna(0).astype(int)
+                    chart_df["tooltip_setting"] = chart_df.get("세팅구분", "").astype("string").fillna("").astype(str)
+                    chart_df["tooltip_due"] = pd.to_datetime(chart_df.get("납기일", pd.NaT), errors="coerce").dt.strftime("%Y-%m-%d")
+
+                    spec = {
+                        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                        "data": {"values": chart_df.to_dict(orient="records")},
+                        "mark": {"type": "bar"},
+                        "encoding": {
+                            "y": {"field": "설비명", "type": "nominal", "sort": None, "axis": {"title": ""}},
+                            "x": {"field": "start_iso", "type": "temporal", "axis": {"title": ""}},
+                            "x2": {"field": "end_iso"},
+                            "color": {"field": "제품명코드", "type": "nominal", "legend": {"title": "제품"}},
+                            "tooltip": [
+                                {"field": "설비명", "type": "nominal", "title": "설비"},
+                                {"field": "제품명코드", "type": "nominal", "title": "R코드"},
+                                {"field": "제품명", "type": "nominal", "title": "품명(사출시트)"},
+                                {"field": "shift", "type": "nominal", "title": "주/야"},
+                                {"field": "tooltip_due", "type": "nominal", "title": "납기일"},
+                                {"field": "tooltip_qty", "type": "quantitative", "title": "배정수량"},
+                                {"field": "tooltip_setting", "type": "nominal", "title": "세팅"},
+                                {"field": "tooltip_power", "type": "nominal", "title": "POWER(최대8)"},
+                            ],
+                        },
+                        "height": max(260, min(900, 28 * int(chart_df["설비명"].nunique() + 1))),
+                    }
+                    st.vega_lite_chart(spec, use_container_width=True)
+
+                    st.subheader("일자별 세부 타겟")
+                    tgt = chart_df.copy()
+                    tgt["날짜"] = pd.to_datetime(tgt["날짜"], errors="coerce").dt.date
+                    gcols = [c for c in ["날짜", "제품명코드", "제품명", "납기일"] if c in tgt.columns]
+                    if gcols:
+                        daily = tgt.groupby(gcols, dropna=False, as_index=False).agg(
+                            블록수=("Block", "count"),
+                            배정수량=("배정수량", "sum"),
+                        )
+                        daily["배정수량"] = pd.to_numeric(daily["배정수량"], errors="coerce").fillna(0).astype(int)
+                        daily = daily.sort_values(["날짜", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
+                        st.dataframe(
+                            _style_dataframe_like_dashboard(daily),
+                            use_container_width=True,
+                            height=_table_height_for_rows(len(daily), min_height=220, max_height=520),
+                            hide_index=True,
+                        )
+
+            elif view_kind == "그리드":
+                grid = blocks.copy()
+                grid["col"] = grid.apply(lambda r: f"{r['날짜'].month}/{r['날짜'].day} {r.get('shift','')}", axis=1)
+                grid["cell"] = grid["제품명코드"].astype("string").fillna("").astype(str).str.strip()
+                pivot = (
+                    grid.pivot_table(index="설비명", columns="col", values="cell", aggfunc="first", fill_value="")
+                    if not grid.empty
+                    else pd.DataFrame()
+                )
+                if pivot.empty:
+                    st.caption("그리드 표시할 데이터가 없습니다.")
+                else:
+                    # Sort columns by date then shift
+                    def _col_key(c: str) -> tuple[int, int]:
+                        m = re.match(r"^(\d+)/(\d+)\s+(주간|야간)$", str(c).strip())
+                        if not m:
+                            return (999999, 9)
+                        mm, dd, sh = int(m.group(1)), int(m.group(2)), m.group(3)
+                        sh_rank = 0 if sh == "주간" else 1
+                        return (mm * 100 + dd, sh_rank)
+
+                    ordered_cols = sorted(list(pivot.columns), key=_col_key)
+                    pivot = pivot.reindex(columns=ordered_cols)
+                    show = pivot.reset_index()
+                    st.dataframe(
+                        _style_dataframe_like_dashboard(show),
+                        use_container_width=True,
+                        height=_table_height_for_rows(len(show), min_height=360, max_height=860),
+                        hide_index=True,
+                    )
+                    xlsx_grid = _to_excel_bytes(show, sheet_name="그리드")
+                    st.download_button(
+                        "엑셀 다운로드 (그리드)",
+                        data=xlsx_grid,
+                        file_name=f"사출그리드_{code}_{_today_kst().isoformat()}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"inj_{code}_download_grid",
+                    )
+
+            else:
+                col_cfg = {
+                    "날짜": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+                    "설비명": st.column_config.TextColumn(width="small"),
+                    "제품명코드": st.column_config.TextColumn(width="small"),
+                    "제품명": st.column_config.TextColumn(width="large"),
+                    "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+                    "Block": st.column_config.NumberColumn(format="%d", width="small"),
+                    "POWER 리스트": st.column_config.TextColumn(width="large"),
+                    "POWER 개수": st.column_config.NumberColumn(format="%d", width="small"),
+                    "배정수량": st.column_config.NumberColumn(format="localized", width="small"),
+                    "잔여수량": st.column_config.NumberColumn(format="localized", width="small"),
+                    "세팅구분": st.column_config.TextColumn(width="small"),
+                }
+                show_cols = [c for c in col_cfg.keys() if c in sched.columns]
+                table_h = _table_height_for_rows(len(sched), min_height=360, max_height=860)
+                st.dataframe(
+                    _style_dataframe_like_dashboard(sched[show_cols]),
+                    use_container_width=True,
+                    height=table_h,
+                    hide_index=True,
+                    column_config={k: v for k, v in col_cfg.items() if k in show_cols},
+                )
 
         if remaining is not None and (not remaining.empty):
             st.divider()
