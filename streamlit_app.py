@@ -810,6 +810,460 @@ def _load_prod_daily_csv(path: str | None, mtime: float) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFrame]:
+    _ = mtime  # cache-buster when file changes
+    try:
+        raw = pd.read_excel(path, sheet_name="사출")
+    except Exception:
+        return {"equip": pd.DataFrame(), "arrange": pd.DataFrame()}
+
+    equip_cols = ["위치", "사출 호기", "구분", "구분2", "생산 제품", "비고"]
+    if "사출 호기" in raw.columns:
+        equip = raw.loc[raw["사출 호기"].notna(), [c for c in equip_cols if c in raw.columns]].copy()
+    else:
+        equip = pd.DataFrame(columns=[c for c in equip_cols if c in raw.columns])
+    if not equip.empty and "사출 호기" in equip.columns:
+        equip["설비코드"] = (
+            equip["사출 호기"]
+            .astype("string")
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.split()
+            .str[0]
+        )
+    else:
+        equip["설비코드"] = ""
+
+    def _is_blank(v: object) -> bool:
+        if v is None:
+            return True
+        s = str(v).strip()
+        return (s == "") or (s.lower() == "nan")
+
+    if "생산 제품" not in equip.columns:
+        equip["생산 제품"] = ""
+    if "비고" not in equip.columns:
+        equip["비고"] = ""
+    equip["생산 제품"] = equip["생산 제품"].astype("string").fillna("").astype(str).str.strip()
+    equip["비고"] = equip["비고"].astype("string").fillna("").astype(str).str.strip()
+
+    # Rule: E(생산 제품) 공란 + F(비고) 기입 => 배정 불가
+    equip["배정가능"] = ~equip.apply(lambda r: _is_blank(r.get("생산 제품")) and (not _is_blank(r.get("비고"))), axis=1)
+
+    arrange_cols = ["제품명코드", "제품명", "구분.1"]
+    if "제품명코드" in raw.columns:
+        arrange = raw.loc[raw["제품명코드"].notna(), [c for c in arrange_cols if c in raw.columns]].copy()
+    else:
+        arrange = pd.DataFrame(columns=[c for c in arrange_cols if c in raw.columns])
+    if arrange.empty:
+        arrange = pd.DataFrame(columns=["제품명코드", "제품명", "구분.1"])
+    for c in ["제품명코드", "제품명", "구분.1"]:
+        if c not in arrange.columns:
+            arrange[c] = ""
+        arrange[c] = arrange[c].astype("string").fillna("").astype(str).str.strip()
+    return {"equip": equip, "arrange": arrange}
+
+
+@st.cache_data(show_spinner=False)
+def _load_injection_machine_medians_cached(path: str, mtime: float) -> dict[str, object]:
+    _ = mtime  # cache-buster when file changes
+    try:
+        df = pd.read_excel(path, sheet_name="생산실적", usecols=["생산일자", "공정코드", "양품수량", "기계코드"])
+    except Exception:
+        return {"med_by_machine": {}, "global_median": 0.0}
+
+    df["공정코드"] = df["공정코드"].astype("string").fillna("").astype(str)
+    df = df.loc[df["공정코드"].str.contains("사출", na=False)].copy()
+    if df.empty:
+        return {"med_by_machine": {}, "global_median": 0.0}
+
+    df["생산일자"] = pd.to_datetime(df["생산일자"], errors="coerce").dt.date
+    df["양품수량"] = pd.to_numeric(df["양품수량"], errors="coerce").fillna(0.0)
+    df["기계코드"] = df["기계코드"].astype("string").fillna("").astype(str).str.strip()
+    df = df.loc[df["생산일자"].notna() & df["기계코드"].ne("")].copy()
+    if df.empty:
+        return {"med_by_machine": {}, "global_median": 0.0}
+
+    daily = df.groupby(["기계코드", "생산일자"], dropna=False, as_index=False)["양품수량"].sum()
+    med_by_machine = daily.groupby("기계코드", dropna=False)["양품수량"].median().to_dict()
+    global_median = float(daily["양품수량"].median()) if not daily.empty else 0.0
+    return {"med_by_machine": med_by_machine, "global_median": global_median}
+
+
+def _infer_machine_code_from_equip(equip_code: str) -> str | None:
+    s = str(equip_code or "").strip().upper()
+    m = re.match(r"^([A-Z])(\d+)$", s)
+    if not m:
+        return None
+    letter, n = m.group(1), int(m.group(2))
+    if letter == "A":
+        return f"A형 인라인{n}호기 - 조립중합"
+    if letter == "B":
+        return f"B형 조립중합{n}호기"
+    if letter == "C":
+        return f"C형 조립중합{n}호기"
+    return None
+
+
+def _extract_base_r(code: object) -> str:
+    s = str(code or "").strip()
+    if not s:
+        return ""
+    return s.split("-", 1)[0].strip()
+
+
+def _coerce_date_value(x: object) -> date | None:
+    if x is None or (isinstance(x, float) and math.isnan(x)):
+        return None
+    if isinstance(x, datetime):
+        return x.date()
+    if isinstance(x, date):
+        return x
+    t = pd.to_datetime(x, errors="coerce")
+    if pd.isna(t):
+        return None
+    try:
+        return t.date()
+    except Exception:
+        return None
+
+
+def _choose_power_slots(powers_rem: dict[float, int], *, slots: int, slot_qty: int) -> tuple[list[float], list[int]]:
+    """
+    Return (slot_powers, slot_qtys) where each slot is assigned to one POWER (duplicates allowed).
+    slot_qtys are capped by remaining qty; unused capacity is 0.
+    """
+    out_p: list[float] = []
+    out_q: list[int] = []
+    if slots <= 0 or slot_qty <= 0 or not powers_rem:
+        return out_p, out_q
+
+    def _best_candidates() -> list[tuple[float, int]]:
+        items = [(p, int(q)) for p, q in powers_rem.items() if int(q) > 0]
+        items.sort(key=lambda t: (-t[1], t[0]))
+        return items
+
+    for _ in range(int(slots)):
+        cand = _best_candidates()
+        if not cand:
+            break
+        p, rem = cand[0]
+        q = int(min(rem, slot_qty))
+        out_p.append(float(p))
+        out_q.append(int(q))
+        powers_rem[p] = int(rem - q)
+
+    return out_p, out_q
+
+
+def _build_injection_schedule(
+    *,
+    demand: pd.DataFrame,
+    inj_equip: pd.DataFrame,
+    arrange: pd.DataFrame,
+    excel_path: str,
+    excel_mtime: float,
+    start_date: date,
+    horizon_days: int,
+) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+    """
+    Build 4~5 day injection schedule (2 blocks/day/equipment, 8 power slots/block).
+    Returns (schedule_df, remaining_df, warnings).
+    """
+    warnings: list[str] = []
+    if demand is None or demand.empty:
+        return (
+            pd.DataFrame(
+                columns=[
+                    "날짜",
+                    "설비명",
+                    "제품명코드",
+                    "제품명",
+                    "Block",
+                    "POWER 리스트",
+                    "POWER 개수",
+                    "배정수량",
+                    "잔여수량",
+                    "세팅구분",
+                ]
+            ),
+            pd.DataFrame(columns=["제품명코드", "제품명", "납기일", "잔여수량"]),
+            ["사출 부족수량(수요)이 없습니다."],
+        )
+
+    inj_equip = inj_equip.copy()
+    arrange = arrange.copy()
+
+    if "설비코드" not in inj_equip.columns:
+        warnings.append("사출 시트 설비 테이블에서 설비코드를 찾지 못했습니다.")
+        return (pd.DataFrame(), pd.DataFrame(), warnings)
+
+    arrange_map: dict[str, str] = {}
+    if (not arrange.empty) and ("제품명코드" in arrange.columns) and ("구분.1" in arrange.columns):
+        for _, r in arrange.iterrows():
+            k = str(r.get("제품명코드") or "").strip().upper()
+            v = str(r.get("구분.1") or "").strip()
+            if k and v and k not in arrange_map:
+                arrange_map[k] = v
+
+    arrange_labels = sorted({v for v in arrange_map.values() if v}, key=lambda x: -len(x))
+    inj_equip["라인구분"] = ""
+    if arrange_labels and ("사출 호기" in inj_equip.columns):
+        text = inj_equip["사출 호기"].astype("string").fillna("").astype(str)
+        for lbl in arrange_labels:
+            mask = inj_equip["라인구분"].eq("") & text.str.contains(re.escape(lbl), na=False)
+            inj_equip.loc[mask, "라인구분"] = lbl
+
+    name_to_base: dict[str, str] = {}
+    if (not arrange.empty) and ("제품명" in arrange.columns) and ("제품명코드" in arrange.columns):
+        tmp = arrange.loc[
+            arrange["제품명"].astype("string").fillna("").astype(str).str.strip().ne(""),
+            ["제품명", "제품명코드"],
+        ].copy()
+        for _, r in tmp.iterrows():
+            name_to_base[str(r["제품명"]).strip()] = str(r["제품명코드"]).strip().upper()
+
+    def _parse_running_base(v: object) -> str:
+        s = str(v or "").strip()
+        if not s:
+            return ""
+        if re.match(r"^R\d{3,}", s, flags=re.IGNORECASE):
+            return _extract_base_r(s).upper()
+        return str(name_to_base.get(s, "")).strip().upper()
+
+    inj_equip["현재제품"] = inj_equip.get("생산 제품", "").map(_parse_running_base) if "생산 제품" in inj_equip.columns else ""
+    inj_equip["설비명"] = inj_equip["설비코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+
+    if "배정가능" in inj_equip.columns:
+        usable = inj_equip.loc[inj_equip["배정가능"].fillna(False)].copy()
+    else:
+        usable = inj_equip.copy()
+    usable = usable.loc[usable["설비명"].ne("")].copy()
+
+    if usable.empty:
+        warnings.append("사출 시트에서 배정 가능한 설비가 없습니다(E 공란 + F 기입 설비는 배정 불가).")
+        return (pd.DataFrame(), pd.DataFrame(), warnings)
+
+    med_info = _load_injection_machine_medians_cached(excel_path, float(excel_mtime))
+    med_by_machine: dict[str, float] = med_info.get("med_by_machine", {}) if isinstance(med_info, dict) else {}
+    global_med = float(med_info.get("global_median", 0.0)) if isinstance(med_info, dict) else 0.0
+    if global_med <= 0:
+        global_med = 24000.0
+        warnings.append("생산실적 기반 설비 생산량 추정에 실패하여 기본 CAPA(일 24000ea/설비)를 사용합니다.")
+
+    def _equip_day_capa(equip_name: str) -> int:
+        mc = _infer_machine_code_from_equip(equip_name)
+        if mc and mc in med_by_machine:
+            v = float(med_by_machine.get(mc) or 0.0)
+            return int(max(0, round(v)))
+        return int(max(0, round(global_med)))
+
+    horizon_days = int(horizon_days)
+    if horizon_days <= 0:
+        horizon_days = 5
+    days = [start_date + timedelta(days=i) for i in range(horizon_days)]
+
+    work = demand.copy()
+    for c in ["제품코드", "품명", "POWER", "납기일"]:
+        if c not in work.columns:
+            work[c] = ""
+    if "사출" not in work.columns:
+        work["사출"] = 0
+
+    work["제품코드"] = work["제품코드"].astype("string").fillna("").astype(str).str.strip()
+    work = work.loc[work["제품코드"].ne("")].copy()
+    work = work.loc[work["제품코드"].str.upper().str.startswith("R")].copy()
+    work["제품명코드"] = work["제품코드"].map(_extract_base_r).astype("string").fillna("").astype(str).str.strip().str.upper()
+    work["사출"] = pd.to_numeric(work["사출"], errors="coerce").fillna(0).astype(int)
+    work = work.loc[work["사출"].gt(0) & work["제품명코드"].ne("")].copy()
+    if work.empty:
+        return (pd.DataFrame(), pd.DataFrame(), ["R코드(사출) 부족수량(수요)이 없습니다."])
+
+    work["POWER_num"] = pd.to_numeric(work["POWER"], errors="coerce")
+    work["_due"] = work["납기일"].map(_coerce_date_value)
+
+    product_info: dict[str, dict[str, object]] = {}
+    for _, r in work.iterrows():
+        base_r = str(r["제품명코드"] or "").strip().upper()
+        if not base_r:
+            continue
+        due = r.get("_due", None)
+        name = str(r.get("품명") or "").strip()
+        p = r.get("POWER_num", None)
+        if p is None or (isinstance(p, float) and math.isnan(p)):
+            continue
+        need = int(r.get("사출") or 0)
+        if need <= 0:
+            continue
+
+        info = product_info.get(base_r)
+        if info is None:
+            info = {
+                "제품명코드": base_r,
+                "제품명": name,
+                "납기일": due,
+                "powers": {},
+                "라인구분": arrange_map.get(base_r, ""),
+            }
+            product_info[base_r] = info
+        if name and (not str(info.get("제품명") or "").strip()):
+            info["제품명"] = name
+        if due is not None:
+            cur_due = info.get("납기일")
+            if (cur_due is None) or (isinstance(cur_due, date) and due < cur_due):
+                info["납기일"] = due
+        powers: dict[float, int] = info["powers"]  # type: ignore[assignment]
+        powers[float(p)] = int(powers.get(float(p), 0) + need)
+
+    for base_r in list(product_info.keys()):
+        if not str(product_info[base_r].get("라인구분") or "").strip():
+            warnings.append(f"어레인지 누락: {base_r} (사출 시트 I~K에 제품명코드 매핑 필요)")
+            product_info.pop(base_r, None)
+
+    if not product_info:
+        return (pd.DataFrame(), pd.DataFrame(), warnings or ["어레인지 매칭 가능한 제품이 없습니다."])
+
+    def _product_remaining(base_r: str) -> int:
+        info = product_info.get(base_r) or {}
+        powers = info.get("powers") or {}
+        return int(sum(int(v) for v in powers.values()))
+
+    def _product_due(base_r: str) -> date:
+        d = product_info.get(base_r, {}).get("납기일")
+        return d if isinstance(d, date) else date(2099, 12, 31)
+
+    def _eligible_products_for_equipment(equip_row: pd.Series) -> list[str]:
+        line = str(equip_row.get("라인구분") or "").strip()
+        if not line:
+            return []
+        out = [
+            k
+            for k, v in product_info.items()
+            if str(v.get("라인구분") or "").strip() == line and _product_remaining(k) > 0
+        ]
+        out.sort(key=lambda k: (_product_due(k), -_product_remaining(k), k))
+        return out
+
+    equip_last: dict[str, str] = {
+        str(r["설비명"]): str(r.get("현재제품") or "").strip().upper() for _, r in usable.iterrows()
+    }
+    equip_affinity: dict[str, str] = {}
+
+    rows: list[dict[str, object]] = []
+
+    for day in days:
+        for _, er in usable.iterrows():
+            equip_name = str(er.get("설비명") or "").strip().upper()
+            if not equip_name:
+                continue
+            day_capa = _equip_day_capa(equip_name)
+            block_capa = max(0, int(round(day_capa / 2.0)))
+            slot_qty = max(1, int(round(block_capa / 8.0))) if block_capa > 0 else 0
+
+            prev_prod = str(equip_last.get(equip_name, "") or "").strip().upper()
+            affinity = str(equip_affinity.get(equip_name, "") or "").strip().upper()
+            candidates = _eligible_products_for_equipment(er)
+
+            def _pick_product(prefer: str | None) -> str:
+                if prefer and prefer in candidates and _product_remaining(prefer) > 0:
+                    return prefer
+                if affinity and affinity in candidates and _product_remaining(affinity) > 0:
+                    return affinity
+                return candidates[0] if candidates else ""
+
+            prod1 = _pick_product(prev_prod)
+            if prod1:
+                equip_affinity.setdefault(equip_name, prod1)
+
+            def _setting_label(*, block: int, cur: str, prev_day: str, prev_block: str) -> str:
+                cur = str(cur or "").strip().upper()
+                prev_day = str(prev_day or "").strip().upper()
+                prev_block = str(prev_block or "").strip().upper()
+                if not cur:
+                    return "유휴"
+                if block == 1:
+                    if not prev_day:
+                        return "신규세팅"
+                    return "세팅유지" if cur == prev_day else "잡체인지"
+                if prev_block and (cur == prev_block):
+                    return "세팅유지"
+                if not prev_block and prev_day and (cur == prev_day):
+                    return "세팅유지"
+                if not prev_block and (not prev_day):
+                    return "신규세팅"
+                return "잡체인지"
+
+            prev_block_prod = ""
+            for block in (1, 2):
+                if block == 1:
+                    cur_prod = prod1
+                else:
+                    if prev_block_prod and _product_remaining(prev_block_prod) > 0:
+                        cur_prod = prev_block_prod
+                    else:
+                        candidates = _eligible_products_for_equipment(er)
+                        cur_prod = _pick_product(prev_prod if not prev_block_prod else None)
+                        if cur_prod:
+                            equip_affinity.setdefault(equip_name, cur_prod)
+
+                powers_list: list[str] = []
+                assign_qty = 0
+                rem_after = 0
+                prod_name = ""
+                if cur_prod:
+                    info = product_info.get(cur_prod) or {}
+                    prod_name = str(info.get("제품명") or "").strip()
+                    powers: dict[float, int] = info.get("powers") or {}
+                    slot_p, slot_q = _choose_power_slots(powers, slots=8, slot_qty=slot_qty)
+                    assign_qty = int(sum(slot_q))
+                    rem_after = _product_remaining(cur_prod)
+                    powers_list = [f"{p:+.2f}" for p in slot_p]
+                    if len(powers_list) < 8:
+                        powers_list += [""] * (8 - len(powers_list))
+                else:
+                    powers_list = [""] * 8
+
+                setting = _setting_label(block=block, cur=cur_prod, prev_day=prev_prod, prev_block=prev_block_prod)
+                rows.append(
+                    {
+                        "날짜": day,
+                        "설비명": equip_name,
+                        "제품명코드": cur_prod,
+                        "제품명": prod_name,
+                        "Block": block,
+                        "POWER 리스트": ", ".join([p for p in powers_list if str(p).strip()]),
+                        "POWER 개수": int(sum(1 for p in powers_list if str(p).strip())),
+                        "배정수량": int(assign_qty),
+                        "잔여수량": int(rem_after) if cur_prod else 0,
+                        "세팅구분": setting,
+                    }
+                )
+                if cur_prod:
+                    prev_block_prod = cur_prod
+
+            equip_last[equip_name] = prev_block_prod or prev_prod
+
+    sched = pd.DataFrame(rows)
+
+    rem_rows: list[dict[str, object]] = []
+    for base_r, info in sorted(product_info.items(), key=lambda kv: (_product_due(kv[0]), kv[0])):
+        rem = _product_remaining(base_r)
+        if rem <= 0:
+            continue
+        rem_rows.append(
+            {
+                "제품명코드": base_r,
+                "제품명": str(info.get("제품명") or "").strip(),
+                "납기일": info.get("납기일"),
+                "잔여수량": rem,
+            }
+        )
+    remaining = pd.DataFrame(rem_rows)
+    return (sched, remaining, warnings)
+
+
+@st.cache_data(show_spinner=False)
 def _load_due_prepared(path: str, mtime: float) -> pd.DataFrame:
     # One-shot cache: load + prepare (avoids recomputing _prepare_lens_df on every rerun).
     base = _load_due_csv(path, mtime)
@@ -1758,7 +2212,7 @@ def main() -> None:
         render(df, ui_key_prefix="all")
         return
 
-    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크"]
+    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크", "사출 계획"]
     _pre_widget_single_select_fix(key="view_mode", default="납기별 상세", options=view_options)
     view_mode_raw = st.segmented_control(
         "보기",
@@ -1785,6 +2239,10 @@ def main() -> None:
             st.session_state["proc_due_quick"] = "해제"
             st.session_state["proc_due_end"] = _today_kst()
             st.session_state["_prev_proc_due_quick"] = "해제"
+        if view_mode == "사출 계획":
+            st.session_state["inj_due_quick"] = "해제"
+            st.session_state["inj_due_end"] = _today_kst()
+            st.session_state["_prev_inj_due_quick"] = "해제"
         if view_mode == "수주별 현황":
             # Always reset due-date filter when entering order view.
             st.session_state["order_due_quick"] = "해제"
@@ -1882,6 +2340,41 @@ def main() -> None:
             disabled=(proc_quick == "해제"),
         )
 
+    if view_mode == "사출 계획":
+        inj_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
+        _pre_widget_single_select_fix(key="inj_due_quick", default="해제", options=inj_quick_options)
+        inj_quick_raw = st.pills(
+            "납기일 종료 (빠른 선택)",
+            options=inj_quick_options,
+            default="해제",
+            key="inj_due_quick",
+            selection_mode="single",
+            on_change=_on_change_single_select,
+            args=("inj_due_quick", "해제", inj_quick_options),
+            label_visibility="collapsed",
+        )
+        inj_quick = _coerce_single_value(inj_quick_raw, default="해제", options=inj_quick_options)
+        if inj_quick == "당월":
+            inj_default_end = _end_of_month(_today_kst())
+        elif inj_quick == "+7일":
+            inj_default_end = _today_kst() + timedelta(days=7)
+        elif inj_quick == "+14일":
+            inj_default_end = _today_kst() + timedelta(days=14)
+        else:
+            inj_default_end = _today_kst()
+
+        prev_inj_quick = st.session_state.get("_prev_inj_due_quick")
+        if prev_inj_quick != inj_quick:
+            st.session_state["inj_due_end"] = inj_default_end
+            st.session_state["_prev_inj_due_quick"] = inj_quick
+
+        inj_end_date = st.date_input(
+            "납기일 종료",
+            value=st.session_state.get("inj_due_end", inj_default_end),
+            key="inj_due_end",
+            disabled=(inj_quick == "해제"),
+        )
+
     # 분류 pills (view-mode별로 totals 계산 데이터가 다름)
     order_df_all: pd.DataFrame | None = None
     if view_mode in ("수주별 현황", "리스크"):
@@ -1951,7 +2444,13 @@ def main() -> None:
             proc_quick_state = st.session_state.get("proc_due_quick", "해제")
             if proc_quick_state != "해제":
                 codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("proc_due_end", _today_kst()))
-        value_col = process_only if process_only else "누수규격"
+        if view_mode == "사출 계획":
+            inj_quick_state = st.session_state.get("inj_due_quick", "해제")
+            if inj_quick_state != "해제":
+                codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("inj_due_end", _today_kst()))
+            value_col = "사출" if "사출" in codes_src.columns else "누수규격"
+        else:
+            value_col = process_only if process_only else "누수규격"
 
     totals_base: dict[str, float] = {}
     total_all = 0.0
@@ -2301,6 +2800,114 @@ def main() -> None:
             hide_index=True,
             column_config=column_config,
         )
+        return
+
+    if view_mode == "사출 계획":
+        st.subheader("사출 4~5일 단기 스케줄 (자동 생성)")
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            horizon_days = int(st.selectbox("기간(일)", options=[4, 5], index=1, key="inj_horizon_days"))
+        with col2:
+            start_date = st.date_input("시작일", value=_today_kst(), key="inj_start_date")
+        with col3:
+            st.caption("설비 1대/일=2블록, 블록당 POWER 최대 8칸(중복 허용). E 공란+F 기입 설비는 배정하지 않습니다.")
+
+        excel_mtime = float(os.path.getmtime(excel_path))
+        base_df = df
+        inj_quick_state = st.session_state.get("inj_due_quick", "해제")
+        if inj_quick_state != "해제":
+            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("inj_due_end", _today_kst()))
+
+        subset = base_df if code == "전체" else base_df[base_df[new_code_col].astype("string") == code].copy()
+        subset2 = subset.copy()
+        subset2 = _attach_item_codes(subset2, detail_for_map, allowed_prefixes=["R"])
+        if "제품코드" not in subset2.columns:
+            subset2["제품코드"] = ""
+
+        inj_info = _load_injection_sheet_cached(excel_path, excel_mtime)
+        inj_equip = inj_info.get("equip", pd.DataFrame())
+        inj_arrange = inj_info.get("arrange", pd.DataFrame())
+        if inj_equip is None or inj_equip.empty:
+            st.error("엑셀에 `사출` 시트(설비 현황)가 없습니다.")
+            st.stop()
+
+        sched, remaining, warns = _build_injection_schedule(
+            demand=subset2,
+            inj_equip=inj_equip,
+            arrange=inj_arrange,
+            excel_path=excel_path,
+            excel_mtime=excel_mtime,
+            start_date=start_date,
+            horizon_days=horizon_days,
+        )
+
+        if warns:
+            for w in warns[:8]:
+                st.warning(w)
+
+        if sched is None or sched.empty:
+            st.caption("생성된 스케줄이 없습니다.")
+        else:
+            xlsx_bytes = _to_excel_bytes(sched, sheet_name="사출스케줄")
+            st.download_button(
+                "엑셀 다운로드 (사출 스케줄)",
+                data=xlsx_bytes,
+                file_name=f"사출스케줄_{code}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"inj_{code}_download",
+            )
+            col_cfg = {
+                "날짜": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+                "설비명": st.column_config.TextColumn(width="small"),
+                "제품명코드": st.column_config.TextColumn(width="small"),
+                "제품명": st.column_config.TextColumn(width="large"),
+                "Block": st.column_config.NumberColumn(format="%d", width="small"),
+                "POWER 리스트": st.column_config.TextColumn(width="large"),
+                "POWER 개수": st.column_config.NumberColumn(format="%d", width="small"),
+                "배정수량": st.column_config.NumberColumn(format="localized", width="small"),
+                "잔여수량": st.column_config.NumberColumn(format="localized", width="small"),
+                "세팅구분": st.column_config.TextColumn(width="small"),
+            }
+            show_cols = [c for c in col_cfg.keys() if c in sched.columns]
+            table_h = _table_height_for_rows(len(sched), min_height=360, max_height=860)
+            st.dataframe(
+                _style_dataframe_like_dashboard(sched[show_cols]),
+                use_container_width=True,
+                height=table_h,
+                hide_index=True,
+                column_config={k: v for k, v in col_cfg.items() if k in show_cols},
+            )
+
+        if remaining is not None and (not remaining.empty):
+            st.divider()
+            st.subheader("미배정 잔여수량")
+            rem_show = remaining.copy()
+            if "잔여수량" in rem_show.columns:
+                rem_show["잔여수량"] = pd.to_numeric(rem_show["잔여수량"], errors="coerce").fillna(0).astype(int)
+            if "납기일" in rem_show.columns:
+                rem_show["납기일"] = pd.to_datetime(rem_show["납기일"], errors="coerce")
+            sort_cols = [c for c in ["납기일", "잔여수량", "제품명코드"] if c in rem_show.columns]
+            if sort_cols:
+                asc_map = {"납기일": True, "잔여수량": False, "제품명코드": True}
+                rem_show = rem_show.sort_values(
+                    sort_cols,
+                    ascending=[asc_map.get(c, True) for c in sort_cols],
+                    na_position="last",
+                )
+            xlsx_bytes_rem = _to_excel_bytes(rem_show, sheet_name="미배정")
+            st.download_button(
+                "엑셀 다운로드 (미배정 잔여)",
+                data=xlsx_bytes_rem,
+                file_name=f"사출_미배정_{code}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"inj_{code}_download_rem",
+            )
+            st.dataframe(
+                _style_dataframe_like_dashboard(rem_show),
+                use_container_width=True,
+                height=_table_height_for_rows(len(rem_show), min_height=220, max_height=520),
+                hide_index=True,
+            )
         return
 
     base_df = df
