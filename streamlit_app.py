@@ -1011,12 +1011,18 @@ def _build_injection_schedule(
         return (pd.DataFrame(), pd.DataFrame(), warnings)
 
     arrange_map: dict[str, str] = {}
-    if (not arrange.empty) and ("제품명코드" in arrange.columns) and ("구분.1" in arrange.columns):
+    arrange_name_map: dict[str, str] = {}
+    if not arrange.empty and ("제품명코드" in arrange.columns):
         for _, r in arrange.iterrows():
             k = str(r.get("제품명코드") or "").strip().upper()
-            v = str(r.get("구분.1") or "").strip()
-            if k and v and k not in arrange_map:
+            if not k:
+                continue
+            v = str(r.get("구분.1") or "").strip() if "구분.1" in arrange.columns else ""
+            nm = str(r.get("제품명") or "").strip() if "제품명" in arrange.columns else ""
+            if v and k not in arrange_map:
                 arrange_map[k] = v
+            if nm and k not in arrange_name_map:
+                arrange_name_map[k] = nm
 
     arrange_labels = sorted({v for v in arrange_map.values() if v}, key=lambda x: -len(x))
     inj_equip["라인구분"] = ""
@@ -1106,7 +1112,8 @@ def _build_injection_schedule(
         if not base_r:
             continue
         due = r.get("_due", None)
-        name = str(r.get("품명") or "").strip()
+        # IMPORTANT: shortage-tab '품명' is sales name; injection planning must use injection-sheet name(J) via mapping(I).
+        name = str(arrange_name_map.get(base_r, "") or "").strip()
         p = r.get("POWER_num", None)
         if p is None or (isinstance(p, float) and math.isnan(p)):
             continue
