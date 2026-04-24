@@ -862,6 +862,14 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
         if c not in arrange.columns:
             arrange[c] = ""
         arrange[c] = arrange[c].astype("string").fillna("").astype(str).str.strip()
+
+    def _to_base_r(v: object) -> str:
+        s = str(v or "").strip().upper()
+        m = re.match(r"^(R\d+)", s)
+        return m.group(1) if m else s
+
+    # Allow users to paste full item code (e.g., R1026+03.75...) but normalize to base R (R1026)
+    arrange["제품명코드"] = arrange["제품명코드"].map(_to_base_r)
     return {"equip": equip, "arrange": arrange}
 
 
@@ -910,7 +918,10 @@ def _extract_base_r(code: object) -> str:
     s = str(code or "").strip()
     if not s:
         return ""
-    return s.split("-", 1)[0].strip()
+    m = re.match(r"^(R\d+)", s, flags=re.IGNORECASE)
+    if m:
+        return m.group(1).strip().upper()
+    return s.split("-", 1)[0].strip().upper()
 
 
 def _coerce_date_value(x: object) -> date | None:
@@ -1015,22 +1026,14 @@ def _build_injection_schedule(
             mask = inj_equip["라인구분"].eq("") & text.str.contains(re.escape(lbl), na=False)
             inj_equip.loc[mask, "라인구분"] = lbl
 
-    name_to_base: dict[str, str] = {}
-    if (not arrange.empty) and ("제품명" in arrange.columns) and ("제품명코드" in arrange.columns):
-        tmp = arrange.loc[
-            arrange["제품명"].astype("string").fillna("").astype(str).str.strip().ne(""),
-            ["제품명", "제품명코드"],
-        ].copy()
-        for _, r in tmp.iterrows():
-            name_to_base[str(r["제품명"]).strip()] = str(r["제품명코드"]).strip().upper()
-
     def _parse_running_base(v: object) -> str:
         s = str(v or "").strip()
         if not s:
             return ""
         if re.match(r"^R\d{3,}", s, flags=re.IGNORECASE):
             return _extract_base_r(s).upper()
-        return str(name_to_base.get(s, "")).strip().upper()
+        # 제품명(판매명) 기반 매칭은 금지: 엑셀 사출 시트 E열에는 base R코드를 입력해야 함
+        return ""
 
     inj_equip["현재제품"] = inj_equip.get("생산 제품", "").map(_parse_running_base) if "생산 제품" in inj_equip.columns else ""
     inj_equip["설비명"] = inj_equip["설비코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
