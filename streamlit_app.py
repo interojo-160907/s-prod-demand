@@ -1026,14 +1026,28 @@ def _build_injection_schedule(
             mask = inj_equip["라인구분"].eq("") & text.str.contains(re.escape(lbl), na=False)
             inj_equip.loc[mask, "라인구분"] = lbl
 
+    name_to_base: dict[str, str] = {}
+    if (not arrange.empty) and ("제품명" in arrange.columns) and ("제품명코드" in arrange.columns):
+        tmp = arrange.loc[
+            arrange["제품명"].astype("string").fillna("").astype(str).str.strip().ne(""),
+            ["제품명", "제품명코드"],
+        ].copy()
+        for _, r in tmp.iterrows():
+            nm = str(r.get("제품명") or "").strip()
+            br = str(r.get("제품명코드") or "").strip().upper()
+            if nm and br and nm not in name_to_base:
+                name_to_base[nm] = br
+
     def _parse_running_base(v: object) -> str:
         s = str(v or "").strip()
         if not s:
             return ""
+        # Prefer explicit R-code input in E column.
         if re.match(r"^R\d{3,}", s, flags=re.IGNORECASE):
             return _extract_base_r(s).upper()
-        # 제품명(판매명) 기반 매칭은 금지: 엑셀 사출 시트 E열에는 base R코드를 입력해야 함
-        return ""
+        # Allowed fallback: map injection-sheet product name(E) -> arrange product name(J) -> base R(I).
+        # (Do NOT use shortage-tab sales names for matching.)
+        return str(name_to_base.get(s, "")).strip().upper()
 
     inj_equip["현재제품"] = inj_equip.get("생산 제품", "").map(_parse_running_base) if "생산 제품" in inj_equip.columns else ""
     inj_equip["설비명"] = inj_equip["설비코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
