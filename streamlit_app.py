@@ -679,21 +679,25 @@ def _attach_item_codes(
         return df
 
     # Join keys:
-    # - Avoid ADD/CP/AXIS here because UI normalization turns missing values into ""
-    #   while the detail CSV often has <NA>, which breaks equality joins.
-    key_candidates = ["신규분류 요약코드", "제품군", "납기일"]
-    key_cols = [c for c in key_candidates if c in df.columns and c in detail.columns]
-    if not key_cols:
-        return df
+    # Use lens-spec columns (ADD/CP/AXIS) so Toric/Multi rows map to the correct item code.
+    # When a column is missing on either side, create an empty normalized column to avoid
+    # accidental broad joins (which can cause mixed/duplicated codes in one cell).
+    key_cols = ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+    required = [c for c in key_cols if c != "납기일"]
 
     d = detail.copy()
     if "납기일" in d.columns:
         d["납기일"] = pd.to_datetime(d["납기일"], errors="coerce")
-    if "납기일" in df.columns:
-        left = df.copy()
+    left = df.copy()
+    if "납기일" in left.columns:
         left["납기일"] = pd.to_datetime(left["납기일"], errors="coerce")
-    else:
-        left = df.copy()
+
+    # Ensure required string keys exist on both sides.
+    for c in required:
+        if c not in d.columns:
+            d[c] = ""
+        if c not in left.columns:
+            left[c] = ""
 
     # Normalize string keys to avoid mismatch due to NA vs "" vs whitespace.
     for c in key_cols:
@@ -710,7 +714,23 @@ def _attach_item_codes(
         items = s.dropna().astype(str).map(lambda x: x.strip())
         if prefixes:
             items = items[items.map(lambda x: any(x.upper().startswith(p) for p in prefixes))]
-        return _format_item_code_list(sorted(set(items.tolist())))
+        # If there are still multiple codes, try to match the group AXIS (last 3 digits in code).
+        try:
+            group_key = s.name if isinstance(s.name, tuple) else (s.name,)
+            axis_idx = key_cols.index("AXIS")
+            axis_val = str(group_key[axis_idx]).strip()
+        except Exception:
+            axis_val = ""
+        if axis_val.isdigit() and len(axis_val) == 3 and len(items) > 1:
+            items_axis = items[items.map(lambda x: str(x)[-3:].isdigit() and str(x)[-3:] == axis_val)]
+            if len(items_axis) > 0:
+                items = items_axis
+
+        uniq = sorted(set([x for x in items.tolist() if str(x).strip()]))
+        if not uniq:
+            return ""
+        # 공정별 보기에서는 한 행=한 제품코드가 되도록 1개로 고정 표시
+        return uniq[0]
 
     codes = (
         d.groupby(key_cols, dropna=False)["제품 코드"]
@@ -1426,6 +1446,10 @@ def main() -> None:
     excel_path = _find_repo_excel()
     if excel_path:
         st.caption(f"업데이트(엑셀 저장시각): `{_file_mtime_label(excel_path)}`")
+    try:
+        st.caption(f"앱 코드 수정시각: `{_file_mtime_label(__file__)}`")
+    except Exception:
+        pass
     with st.sidebar:
         st.markdown("<div class='sb-title'>자료 다운로드</div>", unsafe_allow_html=True)
         b = _read_bytes(TEMPLATE_XLSX_PATH)
