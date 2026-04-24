@@ -2965,56 +2965,191 @@ def main() -> None:
                 st.info("현재 조건에서 배정 가능한 제품 후보가 없어 모든 블록이 유휴로 표시됩니다. (어레인지/라인구분/배정불가 설비를 확인하세요)")
 
             if view_kind == "간트":
-                chart_df = blocks.copy()
-                chart_df["제품명코드"] = chart_df["제품명코드"].astype("string").fillna("").astype(str).str.strip()
-                chart_df = chart_df.loc[chart_df["제품명코드"].ne("")].copy()
-                if chart_df.empty:
-                    st.caption("간트 표시할 배정 블록이 없습니다.")
+                # Render as a day/shift grid (주간/야간) instead of detailed time axis.
+                equip_all = inj_equip.copy()
+                equip_all["설비명"] = (
+                    equip_all.get("설비코드", "")
+                    .astype("string")
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                )
+                equip_all["비고"] = equip_all.get("비고", "").astype("string").fillna("").astype(str).str.strip()
+                equip_all["생산 제품"] = equip_all.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
+                equip_all["배정가능"] = equip_all.get("배정가능", True).fillna(True)
+
+                def _equip_sort_key(s: str) -> tuple[int, int, str]:
+                    s2 = str(s or "").strip().upper()
+                    m = re.match(r"^([A-Z])(\d+)$", s2)
+                    if not m:
+                        return (999, 999, s2)
+                    return (ord(m.group(1)) - 65, int(m.group(2)), s2)
+
+                equip_list = sorted([e for e in equip_all["설비명"].tolist() if str(e).strip()], key=_equip_sort_key)
+                if not equip_list:
+                    st.caption("설비 목록이 없습니다.")
                 else:
-                    chart_df["start"] = pd.to_datetime(chart_df["start"], errors="coerce")
-                    chart_df["end"] = pd.to_datetime(chart_df["end"], errors="coerce")
-                    chart_df["start_iso"] = chart_df["start"].dt.strftime("%Y-%m-%dT%H:%M:%S")
-                    chart_df["end_iso"] = chart_df["end"].dt.strftime("%Y-%m-%dT%H:%M:%S")
-                    chart_df["tooltip_power"] = chart_df.get("POWER 리스트", "").astype("string").fillna("").astype(str)
-                    chart_df["tooltip_qty"] = pd.to_numeric(chart_df.get("배정수량", 0), errors="coerce").fillna(0).astype(int)
-                    chart_df["tooltip_setting"] = chart_df.get("세팅구분", "").astype("string").fillna("").astype(str)
-                    chart_df["tooltip_due"] = pd.to_datetime(chart_df.get("납기일", pd.NaT), errors="coerce").dt.strftime("%Y-%m-%d")
+                    s2 = sched.copy()
+                    s2["날짜"] = pd.to_datetime(s2["날짜"], errors="coerce").dt.date
+                    s2["Block"] = pd.to_numeric(s2["Block"], errors="coerce").fillna(0).astype(int)
+                    s2["설비명"] = s2["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                    s2["제품명코드"] = s2["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                    s2["제품명"] = s2["제품명"].astype("string").fillna("").astype(str).str.strip()
+                    s2["POWER 리스트"] = s2.get("POWER 리스트", "").astype("string").fillna("").astype(str).str.strip()
+                    s2["세팅구분"] = s2.get("세팅구분", "").astype("string").fillna("").astype(str).str.strip()
+                    s2["배정수량"] = pd.to_numeric(s2.get("배정수량", 0), errors="coerce").fillna(0).astype(int)
+                    s2["납기일"] = pd.to_datetime(s2.get("납기일", pd.NaT), errors="coerce").dt.strftime("%Y-%m-%d")
+
+                    slots = []
+                    for i in range(int(horizon_days)):
+                        d = start_date + timedelta(days=i)
+                        for b, sh in [(1, "주간"), (2, "야간")]:
+                            slots.append({"날짜": d, "Block": b, "shift": sh, "slot_key": i * 2 + (0 if b == 1 else 1)})
+
+                    def _slot_label(d: date, sh: str) -> str:
+                        return f"{d.month}/{d.day} {sh}"
+
+                    # Build full grid rows (all equipments, all slots)
+                    records: list[dict[str, object]] = []
+                    s_map = {
+                        (r["설비명"], r["날짜"], int(r["Block"])): r
+                        for _, r in s2.iterrows()
+                        if isinstance(r.get("날짜"), date)
+                    }
+                    equip_info = {
+                        str(r["설비명"]): {
+                            "배정가능": bool(r.get("배정가능", True)),
+                            "비고": str(r.get("비고") or "").strip(),
+                            "현재제품": str(r.get("생산 제품") or "").strip(),
+                        }
+                        for _, r in equip_all.iterrows()
+                        if str(r.get("설비명") or "").strip()
+                    }
+
+                    for e in equip_list:
+                        info = equip_info.get(str(e), {"배정가능": True, "비고": "", "현재제품": ""})
+                        for sl in slots:
+                            d = sl["날짜"]
+                            b = int(sl["Block"])
+                            sh = str(sl["shift"])
+                            key = (str(e), d, b)
+                            src = s_map.get(key, None)
+                            prod = str(src.get("제품명코드") or "").strip() if isinstance(src, dict) else ""
+                            prod_name = str(src.get("제품명") or "").strip() if isinstance(src, dict) else ""
+                            qty = int(src.get("배정수량") or 0) if isinstance(src, dict) else 0
+                            setting = str(src.get("세팅구분") or "").strip() if isinstance(src, dict) else ""
+                            pw = str(src.get("POWER 리스트") or "").strip() if isinstance(src, dict) else ""
+                            due = str(src.get("납기일") or "").strip() if isinstance(src, dict) else ""
+
+                            assignable = bool(info.get("배정가능", True))
+                            note = str(info.get("비고") or "").strip()
+                            cur_run = str(info.get("현재제품") or "").strip()
+
+                            if prod:
+                                state = "배정"
+                                idle_reason = ""
+                            else:
+                                if not assignable:
+                                    state = "배정불가"
+                                    idle_reason = f"비고: {note}" if note else "비고: -"
+                                else:
+                                    state = "유휴"
+                                    if cur_run:
+                                        idle_reason = f"현재 생산중: {cur_run}"
+                                    else:
+                                        idle_reason = ""
+
+                            records.append(
+                                {
+                                    "설비명": e,
+                                    "slot_label": _slot_label(d, sh),
+                                    "slot_key": int(sl["slot_key"]),
+                                    "주야": sh,
+                                    "상태": state,
+                                    "제품명코드": (prod if prod else None),
+                                    "제품명": prod_name,
+                                    "납기일": due,
+                                    "배정수량": qty,
+                                    "세팅구분": setting,
+                                    "POWER": pw,
+                                    "유휴사유": idle_reason,
+                                }
+                            )
+
+                    chart_df = pd.DataFrame(records)
 
                     spec = {
                         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
                         "data": {"values": chart_df.to_dict(orient="records")},
-                        "mark": {"type": "bar"},
                         "encoding": {
-                            "y": {"field": "설비명", "type": "nominal", "sort": None, "axis": {"title": ""}},
-                            "x": {"field": "start_iso", "type": "temporal", "axis": {"title": ""}},
-                            "x2": {"field": "end_iso"},
-                            "color": {"field": "제품명코드", "type": "nominal", "legend": {"title": "제품"}},
+                            "y": {"field": "설비명", "type": "nominal", "sort": equip_list, "axis": {"title": ""}},
+                            "x": {
+                                "field": "slot_label",
+                                "type": "ordinal",
+                                "sort": {"field": "slot_key", "op": "min"},
+                                "axis": {"title": "", "labelAngle": 0},
+                            },
                             "tooltip": [
-                                {"field": "설비명", "type": "nominal", "title": "설비"},
+                                {"field": "설비명", "type": "nominal", "title": "호기"},
+                                {"field": "slot_label", "type": "nominal", "title": "일자/주야"},
+                                {"field": "상태", "type": "nominal", "title": "상태"},
                                 {"field": "제품명코드", "type": "nominal", "title": "R코드"},
                                 {"field": "제품명", "type": "nominal", "title": "품명(사출시트)"},
-                                {"field": "shift", "type": "nominal", "title": "주/야"},
-                                {"field": "tooltip_due", "type": "nominal", "title": "납기일"},
-                                {"field": "tooltip_qty", "type": "quantitative", "title": "배정수량"},
-                                {"field": "tooltip_setting", "type": "nominal", "title": "세팅"},
-                                {"field": "tooltip_power", "type": "nominal", "title": "POWER(최대8)"},
+                                {"field": "납기일", "type": "nominal", "title": "납기일"},
+                                {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
+                                {"field": "세팅구분", "type": "nominal", "title": "세팅"},
+                                {"field": "POWER", "type": "nominal", "title": "POWER(최대8)"},
+                                {"field": "유휴사유", "type": "nominal", "title": "유휴/사유"},
                             ],
                         },
-                        "height": max(260, min(900, 28 * int(chart_df["설비명"].nunique() + 1))),
+                        "layer": [
+                            {
+                                "mark": {"type": "rect", "stroke": "#dcdcdc", "strokeWidth": 1},
+                                "encoding": {
+                                    "color": {
+                                        "condition": [
+                                            {"test": "datum.상태 === '배정불가'", "value": "#d0d0d0"},
+                                            {"test": "datum.상태 === '유휴'", "value": "#f2f2f2"},
+                                        ],
+                                        "field": "제품명코드",
+                                        "type": "nominal",
+                                        "scale": {"scheme": "tableau20"},
+                                        "legend": {"title": "제품"},
+                                    }
+                                },
+                            },
+                            {
+                                "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 11},
+                                "encoding": {
+                                    "text": {"field": "제품명코드", "type": "nominal"},
+                                    "color": {
+                                        "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
+                                        "value": "#666666",
+                                    },
+                                },
+                            },
+                        ],
+                        "config": {
+                            "axis": {"grid": True, "gridColor": "#e5e5e5", "gridOpacity": 1, "domain": False},
+                            "view": {"stroke": "transparent"},
+                        },
+                        "height": max(360, min(920, 26 * int(len(equip_list) + 1))),
                     }
+
                     st.vega_lite_chart(spec, use_container_width=True)
 
                     st.subheader("일자별 세부 타겟")
-                    tgt = chart_df.copy()
-                    tgt["날짜"] = pd.to_datetime(tgt["날짜"], errors="coerce").dt.date
-                    gcols = [c for c in ["날짜", "제품명코드", "제품명", "납기일"] if c in tgt.columns]
-                    if gcols:
-                        daily = tgt.groupby(gcols, dropna=False, as_index=False).agg(
-                            블록수=("Block", "count"),
+                    tgt = chart_df.loc[chart_df["상태"].eq("배정")].copy()
+                    if tgt.empty:
+                        st.caption("집계할 배정 데이터가 없습니다.")
+                    else:
+                        daily = tgt.groupby(["slot_label", "제품명코드", "제품명", "납기일"], dropna=False, as_index=False).agg(
+                            블록수=("배정수량", "size"),
                             배정수량=("배정수량", "sum"),
                         )
                         daily["배정수량"] = pd.to_numeric(daily["배정수량"], errors="coerce").fillna(0).astype(int)
-                        daily = daily.sort_values(["날짜", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
+                        daily = daily.sort_values(["slot_label", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
                         st.dataframe(
                             _style_dataframe_like_dashboard(daily),
                             use_container_width=True,
