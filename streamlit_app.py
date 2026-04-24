@@ -3013,7 +3013,7 @@ def main() -> None:
                     # Build full grid rows (all equipments, all slots)
                     records: list[dict[str, object]] = []
                     s_map = {
-                        (r["설비명"], r["날짜"], int(r["Block"])): r
+                        (r["설비명"], r["날짜"], int(r["Block"])): r.to_dict()
                         for _, r in s2.iterrows()
                         if isinstance(r.get("날짜"), date)
                     }
@@ -3067,7 +3067,7 @@ def main() -> None:
                                     "slot_key": int(sl["slot_key"]),
                                     "주야": sh,
                                     "상태": state,
-                                    "제품명코드": (prod if prod else None),
+                                    "제품명코드": prod,
                                     "제품명": prod_name,
                                     "납기일": due,
                                     "배정수량": qty,
@@ -3122,7 +3122,7 @@ def main() -> None:
                             {
                                 "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 11},
                                 "encoding": {
-                                    "text": {"field": "제품명코드", "type": "nominal"},
+                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
                                     "color": {
                                         "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
                                         "value": "#666666",
