@@ -3589,19 +3589,54 @@ def main() -> None:
         return f"{code} ({_format_int(totals_base.get(code, 0.0))})"
 
     code_all_options = ["전체"] + code_options
-    _pre_widget_single_select_fix(key="code_pill", default="전체", options=code_all_options)
-    code_raw = st.pills(
-        "분류",
-        options=code_all_options,
-        default="전체",
-        key="code_pill",
-        format_func=_code_label,
-        selection_mode="single",
-        on_change=_on_change_single_select,
-        args=("code_pill", "전체", code_all_options),
-        label_visibility="collapsed",
-    )
-    code = _coerce_single_value(code_raw, default="전체", options=code_all_options)
+
+    # For injection plan, show these as *informational chips* (not clickable filters).
+    # Many users naturally click pills because they look interactive.
+    if view_mode == "사출 계획":
+        chips = []
+        for c in code_all_options:
+            chips.append(
+                f"""<span class="aps-chip"><span class="aps-chip-label">{c}</span><span class="aps-chip-val">{_format_int(total_all) if c=='전체' else _format_int(totals_base.get(c, 0.0))}</span></span>"""
+            )
+        st.markdown(
+            """
+<style>
+.aps-chip-wrap { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 2px 0 10px 0; }
+.aps-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(0,0,0,0.14);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.03);
+  font-size: 13px;
+  line-height: 1.1;
+  cursor: default;
+  user-select: none;
+}
+.aps-chip-label { font-weight: 600; }
+.aps-chip-val { font-weight: 800; }
+</style>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown(f"<div class='aps-chip-wrap'>{''.join(chips)}</div>", unsafe_allow_html=True)
+        code = "전체"
+    else:
+        _pre_widget_single_select_fix(key="code_pill", default="전체", options=code_all_options)
+        code_raw = st.pills(
+            "분류",
+            options=code_all_options,
+            default="전체",
+            key="code_pill",
+            format_func=_code_label,
+            selection_mode="single",
+            on_change=_on_change_single_select,
+            args=("code_pill", "전체", code_all_options),
+            label_visibility="collapsed",
+        )
+        code = _coerce_single_value(code_raw, default="전체", options=code_all_options)
 
     if view_mode == "수주별 현황":
         subset = order_df if code == "전체" else order_df[order_df[new_code_col].astype("string") == code].copy()
