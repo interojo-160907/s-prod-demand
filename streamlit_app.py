@@ -3936,11 +3936,13 @@ def main() -> None:
         excel_mtime = float(os.path.getmtime(excel_path))
         base_df = df
 
-        subset = base_df if code == "전체" else base_df[base_df[new_code_col].astype("string") == code].copy()
-        subset2 = subset.copy()
-        subset2 = _attach_item_codes(subset2, detail_for_map, allowed_prefixes=["R"])
-        if "제품코드" not in subset2.columns:
-            subset2["제품코드"] = ""
+        # NOTE: product-group pills are for *volume visibility* only.
+        # Injection schedule must always be generated from the full dataset (전체),
+        # otherwise users change the plan by just clicking a pill.
+        demand_for_sched = base_df.copy()
+        demand_for_sched = _attach_item_codes(demand_for_sched, detail_for_map, allowed_prefixes=["R"])
+        if "제품코드" not in demand_for_sched.columns:
+            demand_for_sched["제품코드"] = ""
 
         inj_info = _load_injection_sheet_cached(excel_path, excel_mtime)
         inj_equip = inj_info.get("equip", pd.DataFrame())
@@ -3950,7 +3952,7 @@ def main() -> None:
             st.stop()
 
         sched, remaining, warns = _build_injection_schedule_cached(
-            demand=subset2,
+            demand=demand_for_sched,
             inj_equip=inj_equip,
             arrange=inj_arrange,
             excel_path=excel_path,
@@ -3963,320 +3965,280 @@ def main() -> None:
             for w in warns[:8]:
                 st.warning(w)
 
-            if sched is None or sched.empty:
-                st.caption("생성된 스케줄이 없습니다.")
-            else:
-                xlsx_ops = _to_injection_operation_xlsx_cached(
-                    sched,
-                    start_date=start_date,
-                    horizon_days=horizon_days,
-                    sheet_name="운영양식",
-                    equip_all=inj_equip,
-                    excel_mtime=excel_mtime,
-                )
-                st.download_button(
-                    "엑셀 다운로드 (상세표)",
-                    data=xlsx_ops,
-                    file_name=f"사출상세표_{code}_{_today_kst().isoformat()}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"inj_{code}_download_ops",
+        if sched is None or sched.empty:
+            st.caption("생성된 스케줄이 없습니다.")
+            return
+
+        xlsx_ops = _to_injection_operation_xlsx_cached(
+            sched,
+            start_date=start_date,
+            horizon_days=horizon_days,
+            sheet_name="운영양식",
+            equip_all=inj_equip,
+            excel_mtime=excel_mtime,
+        )
+        st.download_button(
+            "엑셀 다운로드 (상세표)",
+            data=xlsx_ops,
+            file_name=f"사출상세표_{code}_{_today_kst().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"inj_{code}_download_ops",
+        )
+
+        blocks = _injection_schedule_to_blocks(sched)
+        has_assigned = bool(blocks.get("제품명코드", pd.Series(dtype=str)).astype("string").fillna("").str.strip().ne("").any())
+        if not has_assigned:
+            st.info("현재 조건에서 배정 가능한 제품 후보가 없어 모든 블록이 유휴로 표시됩니다. (어레인지/라인구분/배정불가 설비를 확인하세요)")
+
+        if view_kind == "간트":
+            # Render as a day/shift grid (주간/야간) instead of detailed time axis.
+            chart_df, equip_list = _build_injection_gantt_chart_df_cached(
+                sched=sched,
+                inj_equip=inj_equip,
+                start_date=start_date,
+                horizon_days=horizon_days,
             )
-
-            blocks = _injection_schedule_to_blocks(sched)
-            has_assigned = bool(blocks.get("제품명코드", pd.Series(dtype=str)).astype("string").fillna("").str.strip().ne("").any())
-            if not has_assigned:
-                st.info("현재 조건에서 배정 가능한 제품 후보가 없어 모든 블록이 유휴로 표시됩니다. (어레인지/라인구분/배정불가 설비를 확인하세요)")
-
-            if view_kind == "간트":
-                # Render as a day/shift grid (주간/야간) instead of detailed time axis.
-                chart_df, equip_list = _build_injection_gantt_chart_df_cached(
-                    sched=sched,
-                    inj_equip=inj_equip,
-                    start_date=start_date,
-                    horizon_days=horizon_days,
-                )
-                if chart_df is None or chart_df.empty or not equip_list:
-                    st.caption("간트 표시할 데이터가 없습니다.")
-                else:
-
-                    # Legend label: show code + product name (many users don't memorize R-codes).
-                    def _norm_name(s: str) -> str:
-                        return " ".join(str(s or "").split()).strip()
-
-                    chart_df["제품라벨"] = None
-                    if (not chart_df.empty) and ("제품명코드" in chart_df.columns) and ("제품명" in chart_df.columns):
-                        c = chart_df["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
-                        n = chart_df["제품명"].astype("string").fillna("").astype(str).str.strip()
-                        lab = c
-                        has_name = n.str.strip().ne("")
-                        # Use multi-line label: "R코드\n품명" (keep full name for readability).
-                        lab = lab.where(~has_name, c + "\n" + n.map(_norm_name))
-                        # Only assigned rows should appear in product legend (avoid "null").
-                        if "상태" in chart_df.columns:
-                            is_assigned = chart_df["상태"].astype("string").fillna("").astype(str).str.strip().eq("배정")
-                            lab = lab.where(is_assigned, None)
-                        chart_df["제품라벨"] = lab.where(c.str.strip().ne(""), None)
-
-                    legend_values: list[str] = []
-                    try:
-                        tmp = chart_df.loc[
-                            chart_df.get("상태", "").astype("string").fillna("").astype(str).str.strip().eq("배정")
-                            & chart_df.get("제품라벨", "").astype("string").fillna("").astype(str).str.strip().ne(""),
-                            ["제품명코드", "제품라벨"],
-                        ].copy()
-                        if not tmp.empty:
-                            tmp["제품명코드"] = tmp["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
-                            tmp["제품라벨"] = tmp["제품라벨"].astype("string").fillna("").astype(str)
-                            tmp = tmp.drop_duplicates(subset=["제품명코드"], keep="first").sort_values("제품명코드", ascending=True)
-                            legend_values = tmp["제품라벨"].tolist()
-                    except Exception:
-                        legend_values = []
-
-                    spec = {
-                        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-                        "data": {"values": chart_df.to_dict(orient="records")},
-                        "encoding": {
-                            "y": {"field": "설비명", "type": "nominal", "sort": equip_list, "axis": {"title": ""}},
-                            "x": {
-                                "field": "slot_label",
-                                "type": "ordinal",
-                                "sort": {"field": "slot_key", "op": "min"},
-                                "axis": {"title": "", "labelAngle": 0},
-                            },
-                            "tooltip": [
-                                {"field": "설비명", "type": "nominal", "title": "호기"},
-                                {"field": "slot_label", "type": "nominal", "title": "일자/주야"},
-                                {"field": "상태", "type": "nominal", "title": "상태"},
-                                {"field": "제품명코드", "type": "nominal", "title": "R코드"},
-                                {"field": "제품명", "type": "nominal", "title": "품명(사출시트)"},
-                                {"field": "운영중제품", "type": "nominal", "title": "현재제품(설비)"},
-                                {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
-                                {"field": "세팅구분", "type": "nominal", "title": "세팅"},
-                                {"field": "유휴사유", "type": "nominal", "title": "유휴/사유"},
-                            ],
-                        },
-                        "layer": [
-                            {
-                                "mark": {"type": "rect", "stroke": "#dcdcdc", "strokeWidth": 1},
-                                "encoding": {
-                                    "color": {
-                                        "condition": [
-                                            {"test": "datum.상태 === '배정불가'", "value": "#d0d0d0"},
-                                            {"test": "datum.상태 === '유휴'", "value": "#f2f2f2"},
-                                        ],
-                                        "field": "제품라벨",
-                                        "type": "nominal",
-                                        "scale": {"scheme": "tableau20"},
-                                        "legend": {
-                                            "title": "제품",
-                                            "values": legend_values if legend_values else None,
-                                            "labelLimit": 520,
-                                            "labelFontSize": 12,
-                                            "titleFontSize": 13,
-                                            "symbolSize": 90,
-                                            "labelLineHeight": 16,
-                                        },
-                                    }
-                                },
-                            },
-                            {
-                                "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 12},
-                                "encoding": {
-                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
-                                    "color": {
-                                        "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
-                                        "value": "#666666",
-                                    },
-                                },
-                            },
-                        ],
-                        "config": {
-                            "axis": {
-                                "grid": True,
-                                "gridColor": "#e5e5e5",
-                                "gridOpacity": 1,
-                                "domain": False,
-                                "labelFontSize": 12,
-                                "titleFontSize": 12,
-                            },
-                            "view": {"stroke": "transparent"},
-                        },
-                        "height": max(380, min(980, 26 * int(len(equip_list) + 1))),
-                    }
-
-                    st.vega_lite_chart(spec, use_container_width=True)
-
-                    # Optional: daily summary (useful for quick demand/assignment check), keep collapsed by default.
-                    with st.expander("일자별 세부 타겟(요약)", expanded=False):
-                        tgt = chart_df.loc[chart_df["상태"].eq("배정")].copy()
-                        if tgt.empty:
-                            st.caption("집계할 배정 데이터가 없습니다.")
-                        else:
-                            daily = tgt.groupby(["slot_label", "제품명코드", "제품명", "납기일"], dropna=False, as_index=False).agg(
-                                블록수=("배정수량", "size"),
-                                배정수량=("배정수량", "sum"),
-                            )
-                            daily["배정수량"] = pd.to_numeric(daily["배정수량"], errors="coerce").fillna(0).astype(int)
-                            daily = daily.sort_values(["slot_label", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
-                            st.dataframe(
-                                _style_dataframe_like_dashboard(daily),
-                                use_container_width=True,
-                                height=_table_height_for_rows(len(daily), min_height=220, max_height=520),
-                                hide_index=True,
-                            )
-
-            elif view_kind == "그리드":
-                grid = blocks.copy()
-                grid["col"] = grid.apply(lambda r: f"{r['날짜'].month}/{r['날짜'].day} {r.get('shift','')}", axis=1)
-                grid["cell"] = grid["제품명코드"].astype("string").fillna("").astype(str).str.strip() if "제품명코드" in grid.columns else ""
-                pivot = (
-                    grid.pivot_table(index="설비명", columns="col", values="cell", aggfunc="first", fill_value="")
-                    if not grid.empty
-                    else pd.DataFrame()
-                )
-                if pivot.empty:
-                    st.caption("그리드 표시할 데이터가 없습니다.")
-                else:
-                    # Sort columns by date then shift
-                    def _col_key(c: str) -> tuple[int, int]:
-                        m = re.match(r"^(\d+)/(\d+)\s+(주간|야간)$", str(c).strip())
-                        if not m:
-                            return (999999, 9)
-                        mm, dd, sh = int(m.group(1)), int(m.group(2)), m.group(3)
-                        sh_rank = 0 if sh == "주간" else 1
-                        return (mm * 100 + dd, sh_rank)
-
-                    ordered_cols = sorted(list(pivot.columns), key=_col_key)
-                    pivot = pivot.reindex(columns=ordered_cols)
-                    show = pivot.reset_index()
-                    st.dataframe(
-                        _style_dataframe_like_dashboard(show),
-                        use_container_width=True,
-                        height=_table_height_for_rows(len(show), min_height=360, max_height=860),
-                        hide_index=True,
-                    )
-                    xlsx_grid = _to_excel_bytes(show, sheet_name="그리드")
-                    st.download_button(
-                        "엑셀 다운로드 (그리드)",
-                        data=xlsx_grid,
-                        file_name=f"사출그리드_{code}_{_today_kst().isoformat()}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"inj_{code}_download_grid",
-                    )
-
+            if chart_df is None or chart_df.empty or not equip_list:
+                st.caption("간트 표시할 데이터가 없습니다.")
             else:
-                # 상세표(운영양식 형태): 모든 설비를 표시 (유휴/배정불가 설비 포함)
-                view_df = sched.copy() if isinstance(sched, pd.DataFrame) else pd.DataFrame()
-                if "설비명" in view_df.columns:
-                    view_df["설비명"] = view_df["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
-                if "날짜" in view_df.columns:
-                    view_df["날짜"] = pd.to_datetime(view_df["날짜"], errors="coerce")
-                if "Block" in view_df.columns:
-                    view_df["Block"] = pd.to_numeric(view_df["Block"], errors="coerce").fillna(0).astype(int)
+                # Legend label: show code + product name (many users don't memorize R-codes).
+                def _norm_name(s: str) -> str:
+                    return " ".join(str(s or "").split()).strip()
 
-                equip_all = inj_equip.copy()
-                equip_all["설비명"] = (
-                    equip_all.get("설비코드", "")
-                    .astype("string")
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                )
-                equip_all["비고"] = equip_all.get("비고", "").astype("string").fillna("").astype(str).str.strip()
-                equip_all["생산 제품"] = equip_all.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
-                equip_all["배정가능"] = equip_all.get("배정가능", True).fillna(True)
+                chart_df["제품라벨"] = None
+                if (not chart_df.empty) and ("제품명코드" in chart_df.columns) and ("제품명" in chart_df.columns):
+                    c = chart_df["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                    n = chart_df["제품명"].astype("string").fillna("").astype(str).str.strip()
+                    lab = c
+                    has_name = n.str.strip().ne("")
+                    # Use multi-line label: "R코드\n품명" (keep full name for readability).
+                    lab = lab.where(~has_name, c + "\n" + n.map(_norm_name))
+                    # Only assigned rows should appear in product legend (avoid "null").
+                    if "상태" in chart_df.columns:
+                        is_assigned = chart_df["상태"].astype("string").fillna("").astype(str).str.strip().eq("배정")
+                        lab = lab.where(is_assigned, None)
+                    chart_df["제품라벨"] = lab.where(c.str.strip().ne(""), None)
 
-                def _equip_sort_key(s: str) -> tuple[int, int, str]:
-                    s2 = str(s or "").strip().upper()
-                    m = re.match(r"^([A-Z])(\d+)$", s2)
-                    if not m:
-                        return (999, 999, s2)
-                    return (ord(m.group(1)) - 65, int(m.group(2)), s2)
+                legend_values: list[str] = []
+                try:
+                    tmp = chart_df.loc[
+                        chart_df.get("상태", "").astype("string").fillna("").astype(str).str.strip().eq("배정")
+                        & chart_df.get("제품라벨", "").astype("string").fillna("").astype(str).str.strip().ne(""),
+                        ["제품명코드", "제품라벨"],
+                    ].copy()
+                    if not tmp.empty:
+                        tmp["제품명코드"] = tmp["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                        tmp["제품라벨"] = tmp["제품라벨"].astype("string").fillna("").astype(str)
+                        tmp = tmp.drop_duplicates(subset=["제품명코드"], keep="first").sort_values("제품명코드", ascending=True)
+                        legend_values = tmp["제품라벨"].tolist()
+                except Exception:
+                    legend_values = []
 
-                equip_list = sorted([e for e in equip_all["설비명"].tolist() if str(e).strip()], key=_equip_sort_key)
-                equip_info = {
-                    str(r["설비명"]): {
-                        "배정가능": bool(r.get("배정가능", True)),
-                        "비고": str(r.get("비고") or "").strip(),
-                        "현재제품": str(r.get("생산 제품") or "").strip(),
-                    }
-                    for _, r in equip_all.iterrows()
-                    if str(r.get("설비명") or "").strip()
+                spec = {
+                    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                    "data": {"values": chart_df.to_dict(orient="records")},
+                    "encoding": {
+                        "y": {"field": "설비명", "type": "nominal", "sort": equip_list, "axis": {"title": ""}},
+                        "x": {
+                            "field": "slot_label",
+                            "type": "ordinal",
+                            "sort": {"field": "slot_key", "op": "min"},
+                            "axis": {"title": "", "labelAngle": 0},
+                        },
+                        "tooltip": [
+                            {"field": "설비명", "type": "nominal", "title": "호기"},
+                            {"field": "slot_label", "type": "nominal", "title": "일자/주야"},
+                            {"field": "상태", "type": "nominal", "title": "상태"},
+                            {"field": "제품명코드", "type": "nominal", "title": "R코드"},
+                            {"field": "제품명", "type": "nominal", "title": "품명(사출시트)"},
+                            {"field": "운영중제품", "type": "nominal", "title": "현재제품(설비)"},
+                            {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
+                            {"field": "세팅구분", "type": "nominal", "title": "세팅"},
+                            {"field": "유휴사유", "type": "nominal", "title": "유휴/사유"},
+                        ],
+                    },
+                    "layer": [
+                        {
+                            "mark": {"type": "rect", "stroke": "#dcdcdc", "strokeWidth": 1},
+                            "encoding": {
+                                "color": {
+                                    "condition": [
+                                        {"test": "datum.상태 === '배정불가'", "value": "#d0d0d0"},
+                                        {"test": "datum.상태 === '유휴'", "value": "#f2f2f2"},
+                                    ],
+                                    "field": "제품라벨",
+                                    "type": "nominal",
+                                    "scale": {"scheme": "tableau20"},
+                                    "legend": {
+                                        "title": "제품",
+                                        "values": legend_values if legend_values else [],
+                                        "labelLimit": 520,
+                                        "labelFontSize": 12,
+                                        "titleFontSize": 13,
+                                        "symbolSize": 90,
+                                        "labelLineHeight": 16,
+                                    },
+                                }
+                            },
+                        },
+                        {
+                            "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 12},
+                            "encoding": {
+                                "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
+                                "color": {
+                                    "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
+                                    "value": "#666666",
+                                },
+                            },
+                        },
+                    ],
+                    "config": {
+                        "axis": {
+                            "grid": True,
+                            "gridColor": "#e5e5e5",
+                            "gridOpacity": 1,
+                            "domain": False,
+                            "labelFontSize": 12,
+                            "titleFontSize": 12,
+                        },
+                        "view": {"stroke": "transparent"},
+                    },
+                    "height": max(380, min(980, 26 * int(len(equip_list) + 1))),
                 }
 
-                slots = []
-                for i in range(int(horizon_days)):
-                    d = start_date + timedelta(days=i)
-                    for b, sh in [(1, "주간"), (2, "야간")]:
-                        slots.append({"날짜": d, "Block": b, "shift": sh, "label": f"{d.month}/{d.day} {sh}"})
+                st.vega_lite_chart(spec, use_container_width=True)
 
-                s_map: dict[tuple[str, date, int], dict[str, object]] = {}
-                if (not view_df.empty) and all(c in view_df.columns for c in ["설비명", "날짜", "Block"]):
-                    for _, r in view_df.iterrows():
-                        dtv = r.get("날짜")
-                        if isinstance(dtv, datetime):
-                            dv = dtv.date()
-                        elif isinstance(dtv, date):
-                            dv = dtv
+                # Optional: daily summary (useful for quick demand/assignment check), keep collapsed by default.
+                with st.expander("일자별 세부 타겟(요약)", expanded=False):
+                    tgt = chart_df.loc[chart_df["상태"].eq("배정")].copy()
+                    if tgt.empty:
+                        st.caption("집계할 배정 데이터가 없습니다.")
+                    else:
+                        daily = tgt.groupby(["slot_label", "제품명코드", "제품명", "납기일"], dropna=False, as_index=False).agg(
+                            블록수=("배정수량", "size"),
+                            배정수량=("배정수량", "sum"),
+                        )
+                        daily["배정수량"] = pd.to_numeric(daily["배정수량"], errors="coerce").fillna(0).astype(int)
+                        daily = daily.sort_values(["slot_label", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
+                        st.dataframe(
+                            _style_dataframe_like_dashboard(daily),
+                            use_container_width=True,
+                            height=_table_height_for_rows(len(daily), min_height=220, max_height=520),
+                            hide_index=True,
+                        )
+        else:
+            # 상세표(운영양식 형태): 모든 설비를 표시 (유휴/배정불가 설비 포함)
+            view_df = sched.copy() if isinstance(sched, pd.DataFrame) else pd.DataFrame()
+            if "설비명" in view_df.columns:
+                view_df["설비명"] = view_df["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
+            if "날짜" in view_df.columns:
+                view_df["날짜"] = pd.to_datetime(view_df["날짜"], errors="coerce")
+            if "Block" in view_df.columns:
+                view_df["Block"] = pd.to_numeric(view_df["Block"], errors="coerce").fillna(0).astype(int)
+
+            equip_all = inj_equip.copy()
+            equip_all["설비명"] = (
+                equip_all.get("설비코드", "")
+                .astype("string")
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.upper()
+            )
+            equip_all["비고"] = equip_all.get("비고", "").astype("string").fillna("").astype(str).str.strip()
+            equip_all["생산 제품"] = equip_all.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
+            equip_all["배정가능"] = equip_all.get("배정가능", True).fillna(True)
+
+            def _equip_sort_key(s: str) -> tuple[int, int, str]:
+                s2 = str(s or "").strip().upper()
+                m = re.match(r"^([A-Z])(\d+)$", s2)
+                if not m:
+                    return (999, 999, s2)
+                return (ord(m.group(1)) - 65, int(m.group(2)), s2)
+
+            equip_list = sorted([e for e in equip_all["설비명"].tolist() if str(e).strip()], key=_equip_sort_key)
+            equip_info = {
+                str(r["설비명"]): {
+                    "배정가능": bool(r.get("배정가능", True)),
+                    "비고": str(r.get("비고") or "").strip(),
+                    "현재제품": str(r.get("생산 제품") or "").strip(),
+                }
+                for _, r in equip_all.iterrows()
+                if str(r.get("설비명") or "").strip()
+            }
+
+            slots = []
+            for i in range(int(horizon_days)):
+                d = start_date + timedelta(days=i)
+                for b, sh in [(1, "주간"), (2, "야간")]:
+                    slots.append({"날짜": d, "Block": b, "shift": sh, "label": f"{d.month}/{d.day} {sh}"})
+
+            s_map: dict[tuple[str, date, int], dict[str, object]] = {}
+            if (not view_df.empty) and all(c in view_df.columns for c in ["설비명", "날짜", "Block"]):
+                for _, r in view_df.iterrows():
+                    dtv = r.get("날짜")
+                    if isinstance(dtv, datetime):
+                        dv = dtv.date()
+                    elif isinstance(dtv, date):
+                        dv = dtv
+                    else:
+                        continue
+                    k = (str(r.get("설비명") or "").strip().upper(), dv, int(r.get("Block") or 0))
+                    s_map[k] = r.to_dict()
+
+            cav = _injection_schedule_to_cavity_rows(view_df)
+            cav_key: dict[tuple[str, date, int, int], tuple[str, int]] = {}
+            if cav is not None and (not cav.empty):
+                cav["설비명"] = cav["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                for _, r in cav.iterrows():
+                    d = r.get("날짜")
+                    if not isinstance(d, date):
+                        continue
+                    key = (str(r.get("설비명") or "").strip().upper(), d, int(r.get("Block") or 0), int(r.get("CAV") or 0))
+                    cav_key[key] = (str(r.get("도수") or "").strip(), int(r.get("필요수량") or 0))
+
+            idx = list(range(1, 9))
+            col_blocks: list[tuple[str, str]] = [("", "설비")]
+            for sl in slots:
+                label = str(sl["label"])
+                for sub in ["제품정보", "CAV", "도수", "필요수량"]:
+                    col_blocks.append((label, sub))
+            cols = pd.MultiIndex.from_tuples(col_blocks, names=["일자/주야", "구분"])
+
+            rows: list[list[object]] = []
+            for equip in equip_list:
+                info = equip_info.get(str(equip), {})
+                assignable = bool(info.get("배정가능", True))
+                note = str(info.get("비고") or "").strip()
+                for cav_no in idx:
+                    row: list[object] = []
+                    row.append(str(equip) if cav_no == 1 else "")
+                    for sl in slots:
+                        d = sl["날짜"]
+                        b = int(sl["Block"])
+                        rec = s_map.get((str(equip), d, b), {}) if isinstance(d, date) else {}
+                        prod = str(rec.get("제품명코드") or "").strip()
+                        prod_name = str(rec.get("제품명") or "").strip()
+                        prod_info = "\n".join([t for t in [prod, prod_name] if t])
+                        if (not prod_info) and note:
+                            prod_info = (f"배정불가\n비고: {note}" if (not assignable) else f"유휴\n비고: {note}")
+                        if cav_no == 1:
+                            row.append(prod_info)
                         else:
-                            continue
-                        k = (str(r.get("설비명") or "").strip().upper(), dv, int(r.get("Block") or 0))
-                        s_map[k] = r.to_dict()
+                            row.append("")
+                        row.append(cav_no)
+                        pw, qty = cav_key.get((str(equip), d, b, cav_no), ("", 0))
+                        row.append(pw)
+                        row.append("" if int(qty) <= 0 else int(qty))
+                    rows.append(row)
 
-                cav = _injection_schedule_to_cavity_rows(view_df)
-                cav_key: dict[tuple[str, date, int, int], tuple[str, int]] = {}
-                if cav is not None and (not cav.empty):
-                    cav["설비명"] = cav["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
-                    for _, r in cav.iterrows():
-                        d = r.get("날짜")
-                        if not isinstance(d, date):
-                            continue
-                        key = (str(r.get("설비명") or "").strip().upper(), d, int(r.get("Block") or 0), int(r.get("CAV") or 0))
-                        cav_key[key] = (str(r.get("도수") or "").strip(), int(r.get("필요수량") or 0))
-
-                idx = list(range(1, 9))
-                col_blocks: list[tuple[str, str]] = [("", "설비")]
-                for sl in slots:
-                    label = str(sl["label"])
-                    for sub in ["제품정보", "CAV", "도수", "필요수량"]:
-                        col_blocks.append((label, sub))
-                cols = pd.MultiIndex.from_tuples(col_blocks, names=["일자/주야", "구분"])
-
-                rows: list[list[object]] = []
-                for equip in equip_list:
-                    info = equip_info.get(str(equip), {})
-                    assignable = bool(info.get("배정가능", True))
-                    note = str(info.get("비고") or "").strip()
-                    for cav_no in idx:
-                        row: list[object] = []
-                        row.append(str(equip) if cav_no == 1 else "")
-                        for sl in slots:
-                            d = sl["날짜"]
-                            b = int(sl["Block"])
-                            rec = s_map.get((str(equip), d, b), {}) if isinstance(d, date) else {}
-                            prod = str(rec.get("제품명코드") or "").strip()
-                            prod_name = str(rec.get("제품명") or "").strip()
-                            prod_info = "\n".join([t for t in [prod, prod_name] if t])
-                            if (not prod_info) and note:
-                                prod_info = (f"배정불가\n비고: {note}" if (not assignable) else f"유휴\n비고: {note}")
-                            if cav_no == 1:
-                                row.append(prod_info)
-                            else:
-                                row.append("")
-                            row.append(cav_no)
-                            pw, qty = cav_key.get((str(equip), d, b, cav_no), ("", 0))
-                            row.append(pw)
-                            row.append("" if int(qty) <= 0 else int(qty))
-                        rows.append(row)
-
-                op_show = pd.DataFrame(rows, columns=cols)
-                st.dataframe(
-                    _style_dataframe_like_dashboard(op_show),
-                    use_container_width=True,
-                    height=_table_height_for_rows(len(op_show), min_height=360, max_height=860),
-                    hide_index=True,
-                )
+            op_show = pd.DataFrame(rows, columns=cols)
+            st.dataframe(
+                _style_dataframe_like_dashboard(op_show),
+                use_container_width=True,
+                height=_table_height_for_rows(len(op_show), min_height=360, max_height=860),
+                hide_index=True,
+            )
 
         if remaining is not None and (not remaining.empty):
             st.divider()
