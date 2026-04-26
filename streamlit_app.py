@@ -2128,27 +2128,27 @@ def _build_injection_schedule(
                 if affinity and affinity in candidates and _product_remaining(affinity) > 0 and _product_due(affinity) == best_due:
                     return affinity
 
-                # Within earliest due group, avoid switching for tiny remainder (unless urgent).
+                # Within earliest due group, *prefer* avoiding product switching for tiny remainder (unless urgent),
+                # but do not block scheduling entirely: if any demand exists and the block would otherwise be idle,
+                # we still need to assign the remaining qty somewhere.
                 earliest = [k for k in candidates if _product_due(k) == best_due]
                 if not earliest:
                     return best
 
-                def _can_switch(k: str) -> bool:
+                prefer_u = str(prefer or "").strip().upper()
+
+                def _switch_penalty(k: str) -> int:
                     rem = int(_product_remaining(k) or 0)
                     due = _product_due(k)
                     urgent = bool(isinstance(due, date) and due <= day)
-                    # If this would be a product switch for the equipment, require meaningful qty.
-                    if prefer and str(k).strip().upper() != str(prefer).strip().upper():
-                        if (not urgent) and rem < int(min_new_product_qty):
-                            return False
-                    return True
+                    is_switch = bool(prefer_u and str(k).strip().upper() != prefer_u)
+                    if is_switch and (not urgent) and rem < int(min_new_product_qty):
+                        return 1
+                    return 0
 
-                filtered = [k for k in earliest if _can_switch(k)]
-                if not filtered:
-                    # Better to keep idle than create color matching churn for tiny remainder.
-                    return ""
-                filtered.sort(key=lambda k: (-_product_remaining(k), k))
-                return filtered[0]
+                # Sort by: (avoid tiny switch if possible) -> (larger remaining first)
+                earliest.sort(key=lambda k: (_switch_penalty(k), -_product_remaining(k), k))
+                return earliest[0]
 
             prod1 = _pick_product(prev_prod)
             if prod1:
