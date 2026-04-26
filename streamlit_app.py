@@ -1727,6 +1727,118 @@ def _choose_power_slots_min_change(
     return out_p, out_q, chosen_types
 
 
+def _choose_power_slots_for_8cav(
+    powers: dict[float, dict[str, object]],
+    *,
+    prev_powers: list[float],
+    block_day: date,
+    slots: int,
+    slot_qty: int,
+    max_types: int = 8,
+) -> tuple[list[float], list[int], list[float]]:
+    """
+    Choose per-cavity POWERs for an 8-cavity mold within a block.
+
+    Key behavior (operator-friendly):
+    - Allow up to 8 POWER types in a block (one per cavity).
+    - Prefer continuing previous block's POWER set to reduce re-setting.
+    - Prioritize urgent/early-due POWERs, then larger remaining qty.
+    - Each cavity produces up to `slot_qty` (e.g. 2,000ea) and may produce less if remaining is smaller.
+    """
+    out_p: list[float] = []
+    out_q: list[int] = []
+    if slots <= 0 or slot_qty <= 0 or not powers:
+        return out_p, out_q, []
+
+    max_types = max(1, min(int(max_types), int(slots)))
+
+    def _qty(p: float) -> int:
+        try:
+            return int((powers.get(float(p)) or {}).get("qty") or 0)
+        except Exception:
+            return 0
+
+    def _due(p: float) -> date:
+        info = powers.get(float(p)) or {}
+        return _power_due_or_far(info.get("due"))
+
+    avail = [float(p) for p in powers.keys() if _qty(float(p)) > 0]
+    if not avail:
+        return out_p, out_q, []
+
+    prev_list = [float(p) for p in (prev_powers or []) if isinstance(p, (int, float))]
+    prev_set = {float(p) for p in prev_list}
+
+    # 1) Start with previous powers (keep order), if still needed.
+    chosen: list[float] = []
+    for p in prev_list:
+        if len(chosen) >= max_types:
+            break
+        if float(p) in chosen:
+            continue
+        if _qty(float(p)) > 0:
+            chosen.append(float(p))
+
+    # 2) Add urgent powers (due <= block_day), then fill by due/qty.
+    urgent = [p for p in avail if _due(float(p)) <= block_day]
+    urgent.sort(key=lambda p: (_due(float(p)), -_qty(float(p)), float(p)))
+    for p in urgent:
+        if len(chosen) >= max_types:
+            break
+        if float(p) not in chosen:
+            chosen.append(float(p))
+
+    # 3) Fill remaining slots by due then remaining qty (and mild proximity to first prev power if present).
+    ref = prev_list[0] if prev_list else None
+
+    def _rank(p: float) -> tuple[date, int, int, float]:
+        d = _due(float(p))
+        q = _qty(float(p))
+        dist = 0
+        if isinstance(ref, float):
+            dist = int(round(abs(float(p) - float(ref)) * 1000))
+        prev_rank = 0 if float(p) in prev_set else 1
+        return (d, prev_rank, dist, -q, float(p))
+
+    rest = [p for p in avail if float(p) not in chosen]
+    rest.sort(key=_rank)
+    for p in rest:
+        if len(chosen) >= max_types:
+            break
+        chosen.append(float(p))
+
+    # Allocate 1 cavity per chosen type first (to avoid splitting across shifts).
+    for p in chosen:
+        if len(out_p) >= int(slots):
+            break
+        rem = _qty(float(p))
+        if rem <= 0:
+            continue
+        q = int(min(rem, int(slot_qty)))
+        out_p.append(float(p))
+        out_q.append(int(q))
+        info = powers.get(float(p)) or {}
+        info["qty"] = int(rem - q)
+        powers[float(p)] = info
+
+    # Use remaining cavities for the most-remaining chosen powers (duplicates) when meaningful.
+    while len(out_p) < int(slots):
+        # Pick a power with the largest remaining among chosen.
+        cand = sorted([p for p in chosen if _qty(float(p)) > 0], key=lambda p: (-_qty(float(p)), _due(float(p)), float(p)))
+        if not cand:
+            break
+        p = float(cand[0])
+        rem = _qty(p)
+        q = int(min(rem, int(slot_qty)))
+        out_p.append(p)
+        out_q.append(q)
+        info = powers.get(p) or {}
+        info["qty"] = int(rem - q)
+        powers[p] = info
+
+    return out_p, out_q, chosen
+
+
 def _build_injection_schedule(
     *,
     demand: pd.DataFrame,
@@ -1981,6 +2093,7 @@ def _build_injection_schedule(
     }
     equip_affinity: dict[str, str] = {}
     equip_last_power: dict[str, float | None] = {str(r["설비명"]): None for _, r in usable.iterrows()}
+    equip_last_power_set: dict[str, list[float]] = {str(r["설비명"]): [] for _, r in usable.iterrows()}
 
     rows: list[dict[str, object]] = []
 
@@ -2086,15 +2199,14 @@ def _build_injection_schedule(
                     info = product_info.get(cur_prod) or {}
                     prod_name = str(info.get("제품명") or "").strip()
                     powers: dict[float, dict[str, object]] = info.get("powers") or {}
-                    prev_types = [prev_power_for_change] if isinstance(prev_power_for_change, float) else []
-                    slot_p, slot_q, chosen_types = _choose_power_slots_min_change(
+                    prev_set = equip_last_power_set.get(equip_name, [])
+                    slot_p, slot_q, chosen_types = _choose_power_slots_for_8cav(
                         powers,
-                        prev_types=prev_types,
+                        prev_powers=prev_set,
                         block_day=day,
                         slots=8,
                         slot_qty=slot_qty,
-                        max_types=2,
-                        min_new_type_qty=slot_qty,
+                        max_types=8,
                     )
                     assign_qty = int(sum(slot_q))
                     rem_after = _product_remaining(cur_prod)
@@ -2147,6 +2259,7 @@ def _build_injection_schedule(
                 if cur_prod:
                     prev_block_prod = cur_prod
                     prev_block_power = cur_primary_power if isinstance(cur_primary_power, float) else prev_block_power
+                    equip_last_power_set[equip_name] = [float(p) for p in slot_p if isinstance(p, (int, float))]
 
             equip_last[equip_name] = prev_block_prod or prev_prod
             equip_last_power[equip_name] = prev_block_power if isinstance(prev_block_power, float) else prev_day_power
