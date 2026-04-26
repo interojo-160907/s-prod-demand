@@ -1660,7 +1660,7 @@ def _build_injection_schedule(
     days = [start_date + timedelta(days=i) for i in range(horizon_days)]
 
     work = demand.copy()
-    for c in ["제품코드", "품명", "POWER", "납기일"]:
+    for c in ["제품코드", "품명", "POWER", "납기일", "이니셜", "수주번호"]:
         if c not in work.columns:
             work[c] = ""
     if "사출" not in work.columns:
@@ -1679,6 +1679,14 @@ def _build_injection_schedule(
     work["_due"] = work["납기일"].map(_coerce_date_value)
 
     product_info: dict[str, dict[str, object]] = {}
+
+    def _order_ref(row: pd.Series) -> str:
+        ini = str(row.get("이니셜") or "").strip()
+        ord_no = str(row.get("수주번호") or "").strip()
+        if ini and ord_no:
+            return f"{ini}-{ord_no}"
+        return ord_no or ini
+
     for _, r in work.iterrows():
         base_r = str(r["제품명코드"] or "").strip().upper()
         if not base_r:
@@ -1701,6 +1709,7 @@ def _build_injection_schedule(
                 "납기일": due,
                 "powers": {},
                 "라인구분": arrange_map.get(base_r, ""),
+                "order_refs": {},
             }
             product_info[base_r] = info
         if name and (not str(info.get("제품명") or "").strip()):
@@ -1709,6 +1718,22 @@ def _build_injection_schedule(
             cur_due = info.get("납기일")
             if (cur_due is None) or (isinstance(cur_due, date) and due < cur_due):
                 info["납기일"] = due
+
+        # Track impacted orders (by initials/order no) for remaining view.
+        ref = _order_ref(r)
+        if ref:
+            refs: dict[str, object] = info.get("order_refs") or {}
+            prev = refs.get(ref)
+            if prev is None:
+                refs[ref] = due
+            else:
+                try:
+                    pdue = _power_due_or_far(prev)
+                    ndue = _power_due_or_far(due)
+                    refs[ref] = ndue if ndue < pdue else pdue
+                except Exception:
+                    refs[ref] = prev or due
+            info["order_refs"] = refs
         powers: dict[float, dict[str, object]] = info["powers"]  # type: ignore[assignment]
         pf = float(p)
         pinfo = powers.get(pf)
@@ -1914,6 +1939,22 @@ def _build_injection_schedule(
 
     missing_arrange: list[str] = []
     rem_rows: list[dict[str, object]] = []
+
+    def _format_refs(refs: dict[str, object], *, max_show: int = 10) -> str:
+        items: list[tuple[date, str]] = []
+        for k, v in (refs or {}).items():
+            kk = str(k or "").strip()
+            if not kk:
+                continue
+            items.append((_power_due_or_far(v), kk))
+        items.sort(key=lambda t: (t[0], t[1]))
+        keys = [k for _, k in items]
+        if not keys:
+            return ""
+        if len(keys) <= int(max_show):
+            return ", ".join(keys)
+        return ", ".join(keys[: int(max_show)]) + f" …(+{len(keys) - int(max_show)})"
+
     for base_r, info in sorted(product_info.items(), key=lambda kv: (_product_due(kv[0]), kv[0])):
         rem = _product_remaining(base_r)
         if rem <= 0:
@@ -1933,6 +1974,7 @@ def _build_injection_schedule(
                 "제품명코드": base_r,
                 "제품명": str(info.get("제품명") or "").strip(),
                 "납기일": info.get("납기일"),
+                "영향수주": _format_refs(info.get("order_refs") or {}),
                 "잔여수량": rem,
                 "미배정사유": reason,
             }
@@ -4106,6 +4148,8 @@ def main() -> None:
                 rem_col_cfg["납기일"] = st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small")
             if "잔여수량" in rem_show.columns:
                 rem_col_cfg["잔여수량"] = st.column_config.NumberColumn(format="localized", width="small")
+            if "영향수주" in rem_show.columns:
+                rem_col_cfg["영향수주"] = st.column_config.TextColumn(width="large")
             st.dataframe(
                 _style_dataframe_like_dashboard(rem_show),
                 use_container_width=True,
