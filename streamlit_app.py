@@ -13,6 +13,9 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 import excel_analysis
 
@@ -649,6 +652,218 @@ def _to_excel_bytes(df: pd.DataFrame, *, sheet_name: str = "data") -> bytes:
     return output.getvalue()
 
 
+def _to_injection_operation_xlsx(
+    sched: pd.DataFrame,
+    *,
+    start_date: date,
+    horizon_days: int,
+    sheet_name: str = "운영양식",
+) -> bytes:
+    """
+    Export injection schedule to an operator-friendly template-like Excel.
+
+    Layout:
+    - Column A: 설비 (merged across 8 cavity rows)
+    - For each slot (day x block): 4 columns = 제품정보 / CAV / 도수 / 필요수량
+    - Each equipment occupies 8 rows (CAV 1..8)
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name[:31]
+
+    thin = Side(style="thin", color="CFCFCF")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    header_fill = PatternFill("solid", fgColor="E8F0FE")
+    header_font = Font(bold=True)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left_top = Alignment(horizontal="left", vertical="top", wrap_text=True)
+
+    horizon_days = int(horizon_days)
+    if horizon_days <= 0:
+        horizon_days = 5
+
+    slots: list[dict[str, object]] = []
+    for i in range(horizon_days):
+        d = start_date + timedelta(days=i)
+        for b, sh in [(1, "주간"), (2, "야간")]:
+            slots.append({"날짜": d, "Block": b, "shift": sh, "label": f"{d.month}/{d.day} {sh}"})
+
+    # Header rows
+    ws["A1"] = "설비"
+    ws.merge_cells(start_row=1, start_column=1, end_row=2, end_column=1)
+    ws["A1"].fill = header_fill
+    ws["A1"].font = header_font
+    ws["A1"].alignment = center
+
+    col = 2
+    for sl in slots:
+        label = str(sl["label"])
+        ws.cell(row=1, column=col, value=label)
+        ws.merge_cells(start_row=1, start_column=col, end_row=1, end_column=col + 3)
+        for c in range(col, col + 4):
+            cell = ws.cell(row=1, column=c)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = center
+
+        sub = ["제품정보", "CAV", "도수", "필요수량"]
+        for j, name in enumerate(sub):
+            cell = ws.cell(row=2, column=col + j, value=name)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = center
+        col += 4
+
+    # Prepare schedule lookup
+    s = sched.copy()
+    if "날짜" in s.columns:
+        s["날짜"] = pd.to_datetime(s["날짜"], errors="coerce").dt.date
+    if "Block" in s.columns:
+        s["Block"] = pd.to_numeric(s["Block"], errors="coerce").fillna(0).astype(int)
+    if "설비명" in s.columns:
+        s["설비명"] = s["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
+
+    key_cols = ["설비명", "날짜", "Block"]
+    if not all(c in s.columns for c in key_cols):
+        s_map: dict[tuple[str, date, int], dict[str, object]] = {}
+    else:
+        s_map = {
+            (str(r["설비명"]), r["날짜"], int(r["Block"])): r.to_dict()
+            for _, r in s.iterrows()
+            if isinstance(r.get("날짜"), date)
+        }
+
+    equip_list = sorted([e for e in s.get("설비명", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if str(e).strip()])
+
+    start_row = 3
+    for equip in equip_list:
+        ws.merge_cells(start_row=start_row, start_column=1, end_row=start_row + 7, end_column=1)
+        c0 = ws.cell(row=start_row, column=1, value=str(equip))
+        c0.alignment = center
+        c0.font = Font(bold=True)
+
+        # CAV rows
+        for i in range(8):
+            ws.cell(row=start_row + i, column=1).border = border
+
+        col = 2
+        for sl in slots:
+            d = sl["날짜"]
+            b = int(sl["Block"])
+            rec = s_map.get((str(equip), d, b), {})
+
+            prod = str(rec.get("제품명코드") or "").strip()
+            prod_name = str(rec.get("제품명") or "").strip()
+            info_txt = "\n".join([t for t in [prod, prod_name] if t])
+
+            # 제품정보 (merged)
+            ws.merge_cells(start_row=start_row, start_column=col, end_row=start_row + 7, end_column=col)
+            cinfo = ws.cell(row=start_row, column=col, value=info_txt)
+            cinfo.alignment = left_top
+
+            for i in range(8):
+                r = start_row + i
+                ws.cell(row=r, column=col + 1, value=i + 1).alignment = center
+                pw = str(rec.get(f"PW{i + 1}") or "").strip()
+                qv = rec.get(f"Q{i + 1}")
+                try:
+                    q = int(qv) if qv is not None and str(qv).strip() != "" else 0
+                except Exception:
+                    q = 0
+                ws.cell(row=r, column=col + 2, value=pw).alignment = center
+                ws.cell(row=r, column=col + 3, value=(q if q > 0 else "")).alignment = center
+
+            # Borders for group
+            for r in range(start_row, start_row + 8):
+                for c in range(col, col + 4):
+                    ws.cell(row=r, column=c).border = border
+            col += 4
+
+        start_row += 8
+
+    # Column widths
+    ws.column_dimensions["A"].width = 8
+    col = 2
+    for _ in slots:
+        ws.column_dimensions[get_column_letter(col)].width = 22  # 제품정보
+        ws.column_dimensions[get_column_letter(col + 1)].width = 5  # CAV
+        ws.column_dimensions[get_column_letter(col + 2)].width = 8  # WET
+        ws.column_dimensions[get_column_letter(col + 3)].width = 9  # 수량
+        col += 4
+
+    # Apply borders to headers
+    max_col = 1 + 4 * len(slots)
+    for r in (1, 2):
+        for c in range(1, max_col + 1):
+            ws.cell(row=r, column=c).border = border
+
+    output = BytesIO()
+    wb.save(output)
+    return output.getvalue()
+
+
+def _injection_schedule_to_cavity_rows(sched: pd.DataFrame) -> pd.DataFrame:
+    """
+    Expand block schedule rows into cavity-level rows.
+
+    Output columns:
+    - 날짜, 주야, 설비명, Block, 제품명코드, 제품명, CAV, 도수, 필요수량
+    """
+    if sched is None or sched.empty:
+        return pd.DataFrame()
+
+    df = sched.copy()
+    if "날짜" not in df.columns or "Block" not in df.columns or "설비명" not in df.columns:
+        return pd.DataFrame()
+
+    df["날짜"] = pd.to_datetime(df["날짜"], errors="coerce").dt.date
+    df["Block"] = pd.to_numeric(df["Block"], errors="coerce").fillna(0).astype(int)
+    df["주야"] = df["Block"].map(lambda b: "주간" if int(b) == 1 else ("야간" if int(b) == 2 else ""))
+
+    rows: list[dict[str, object]] = []
+    for _, r in df.iterrows():
+        d = r.get("날짜")
+        if not isinstance(d, date):
+            continue
+        equip = str(r.get("설비명") or "").strip().upper()
+        if not equip:
+            continue
+        block = int(r.get("Block") or 0)
+        sh = str(r.get("주야") or "").strip()
+        prod = str(r.get("제품명코드") or "").strip().upper()
+        prod_name = str(r.get("제품명") or "").strip()
+        for i in range(8):
+            cav = i + 1
+            pw = str(r.get(f"PW{cav}") or "").strip()
+            qv = r.get(f"Q{cav}")
+            try:
+                q = int(qv) if qv is not None and str(qv).strip() != "" else 0
+            except Exception:
+                q = 0
+            if (not pw) and q <= 0:
+                continue
+            rows.append(
+                {
+                    "날짜": d,
+                    "주야": sh,
+                    "설비명": equip,
+                    "Block": block,
+                    "제품명코드": prod,
+                    "제품명": prod_name,
+                    "CAV": cav,
+                    "도수": pw,
+                    "필요수량": q,
+                }
+            )
+
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return out
+    out["필요수량"] = pd.to_numeric(out["필요수량"], errors="coerce").fillna(0).astype(int)
+    out = out.sort_values(["설비명", "날짜", "Block", "CAV"], ascending=[True, True, True, True], na_position="last")
+    return out
+
+
 def _format_item_code_list(codes: list[str], *, max_show: int = 12) -> str:
     codes = [str(c).strip() for c in codes if str(c).strip()]
     if not codes:
@@ -1019,25 +1234,51 @@ def _pick_power_types_for_block(
     avail_sorted = sorted(avail, key=lambda t: (t[1], -t[2], t[0]))
     urgent = [p for (p, due, qty) in avail_sorted if (qty > 0 and due <= block_day)]
 
-    chosen: list[float] = []
-    # 1) Continue previous POWER(s) first when possible.
-    for p in prev_types or []:
-        if any(p == ap for (ap, _, _) in avail_sorted) and (p not in chosen):
-            chosen.append(float(p))
-        if len(chosen) >= max_types:
-            break
+    prev_val: float | None = None
+    if prev_types:
+        try:
+            prev_val = float(prev_types[0])
+        except Exception:
+            prev_val = None
 
-    # 2) Fill up to max_types by due/qty priority.
-    for p, _, _ in avail_sorted:
-        if p in chosen:
-            continue
-        chosen.append(float(p))
-        if len(chosen) >= max_types:
-            break
+    chosen: list[float] = []
+
+    # 1) Primary POWER: due date is the top priority.
+    # Always select from the earliest-due group; only keep previous POWER when it belongs to that same group.
+    min_due = avail_sorted[0][1]
+    earliest = [(p, due, qty) for (p, due, qty) in avail_sorted if due == min_due]
+
+    prev_due: date | None = None
+    if isinstance(prev_val, float):
+        for p, d, _ in avail_sorted:
+            if float(p) == float(prev_val):
+                prev_due = d
+                break
+
+    if isinstance(prev_val, float) and (prev_due == min_due) and any(float(prev_val) == float(p) for (p, _, _) in earliest):
+        chosen.append(float(prev_val))
+    else:
+        # Prefer near previous POWER to reduce oscillation, but only within the earliest-due group.
+        cand = earliest
+        if isinstance(prev_val, float):
+            cand.sort(key=lambda t: (abs(float(t[0]) - float(prev_val)), -t[2], t[0]))
+        else:
+            cand.sort(key=lambda t: (-t[2], t[0]))
+        chosen.append(float(cand[0][0]))
+
+    # 2) Secondary POWER (optional): prefer earliest-due group first, then proximity to primary.
+    if int(max_types) >= 2:
+        rem = [(p, due, qty) for (p, due, qty) in avail_sorted if float(p) not in set(chosen)]
+        if rem:
+            primary = float(chosen[0])
+            rem_earliest = [t for t in rem if t[1] == min_due]
+            cand2 = rem_earliest if rem_earliest else rem
+            cand2.sort(key=lambda t: (t[1], abs(float(t[0]) - primary), -t[2], t[0]))
+            chosen.append(float(cand2[0][0]))
 
     # 3) Exception: ensure urgent POWERs are included even if it increases variety.
     for p in urgent:
-        if p not in chosen:
+        if float(p) not in chosen:
             chosen.append(float(p))
 
     return chosen
@@ -1069,6 +1310,12 @@ def _choose_power_slots_min_change(
         return out_p, out_q, []
 
     prev_set = {float(p) for p in (prev_types or []) if isinstance(p, (int, float))}
+    prev_ref: float | None = None
+    if prev_types:
+        try:
+            prev_ref = float(prev_types[0])
+        except Exception:
+            prev_ref = None
 
     def _alloc_key(p: float) -> tuple[int, date, int, int, float]:
         info = powers.get(float(p)) or {}
@@ -1079,7 +1326,10 @@ def _choose_power_slots_min_change(
             qty = 0
         urgent_rank = 0 if due <= block_day else 1
         prev_rank = 0 if float(p) in prev_set else 1
-        return (urgent_rank, due, prev_rank, -qty, float(p))
+        dist = 0
+        if isinstance(prev_ref, float):
+            dist = int(round(abs(float(p) - float(prev_ref)) * 1000))
+        return (urgent_rank, due, prev_rank, dist, -qty, float(p))
 
     alloc_order = sorted([float(p) for p in chosen_types], key=_alloc_key)
 
@@ -1354,11 +1604,16 @@ def _build_injection_schedule(
             prev_day_power = equip_last_power.get(equip_name, None)
 
             def _pick_product(prefer: str | None) -> str:
-                if prefer and prefer in candidates and _product_remaining(prefer) > 0:
+                if not candidates:
+                    return ""
+                best = candidates[0]
+                best_due = _product_due(best)
+                # Due date is the top priority. Keep previous/affinity only when they are within the same earliest due group.
+                if prefer and prefer in candidates and _product_remaining(prefer) > 0 and _product_due(prefer) == best_due:
                     return prefer
-                if affinity and affinity in candidates and _product_remaining(affinity) > 0:
+                if affinity and affinity in candidates and _product_remaining(affinity) > 0 and _product_due(affinity) == best_due:
                     return affinity
-                return candidates[0] if candidates else ""
+                return best
 
             prod1 = _pick_product(prev_prod)
             if prod1:
@@ -1419,11 +1674,15 @@ def _build_injection_schedule(
                     assign_qty = int(sum(slot_q))
                     rem_after = _product_remaining(cur_prod)
                     powers_list = [_fmt_power(p) for p in slot_p]
+                    qty_list = [int(q) for q in slot_q]
                     cur_primary_power = slot_p[0] if slot_p else None
                     if len(powers_list) < 8:
                         powers_list += [""] * (8 - len(powers_list))
+                    if len(qty_list) < 8:
+                        qty_list += [0] * (8 - len(qty_list))
                 else:
                     powers_list = [""] * 8
+                    qty_list = [0] * 8
 
                 # POWER variety / core change stats
                 pw_seq = [p for p in powers_list if str(p).strip()]
@@ -1458,6 +1717,7 @@ def _build_injection_schedule(
                 }
                 for i in range(8):
                     row[f"PW{i + 1}"] = str(powers_list[i] if i < len(powers_list) else "").strip()
+                    row[f"Q{i + 1}"] = int(qty_list[i] if i < len(qty_list) else 0)
                 rows.append(row)
                 if cur_prod:
                     prev_block_prod = cur_prod
@@ -3147,6 +3407,24 @@ def main() -> None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key=f"inj_{code}_download",
             )
+            xlsx_ops = _to_injection_operation_xlsx(sched, start_date=start_date, horizon_days=horizon_days, sheet_name="운영양식")
+            st.download_button(
+                "엑셀 다운로드 (운영양식)",
+                data=xlsx_ops,
+                file_name=f"사출운영양식_{code}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"inj_{code}_download_ops",
+            )
+            cav_df = _injection_schedule_to_cavity_rows(sched)
+            if cav_df is not None and (not cav_df.empty):
+                xlsx_cav = _to_excel_bytes(cav_df, sheet_name="캐비티별")
+                st.download_button(
+                    "엑셀 다운로드 (캐비티별)",
+                    data=xlsx_cav,
+                    file_name=f"사출캐비티별_{code}_{_today_kst().isoformat()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"inj_{code}_download_cav",
+                )
 
             blocks = _injection_schedule_to_blocks(sched)
             has_assigned = bool(blocks.get("제품명코드", pd.Series(dtype=str)).astype("string").fillna("").str.strip().ne("").any())
@@ -3234,11 +3512,6 @@ def main() -> None:
                             qty = int(src.get("배정수량") or 0) if isinstance(src, dict) else 0
                             setting = str(src.get("세팅구분") or "").strip() if isinstance(src, dict) else ""
                             pw = str(src.get("POWER 리스트") or "").strip() if isinstance(src, dict) else ""
-                            pw_rep = str(src.get("POWER(대표)") or "").strip() if isinstance(src, dict) else ""
-                            prev_pw = str(src.get("이전 POWER") or "").strip() if isinstance(src, dict) else ""
-                            core_chg = int(src.get("코아교체") or 0) if isinstance(src, dict) else 0
-                            pw_kinds = int(src.get("POWER 종류수") or 0) if isinstance(src, dict) else 0
-                            pw_changes = int(src.get("POWER 변경횟수") or 0) if isinstance(src, dict) else 0
                             due = str(src.get("납기일") or "").strip() if isinstance(src, dict) else ""
 
                             assignable = bool(info.get("배정가능", True))
@@ -3272,12 +3545,6 @@ def main() -> None:
                                     "배정수량": qty,
                                     "세팅구분": setting,
                                     "POWER": pw,
-                                    "POWER(대표)": pw_rep,
-                                    "이전 POWER": prev_pw,
-                                    "코아교체": int(core_chg),
-                                    "POWER 종류수": int(pw_kinds),
-                                    "POWER 변경횟수": int(pw_changes),
-                                    "label": (f"{prod}\n{pw_rep}{' CHG' if int(core_chg) == 1 else ''}".strip() if prod else ""),
                                     "유휴사유": idle_reason,
                                 }
                             )
@@ -3304,11 +3571,6 @@ def main() -> None:
                                 {"field": "납기일", "type": "nominal", "title": "납기일"},
                                 {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
                                 {"field": "세팅구분", "type": "nominal", "title": "세팅"},
-                                {"field": "이전 POWER", "type": "nominal", "title": "이전 POWER"},
-                                {"field": "POWER(대표)", "type": "nominal", "title": "현재 POWER"},
-                                {"field": "코아교체", "type": "quantitative", "title": "코아교체(0/1)"},
-                                {"field": "POWER 종류수", "type": "quantitative", "title": "POWER 종류수"},
-                                {"field": "POWER 변경횟수", "type": "quantitative", "title": "POWER 변경횟수"},
                                 {"field": "POWER", "type": "nominal", "title": "POWER(최대8)"},
                                 {"field": "유휴사유", "type": "nominal", "title": "유휴/사유"},
                             ],
@@ -3332,7 +3594,7 @@ def main() -> None:
                             {
                                 "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 11},
                                 "encoding": {
-                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "label"}, "value": ""},
+                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
                                     "color": {
                                         "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
                                         "value": "#666666",
@@ -3370,25 +3632,7 @@ def main() -> None:
             elif view_kind == "그리드":
                 grid = blocks.copy()
                 grid["col"] = grid.apply(lambda r: f"{r['날짜'].month}/{r['날짜'].day} {r.get('shift','')}", axis=1)
-                prod = (
-                    grid["제품명코드"].astype("string").fillna("").astype(str).str.strip()
-                    if "제품명코드" in grid.columns
-                    else pd.Series([""] * int(len(grid)), index=grid.index, dtype="string")
-                )
-                pw_rep = (
-                    grid["POWER(대표)"].astype("string").fillna("").astype(str).str.strip()
-                    if "POWER(대표)" in grid.columns
-                    else pd.Series([""] * int(len(grid)), index=grid.index, dtype="string")
-                )
-                core = (
-                    pd.to_numeric(grid["코아교체"], errors="coerce").fillna(0).astype(int)
-                    if "코아교체" in grid.columns
-                    else pd.Series([0] * int(len(grid)), index=grid.index, dtype="int64")
-                )
-                grid["cell"] = prod
-                has_pw = pw_rep.str.strip().ne("")
-                grid.loc[has_pw, "cell"] = grid.loc[has_pw, "cell"] + " " + pw_rep.loc[has_pw]
-                grid.loc[core.eq(1) & prod.str.strip().ne(""), "cell"] = grid.loc[core.eq(1) & prod.str.strip().ne(""), "cell"] + " [CHG]"
+                grid["cell"] = grid["제품명코드"].astype("string").fillna("").astype(str).str.strip() if "제품명코드" in grid.columns else ""
                 pivot = (
                     grid.pivot_table(index="설비명", columns="col", values="cell", aggfunc="first", fill_value="")
                     if not grid.empty
