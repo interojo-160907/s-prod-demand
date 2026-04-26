@@ -1041,6 +1041,80 @@ class _CapacityAllocator:
         return float(self.t)
 
 
+def _order_ref_string(ini: object, order_no: object) -> str:
+    i = str(ini or "").strip()
+    o = str(order_no or "").strip()
+    # Convention (수주별 현황): if initials exist, identify by initials; otherwise use order number
+    # (e.g., 해외/국내/PB 등은 이니셜이 비어 수주번호로 구분되는 경우가 많음).
+    return i or o
+
+
+def _format_order_ref_list(items: list[tuple[date, str]], *, max_show: int = 10) -> str:
+    if not items:
+        return ""
+    items2 = [(d if isinstance(d, date) else date(2099, 12, 31), str(k or "").strip()) for d, k in items]
+    items2 = [(d, k) for d, k in items2 if k]
+    items2.sort(key=lambda t: (t[0], t[1]))
+    keys = [k for _, k in items2]
+    if not keys:
+        return ""
+    if len(keys) <= int(max_show):
+        return ", ".join(keys)
+    return ", ".join(keys[: int(max_show)]) + f" …(+{len(keys) - int(max_show)})"
+
+
+@st.cache_data(show_spinner=False)
+def _build_order_refs_by_base_r(detail: pd.DataFrame) -> dict[str, list[tuple[date, str]]]:
+    """
+    Build base R -> list of (min_due, order_ref) from order-detail.
+    order_ref = "이니셜-수주번호" (fallback to whichever exists).
+    """
+    if detail is None or detail.empty or ("제품 코드" not in detail.columns):
+        return {}
+
+    d = detail.copy()
+    d["제품 코드"] = d["제품 코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+    d = d.loc[d["제품 코드"].str.startswith("R")].copy()
+    if d.empty:
+        return {}
+
+    d["base_r"] = d["제품 코드"].map(_extract_base_r).astype("string").fillna("").astype(str).str.strip().str.upper()
+    d = d.loc[d["base_r"].ne("")].copy()
+    if d.empty:
+        return {}
+
+    if "납기일" in d.columns:
+        d["납기일"] = pd.to_datetime(d["납기일"], errors="coerce").dt.date
+    else:
+        d["납기일"] = None
+
+    if "이니셜" not in d.columns:
+        d["이니셜"] = ""
+    if "수주번호" not in d.columns:
+        d["수주번호"] = ""
+
+    d["order_ref"] = d.apply(lambda r: _order_ref_string(r.get("이니셜"), r.get("수주번호")), axis=1)
+    d = d.loc[d["order_ref"].astype("string").fillna("").astype(str).str.strip().ne("")].copy()
+    if d.empty:
+        return {}
+
+    # base_r + order_ref -> min due
+    agg = (
+        d.groupby(["base_r", "order_ref"], dropna=False, as_index=False)["납기일"]
+        .min()
+        .rename(columns={"납기일": "min_due"})
+    )
+    out: dict[str, list[tuple[date, str]]] = {}
+    for _, r in agg.iterrows():
+        br = str(r.get("base_r") or "").strip().upper()
+        ref = str(r.get("order_ref") or "").strip()
+        due = r.get("min_due")
+        if not br or not ref:
+            continue
+        out.setdefault(br, []).append((_power_due_or_far(due), ref))
+    return out
+
+
 def _format_item_code_list(codes: list[str], *, max_show: int = 12) -> str:
     codes = [str(c).strip() for c in codes if str(c).strip()]
     if not codes:
@@ -1681,11 +1755,7 @@ def _build_injection_schedule(
     product_info: dict[str, dict[str, object]] = {}
 
     def _order_ref(row: pd.Series) -> str:
-        ini = str(row.get("이니셜") or "").strip()
-        ord_no = str(row.get("수주번호") or "").strip()
-        if ini and ord_no:
-            return f"{ini}-{ord_no}"
-        return ord_no or ini
+        return _order_ref_string(row.get("이니셜"), row.get("수주번호"))
 
     for _, r in work.iterrows():
         base_r = str(r["제품명코드"] or "").strip().upper()
@@ -4127,6 +4197,14 @@ def main() -> None:
                 rem_show["잔여수량"] = pd.to_numeric(rem_show["잔여수량"], errors="coerce").fillna(0).astype(int)
             if "납기일" in rem_show.columns:
                 rem_show["납기일"] = pd.to_datetime(rem_show["납기일"], errors="coerce")
+
+            # Fill impacted orders from order-detail (more reliable than demand aggregation which may not carry order keys).
+            try:
+                if detail_for_map is not None and (not detail_for_map.empty) and ("제품명코드" in rem_show.columns):
+                    refs_map = _build_order_refs_by_base_r(detail_for_map)
+                    rem_show["영향수주"] = rem_show["제품명코드"].map(lambda k: _format_order_ref_list(refs_map.get(str(k or "").strip().upper(), [])))
+            except Exception:
+                pass
             sort_cols = [c for c in ["납기일", "잔여수량", "제품명코드"] if c in rem_show.columns]
             if sort_cols:
                 asc_map = {"납기일": True, "잔여수량": False, "제품명코드": True}
