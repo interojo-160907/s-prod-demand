@@ -3610,15 +3610,16 @@ def main() -> None:
                                         "legend": {
                                             "title": "제품",
                                             "labelLimit": 220,
-                                            "labelFontSize": 10,
-                                            "titleFontSize": 11,
-                                            "symbolSize": 70,
+                                            "labelFontSize": 12,
+                                            "titleFontSize": 13,
+                                            "symbolSize": 90,
+                                            "labelLineHeight": 16,
                                         },
                                     }
                                 },
                             },
                             {
-                                "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 10},
+                                "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 12},
                                 "encoding": {
                                     "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
                                     "color": {
@@ -3634,12 +3635,12 @@ def main() -> None:
                                 "gridColor": "#e5e5e5",
                                 "gridOpacity": 1,
                                 "domain": False,
-                                "labelFontSize": 10,
-                                "titleFontSize": 11,
+                                "labelFontSize": 12,
+                                "titleFontSize": 12,
                             },
                             "view": {"stroke": "transparent"},
                         },
-                        "height": max(340, min(880, 22 * int(len(equip_list) + 1))),
+                        "height": max(380, min(980, 26 * int(len(equip_list) + 1))),
                     }
 
                     st.vega_lite_chart(spec, use_container_width=True)
