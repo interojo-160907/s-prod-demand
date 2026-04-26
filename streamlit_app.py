@@ -658,6 +658,7 @@ def _to_injection_operation_xlsx(
     start_date: date,
     horizon_days: int,
     sheet_name: str = "운영양식",
+    equip_all: pd.DataFrame | None = None,
 ) -> bytes:
     """
     Export injection schedule to an operator-friendly template-like Excel.
@@ -715,7 +716,7 @@ def _to_injection_operation_xlsx(
         col += 4
 
     # Prepare schedule lookup
-    s = sched.copy()
+    s = sched.copy() if isinstance(sched, pd.DataFrame) else pd.DataFrame()
     if "날짜" in s.columns:
         s["날짜"] = pd.to_datetime(s["날짜"], errors="coerce").dt.date
     if "Block" in s.columns:
@@ -733,7 +734,40 @@ def _to_injection_operation_xlsx(
             if isinstance(r.get("날짜"), date)
         }
 
-    equip_list = sorted([e for e in s.get("설비명", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if str(e).strip()])
+    def _equip_sort_key(s: str) -> tuple[int, int, str]:
+        s2 = str(s or "").strip().upper()
+        m = re.match(r"^([A-Z])(\d+)$", s2)
+        if not m:
+            return (999, 999, s2)
+        return (ord(m.group(1)) - 65, int(m.group(2)), s2)
+
+    equip_info: dict[str, dict[str, object]] = {}
+    equip_list: list[str] = []
+    if isinstance(equip_all, pd.DataFrame) and (not equip_all.empty):
+        e = equip_all.copy()
+        e["설비명"] = (
+            e.get("설비코드", "")
+            .astype("string")
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        e["비고"] = e.get("비고", "").astype("string").fillna("").astype(str).str.strip()
+        e["생산 제품"] = e.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
+        e["배정가능"] = e.get("배정가능", True).fillna(True)
+        for _, r in e.iterrows():
+            nm = str(r.get("설비명") or "").strip().upper()
+            if not nm:
+                continue
+            equip_info[nm] = {
+                "배정가능": bool(r.get("배정가능", True)),
+                "비고": str(r.get("비고") or "").strip(),
+                "현재제품": str(r.get("생산 제품") or "").strip(),
+            }
+        equip_list = sorted(list(equip_info.keys()), key=_equip_sort_key)
+    else:
+        equip_list = sorted([e for e in s.get("설비명", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if str(e).strip()], key=_equip_sort_key)
 
     start_row = 3
     for equip in equip_list:
@@ -755,6 +789,16 @@ def _to_injection_operation_xlsx(
             prod = str(rec.get("제품명코드") or "").strip()
             prod_name = str(rec.get("제품명") or "").strip()
             info_txt = "\n".join([t for t in [prod, prod_name] if t])
+            if not info_txt:
+                info = equip_info.get(str(equip), {})
+                note = str(info.get("비고") or "").strip()
+                assignable = bool(info.get("배정가능", True))
+                if (not assignable) and note:
+                    info_txt = f"배정불가\n비고: {note}"
+                elif note:
+                    info_txt = f"유휴\n비고: {note}"
+                else:
+                    info_txt = ""
 
             # 제품정보 (merged)
             ws.merge_cells(start_row=start_row, start_column=col, end_row=start_row + 7, end_column=col)
@@ -2884,40 +2928,8 @@ def main() -> None:
             disabled=(proc_quick == "해제"),
         )
 
-    if view_mode == "사출 계획":
-        inj_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
-        _pre_widget_single_select_fix(key="inj_due_quick", default="해제", options=inj_quick_options)
-        inj_quick_raw = st.pills(
-            "납기일 종료 (빠른 선택)",
-            options=inj_quick_options,
-            default="해제",
-            key="inj_due_quick",
-            selection_mode="single",
-            on_change=_on_change_single_select,
-            args=("inj_due_quick", "해제", inj_quick_options),
-            label_visibility="collapsed",
-        )
-        inj_quick = _coerce_single_value(inj_quick_raw, default="해제", options=inj_quick_options)
-        if inj_quick == "당월":
-            inj_default_end = _end_of_month(_today_kst())
-        elif inj_quick == "+7일":
-            inj_default_end = _today_kst() + timedelta(days=7)
-        elif inj_quick == "+14일":
-            inj_default_end = _today_kst() + timedelta(days=14)
-        else:
-            inj_default_end = _today_kst()
-
-        prev_inj_quick = st.session_state.get("_prev_inj_due_quick")
-        if prev_inj_quick != inj_quick:
-            st.session_state["inj_due_end"] = inj_default_end
-            st.session_state["_prev_inj_due_quick"] = inj_quick
-
-        inj_end_date = st.date_input(
-            "납기일 종료",
-            value=st.session_state.get("inj_due_end", inj_default_end),
-            key="inj_due_end",
-            disabled=(inj_quick == "해제"),
-        )
+    # NOTE: 사출 계획은 항상 "현재 기준 5일 계획"을 보여주며,
+    # 납기일 종료 필터에 의해 계획이 바뀌는 구조가 아니므로 별도 필터 UI를 노출하지 않는다.
 
     # 분류 pills (view-mode별로 totals 계산 데이터가 다름)
     order_df_all: pd.DataFrame | None = None
@@ -2989,9 +3001,6 @@ def main() -> None:
             if proc_quick_state != "해제":
                 codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("proc_due_end", _today_kst()))
         if view_mode == "사출 계획":
-            inj_quick_state = st.session_state.get("inj_due_quick", "해제")
-            if inj_quick_state != "해제":
-                codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("inj_due_end", _today_kst()))
             value_col = "사출" if "사출" in codes_src.columns else "누수규격"
         else:
             value_col = process_only if process_only else "누수규격"
@@ -3347,15 +3356,10 @@ def main() -> None:
         return
 
     if view_mode == "사출 계획":
-        st.subheader("사출 5일 단기 스케줄 (자동 생성)")
+        st.subheader("사출 스케줄 (자동 생성)")
         # Fixed horizon + start date (planning is always shown from 'today').
         horizon_days = 5
         start_date = _today_kst()
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            st.caption("기간: 5일")
-        with col2:
-            st.caption("블록당 POWER 최대 8칸(중복 허용), 1칸(=1 CAV) 최대 2000ea/쉬프트. E 공란+F 기입 설비는 배정하지 않습니다.")
 
         # Keep "간트" as default; guard old persisted selection values (e.g. "그리드").
         inj_view_options = ["간트", "상세표"]
@@ -3405,15 +3409,13 @@ def main() -> None:
         if sched is None or sched.empty:
             st.caption("생성된 스케줄이 없습니다.")
         else:
-            xlsx_bytes = _to_excel_bytes(sched, sheet_name="사출스케줄")
-            st.download_button(
-                "엑셀 다운로드 (사출 스케줄)",
-                data=xlsx_bytes,
-                file_name=f"사출스케줄_{code}_{_today_kst().isoformat()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"inj_{code}_download",
+            xlsx_ops = _to_injection_operation_xlsx(
+                sched,
+                start_date=start_date,
+                horizon_days=horizon_days,
+                sheet_name="운영양식",
+                equip_all=inj_equip,
             )
-            xlsx_ops = _to_injection_operation_xlsx(sched, start_date=start_date, horizon_days=horizon_days, sheet_name="운영양식")
             st.download_button(
                 "엑셀 다운로드 (운영양식)",
                 data=xlsx_ops,
@@ -3421,16 +3423,6 @@ def main() -> None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key=f"inj_{code}_download_ops",
             )
-            cav_df = _injection_schedule_to_cavity_rows(sched)
-            if cav_df is not None and (not cav_df.empty):
-                xlsx_cav = _to_excel_bytes(cav_df, sheet_name="캐비티별")
-                st.download_button(
-                    "엑셀 다운로드 (캐비티별)",
-                    data=xlsx_cav,
-                    file_name=f"사출캐비티별_{code}_{_today_kst().isoformat()}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"inj_{code}_download_cav",
-                )
 
             blocks = _injection_schedule_to_blocks(sched)
             has_assigned = bool(blocks.get("제품명코드", pd.Series(dtype=str)).astype("string").fillna("").str.strip().ne("").any())
@@ -3675,8 +3667,8 @@ def main() -> None:
                     )
 
             else:
-                # 상세표: 설비별로 디테일링해서 (제품/POWER) 이어짐을 쉽게 확인
-                view_df = sched.copy()
+                # 상세표(운영양식 형태): 모든 설비를 표시 (유휴/배정불가 설비 포함)
+                view_df = sched.copy() if isinstance(sched, pd.DataFrame) else pd.DataFrame()
                 if "설비명" in view_df.columns:
                     view_df["설비명"] = view_df["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
                 if "날짜" in view_df.columns:
@@ -3684,123 +3676,109 @@ def main() -> None:
                 if "Block" in view_df.columns:
                     view_df["Block"] = pd.to_numeric(view_df["Block"], errors="coerce").fillna(0).astype(int)
 
-                equip_vals = (
-                    sorted([e for e in view_df.get("설비명", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if str(e).strip()])
-                    if not view_df.empty
-                    else []
+                equip_all = inj_equip.copy()
+                equip_all["설비명"] = (
+                    equip_all.get("설비코드", "")
+                    .astype("string")
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
                 )
-                equip_pick = st.selectbox(
-                    "설비(상세)",
-                    options=["전체", *equip_vals],
-                    index=0,
-                    key=f"inj_detail_equip_{code}",
-                )
-                if equip_pick != "전체" and "설비명" in view_df.columns:
-                    view_df = view_df.loc[view_df["설비명"].eq(str(equip_pick).strip().upper())].copy()
-                sort_cols = [c for c in ["설비명", "날짜", "Block"] if c in view_df.columns]
-                if sort_cols:
-                    view_df = view_df.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+                equip_all["비고"] = equip_all.get("비고", "").astype("string").fillna("").astype(str).str.strip()
+                equip_all["생산 제품"] = equip_all.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
+                equip_all["배정가능"] = equip_all.get("배정가능", True).fillna(True)
 
-                # 운영양식 형태(화면): CAV(1~8) x (일자/주야) 매트릭스로 도수/필요수량을 한눈에
-                if equip_pick == "전체":
-                    st.caption("운영양식 형태는 설비별로 보는 것이 좋아서, 설비를 하나 선택하면 표시합니다.")
-                else:
-                    slots = []
-                    for i in range(int(horizon_days)):
-                        d = start_date + timedelta(days=i)
-                        for b, sh in [(1, "주간"), (2, "야간")]:
-                            slots.append({"날짜": d, "Block": b, "shift": sh, "label": f"{d.month}/{d.day} {sh}"})
+                def _equip_sort_key(s: str) -> tuple[int, int, str]:
+                    s2 = str(s or "").strip().upper()
+                    m = re.match(r"^([A-Z])(\d+)$", s2)
+                    if not m:
+                        return (999, 999, s2)
+                    return (ord(m.group(1)) - 65, int(m.group(2)), s2)
 
-                    cav = _injection_schedule_to_cavity_rows(view_df)
-                    cav = cav.loc[cav["설비명"].eq(str(equip_pick).strip().upper())].copy() if (not cav.empty) else cav
-                    cav["날짜"] = pd.to_datetime(cav["날짜"], errors="coerce").dt.date
-                    cav["Block"] = pd.to_numeric(cav["Block"], errors="coerce").fillna(0).astype(int)
+                equip_list = sorted([e for e in equip_all["설비명"].tolist() if str(e).strip()], key=_equip_sort_key)
+                equip_info = {
+                    str(r["설비명"]): {
+                        "배정가능": bool(r.get("배정가능", True)),
+                        "비고": str(r.get("비고") or "").strip(),
+                        "현재제품": str(r.get("생산 제품") or "").strip(),
+                    }
+                    for _, r in equip_all.iterrows()
+                    if str(r.get("설비명") or "").strip()
+                }
 
-                    # 운영양식 형태(화면): 엑셀처럼 (일자/주야)별로 4컬럼 블록을 좌->우로 배치
-                    idx = list(range(1, 9))
-                    col_blocks: list[tuple[str, str]] = []
-                    for sl in slots:
-                        label = str(sl["label"])
-                        for sub in ["제품정보", "CAV", "도수", "필요수량"]:
-                            col_blocks.append((label, sub))
-                    cols = pd.MultiIndex.from_tuples(col_blocks, names=["일자/주야", "구분"])
-                    op_view = pd.DataFrame(index=idx, columns=cols)
+                slots = []
+                for i in range(int(horizon_days)):
+                    d = start_date + timedelta(days=i)
+                    for b, sh in [(1, "주간"), (2, "야간")]:
+                        slots.append({"날짜": d, "Block": b, "shift": sh, "label": f"{d.month}/{d.day} {sh}"})
 
-                    for sl in slots:
-                        d = sl["날짜"]
-                        b = int(sl["Block"])
-                        label = str(sl["label"])
-
-                        rec = view_df.loc[(view_df["날짜"].dt.date == d) & (view_df["Block"] == b)].head(1)
-                        if rec.empty:
-                            prod_info = ""
+                s_map: dict[tuple[str, date, int], dict[str, object]] = {}
+                if (not view_df.empty) and all(c in view_df.columns for c in ["설비명", "날짜", "Block"]):
+                    for _, r in view_df.iterrows():
+                        dtv = r.get("날짜")
+                        if isinstance(dtv, datetime):
+                            dv = dtv.date()
+                        elif isinstance(dtv, date):
+                            dv = dtv
                         else:
-                            r0 = rec.iloc[0].to_dict()
-                            prod = str(r0.get("제품명코드") or "").strip()
-                            prod_name = str(r0.get("제품명") or "").strip()
-                            prod_info = "\n".join([t for t in [prod, prod_name] if t])
-
-                        # 제품정보: 첫 행만 채워서 "merge된 느낌"으로 표시
-                        op_view[(label, "제품정보")] = [""] * 8
-                        op_view.loc[1, (label, "제품정보")] = prod_info
-                        # CAV
-                        op_view[(label, "CAV")] = idx
-
-                        sub = cav.loc[(cav["날짜"] == d) & (cav["Block"] == b), ["CAV", "도수", "필요수량"]].copy()
-                        if sub.empty:
-                            op_view[(label, "도수")] = [""] * 8
-                            op_view[(label, "필요수량")] = [""] * 8
                             continue
-                        sub["필요수량"] = pd.to_numeric(sub["필요수량"], errors="coerce").fillna(0).astype(int)
-                        pw_map = sub.set_index("CAV")["도수"].astype("string").fillna("").astype(str).str.strip().to_dict()
-                        q_map = sub.set_index("CAV")["필요수량"].to_dict()
-                        op_view[(label, "도수")] = [pw_map.get(i, "") for i in idx]
-                        op_view[(label, "필요수량")] = [("" if int(q_map.get(i, 0) or 0) <= 0 else int(q_map.get(i, 0))) for i in idx]
+                        k = (str(r.get("설비명") or "").strip().upper(), dv, int(r.get("Block") or 0))
+                        s_map[k] = r.to_dict()
 
-                    op_show = op_view.reset_index(names="CAV(행)")
-                    st.caption("표시: (일자/주야)별로 [제품정보 | CAV | 도수 | 필요수량] 블록, 필요수량은 해당 CAV·쉬프트당 최대 2000ea 기준")
-                    st.dataframe(
-                        _style_dataframe_like_dashboard(op_show),
-                        use_container_width=True,
-                        height=_table_height_for_rows(8, min_height=260, max_height=560),
-                        hide_index=True,
-                    )
+                cav = _injection_schedule_to_cavity_rows(view_df)
+                cav_key: dict[tuple[str, date, int, int], tuple[str, int]] = {}
+                if cav is not None and (not cav.empty):
+                    cav["설비명"] = cav["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                    for _, r in cav.iterrows():
+                        d = r.get("날짜")
+                        if not isinstance(d, date):
+                            continue
+                        key = (str(r.get("설비명") or "").strip().upper(), d, int(r.get("Block") or 0), int(r.get("CAV") or 0))
+                        cav_key[key] = (str(r.get("도수") or "").strip(), int(r.get("필요수량") or 0))
 
-                    with st.expander("원본 상세표(행 단위) 보기", expanded=False):
-                        col_cfg = {
-                            "날짜": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-                            "설비명": st.column_config.TextColumn(width="small"),
-                            "제품명코드": st.column_config.TextColumn(width="small"),
-                            "제품명": st.column_config.TextColumn(width="large"),
-                            "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-                            "Block": st.column_config.NumberColumn(format="%d", width="small"),
-                            "PW1": st.column_config.TextColumn(width="small"),
-                            "PW2": st.column_config.TextColumn(width="small"),
-                            "PW3": st.column_config.TextColumn(width="small"),
-                            "PW4": st.column_config.TextColumn(width="small"),
-                            "PW5": st.column_config.TextColumn(width="small"),
-                            "PW6": st.column_config.TextColumn(width="small"),
-                            "PW7": st.column_config.TextColumn(width="small"),
-                            "PW8": st.column_config.TextColumn(width="small"),
-                            "POWER 개수": st.column_config.NumberColumn(format="%d", width="small"),
-                            "POWER(대표)": st.column_config.TextColumn(width="small"),
-                            "이전 POWER": st.column_config.TextColumn(width="small"),
-                            "코아교체": st.column_config.NumberColumn(format="%d", width="small"),
-                            "POWER 종류수": st.column_config.NumberColumn(format="%d", width="small"),
-                            "POWER 변경횟수": st.column_config.NumberColumn(format="%d", width="small"),
-                            "배정수량": st.column_config.NumberColumn(format="localized", width="small"),
-                            "잔여수량": st.column_config.NumberColumn(format="localized", width="small"),
-                            "세팅구분": st.column_config.TextColumn(width="small"),
-                        }
-                        show_cols = [c for c in col_cfg.keys() if c in view_df.columns]
-                        table_h = _table_height_for_rows(len(view_df), min_height=260, max_height=520)
-                        st.dataframe(
-                            _style_dataframe_like_dashboard(view_df[show_cols]),
-                            use_container_width=True,
-                            height=table_h,
-                            hide_index=True,
-                            column_config={k: v for k, v in col_cfg.items() if k in show_cols},
-                        )
+                idx = list(range(1, 9))
+                col_blocks: list[tuple[str, str]] = [("", "설비")]
+                for sl in slots:
+                    label = str(sl["label"])
+                    for sub in ["제품정보", "CAV", "도수", "필요수량"]:
+                        col_blocks.append((label, sub))
+                cols = pd.MultiIndex.from_tuples(col_blocks, names=["일자/주야", "구분"])
+
+                rows: list[list[object]] = []
+                for equip in equip_list:
+                    info = equip_info.get(str(equip), {})
+                    assignable = bool(info.get("배정가능", True))
+                    note = str(info.get("비고") or "").strip()
+                    for cav_no in idx:
+                        row: list[object] = []
+                        row.append(str(equip) if cav_no == 1 else "")
+                        for sl in slots:
+                            d = sl["날짜"]
+                            b = int(sl["Block"])
+                            rec = s_map.get((str(equip), d, b), {}) if isinstance(d, date) else {}
+                            prod = str(rec.get("제품명코드") or "").strip()
+                            prod_name = str(rec.get("제품명") or "").strip()
+                            prod_info = "\n".join([t for t in [prod, prod_name] if t])
+                            if (not prod_info) and note:
+                                prod_info = (f"배정불가\n비고: {note}" if (not assignable) else f"유휴\n비고: {note}")
+                            if cav_no == 1:
+                                row.append(prod_info)
+                            else:
+                                row.append("")
+                            row.append(cav_no)
+                            pw, qty = cav_key.get((str(equip), d, b, cav_no), ("", 0))
+                            row.append(pw)
+                            row.append("" if int(qty) <= 0 else int(qty))
+                        rows.append(row)
+
+                op_show = pd.DataFrame(rows, columns=cols)
+                st.dataframe(
+                    _style_dataframe_like_dashboard(op_show),
+                    use_container_width=True,
+                    height=_table_height_for_rows(len(op_show), min_height=360, max_height=860),
+                    hide_index=True,
+                )
 
         if remaining is not None and (not remaining.empty):
             st.divider()
