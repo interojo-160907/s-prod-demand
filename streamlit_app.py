@@ -3550,40 +3550,26 @@ def main() -> None:
                     chart_df = pd.DataFrame(records)
 
                     # Legend label: show code + product name (many users don't memorize R-codes).
-                    prod_map: dict[str, str] = {}
-                    try:
-                        tmp = chart_df.loc[
-                            chart_df["제품명코드"].astype("string").fillna("").astype(str).str.strip().ne("")
-                            & chart_df["제품명"].astype("string").fillna("").astype(str).str.strip().ne(""),
-                            ["제품명코드", "제품명"],
-                        ].copy()
-                        tmp["제품명코드"] = tmp["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
-                        tmp["제품명"] = tmp["제품명"].astype("string").fillna("").astype(str).str.strip()
+                    def _short_name(s: str, max_len: int = 18) -> str:
+                        s2 = " ".join(str(s or "").split()).strip()
+                        if not s2:
+                            return ""
+                        if len(s2) <= int(max_len):
+                            return s2
+                        return s2[: max(0, int(max_len) - 1)] + "…"
 
-                        def _short_name(s: str, max_len: int = 18) -> str:
-                            s2 = " ".join(str(s or "").split()).strip()
-                            if not s2:
-                                return ""
-                            if len(s2) <= int(max_len):
-                                return s2
-                            return s2[: max(0, int(max_len) - 1)] + "…"
-
-                        for code2, g in tmp.groupby("제품명코드", dropna=False):
-                            if not str(code2).strip():
-                                continue
-                            nm = ""
-                            for v in g["제품명"].tolist():
-                                v2 = str(v or "").strip()
-                                if v2:
-                                    nm = v2
-                                    break
-                            if nm:
-                                prod_map[str(code2)] = _short_name(nm)
-                    except Exception:
-                        prod_map = {}
-
-                    prod_map_js = json.dumps(prod_map, ensure_ascii=False)
-                    legend_label_expr = f"var m={prod_map_js}; m[datum.value] ? datum.value + ' ' + m[datum.value] : datum.value"
+                    chart_df["제품라벨"] = None
+                    if (not chart_df.empty) and ("제품명코드" in chart_df.columns) and ("제품명" in chart_df.columns):
+                        c = chart_df["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                        n = chart_df["제품명"].astype("string").fillna("").astype(str).str.strip()
+                        lab = c
+                        has_name = n.str.strip().ne("")
+                        lab = lab.where(~has_name, c + " " + n.map(lambda s: _short_name(s)))
+                        # Only assigned rows should appear in legend
+                        if "상태" in chart_df.columns:
+                            is_assigned = chart_df["상태"].astype("string").fillna("").astype(str).str.strip().eq("배정")
+                            lab = lab.where(is_assigned, None)
+                        chart_df["제품라벨"] = lab.where(c.str.strip().ne(""), None)
 
                     spec = {
                         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -3618,12 +3604,11 @@ def main() -> None:
                                             {"test": "datum.상태 === '배정불가'", "value": "#d0d0d0"},
                                             {"test": "datum.상태 === '유휴'", "value": "#f2f2f2"},
                                         ],
-                                        "field": "제품명코드",
+                                        "field": "제품라벨",
                                         "type": "nominal",
                                         "scale": {"scheme": "tableau20"},
                                         "legend": {
                                             "title": "제품",
-                                            "labelExpr": legend_label_expr,
                                             "labelLimit": 220,
                                             "labelFontSize": 10,
                                             "titleFontSize": 11,
