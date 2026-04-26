@@ -1947,6 +1947,28 @@ def _build_injection_schedule(
     return (sched, remaining, warnings)
 
 
+@st.cache_data(show_spinner=False)
+def _build_injection_schedule_cached(
+    *,
+    demand: pd.DataFrame,
+    inj_equip: pd.DataFrame,
+    arrange: pd.DataFrame,
+    excel_path: str,
+    excel_mtime: float,
+    start_date: date,
+    horizon_days: int,
+) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+    return _build_injection_schedule(
+        demand=demand,
+        inj_equip=inj_equip,
+        arrange=arrange,
+        excel_path=excel_path,
+        excel_mtime=excel_mtime,
+        start_date=start_date,
+        horizon_days=horizon_days,
+    )
+
+
 def _injection_schedule_to_blocks(sched: pd.DataFrame) -> pd.DataFrame:
     """
     Convert schedule table into time blocks for gantt/grid rendering.
@@ -2641,6 +2663,30 @@ def _build_order_risk_table(
     return out
 
 
+@st.cache_data(show_spinner=False)
+def _build_order_risk_table_cached(
+    order_df: pd.DataFrame,
+    capa_table: pd.DataFrame,
+    *,
+    today: date,
+    buffer_days: float,
+    start_offset_days: int = 1,
+    injection_segs: list[dict[str, object]] | None = None,
+    injection_start_date: date | None = None,
+    injection_daily_fallback: float | None = None,
+) -> pd.DataFrame:
+    return _build_order_risk_table(
+        order_df,
+        capa_table,
+        today=today,
+        buffer_days=buffer_days,
+        start_offset_days=start_offset_days,
+        injection_segs=injection_segs,
+        injection_start_date=injection_start_date,
+        injection_daily_fallback=injection_daily_fallback,
+    )
+
+
 def main() -> None:
     st.title("S관 생산 필요수량 대시보드")
     _apply_local_theme_css()
@@ -2995,10 +3041,6 @@ def main() -> None:
             st.session_state["proc_due_quick"] = "해제"
             st.session_state["proc_due_end"] = _today_kst()
             st.session_state["_prev_proc_due_quick"] = "해제"
-        if view_mode == "사출 계획":
-            st.session_state["inj_due_quick"] = "해제"
-            st.session_state["inj_due_end"] = _today_kst()
-            st.session_state["_prev_inj_due_quick"] = "해제"
         if view_mode == "수주별 현황":
             # Always reset due-date filter when entering order view.
             st.session_state["order_due_quick"] = "해제"
@@ -3442,7 +3484,7 @@ def main() -> None:
             inj_demand["사출"] = pd.to_numeric(inj_demand["사출"], errors="coerce").fillna(0).astype(int)
             inj_demand = inj_demand.loc[inj_demand["사출"].gt(0)].copy()
             if (not inj_demand.empty) and (inj_equip is not None) and (not inj_equip.empty):
-                inj_sched, _, _ = _build_injection_schedule(
+                inj_sched, _, _ = _build_injection_schedule_cached(
                     demand=inj_demand,
                     inj_equip=inj_equip,
                     arrange=inj_arrange,
@@ -3457,7 +3499,7 @@ def main() -> None:
             inj_segs = []
 
         # Compute risk/schedule on ALL orders (schedule_orders), then filter down for display (subset).
-        risk_all = _build_order_risk_table(
+        risk_all = _build_order_risk_table_cached(
             schedule_orders,
             capa_table,
             today=_today_kst(),
@@ -3584,9 +3626,6 @@ def main() -> None:
 
         excel_mtime = float(os.path.getmtime(excel_path))
         base_df = df
-        inj_quick_state = st.session_state.get("inj_due_quick", "해제")
-        if inj_quick_state != "해제":
-            base_df = _apply_due_date_end_filter(base_df, st.session_state.get("inj_due_end", _today_kst()))
 
         subset = base_df if code == "전체" else base_df[base_df[new_code_col].astype("string") == code].copy()
         subset2 = subset.copy()
@@ -3601,7 +3640,7 @@ def main() -> None:
             st.error("엑셀에 `사출` 시트(설비 현황)가 없습니다.")
             st.stop()
 
-        sched, remaining, warns = _build_injection_schedule(
+        sched, remaining, warns = _build_injection_schedule_cached(
             demand=subset2,
             inj_equip=inj_equip,
             arrange=inj_arrange,
