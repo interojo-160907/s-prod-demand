@@ -2487,7 +2487,7 @@ def main() -> None:
 
     excel_path = _find_repo_excel()
     if excel_path:
-        st.caption(f"업데이트(APS 데이터 raw data): `{_file_mtime_label(excel_path)}`")
+        st.caption(f"업데이트(APS raw data): `{_file_mtime_label(excel_path)}`")
     with st.sidebar:
         st.markdown("<div class='sb-title'>자료 다운로드</div>", unsafe_allow_html=True)
         b = _read_bytes(TEMPLATE_XLSX_PATH)
