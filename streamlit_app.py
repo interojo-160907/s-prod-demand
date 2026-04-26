@@ -376,6 +376,15 @@ def _load_theme_from_config() -> dict:
 
 
 def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
+    # Streamlit Styler rendering becomes noticeably slow on large frames.
+    # Keep the dashboard snappy by skipping styling for big tables.
+    try:
+        if isinstance(df, pd.DataFrame):
+            if (df.shape[0] > 1500) or (df.shape[1] > 60):
+                return df
+    except Exception:
+        return df
+
     theme = _load_theme_from_config()
     bg = theme.get("backgroundColor", "#FBF7EE")
     sbg = theme.get("secondaryBackgroundColor", "#F2EBDD")
@@ -844,6 +853,27 @@ def _to_injection_operation_xlsx(
     output = BytesIO()
     wb.save(output)
     return output.getvalue()
+
+
+@st.cache_data(show_spinner=False)
+def _to_injection_operation_xlsx_cached(
+    sched: pd.DataFrame,
+    *,
+    start_date: date,
+    horizon_days: int,
+    sheet_name: str,
+    equip_all: pd.DataFrame | None,
+    excel_mtime: float,
+) -> bytes:
+    # Cache-buster: regenerate when the raw APS Excel changes.
+    _ = float(excel_mtime)
+    return _to_injection_operation_xlsx(
+        sched,
+        start_date=start_date,
+        horizon_days=horizon_days,
+        sheet_name=sheet_name,
+        equip_all=equip_all,
+    )
 
 
 def _injection_schedule_to_cavity_rows(sched: pd.DataFrame) -> pd.DataFrame:
@@ -2180,20 +2210,14 @@ def _build_injection_gantt_chart_df_cached(
         if isinstance(r.get("날짜"), date)
     }
 
-    records: list[dict[str, object]] = []
-
-    def _short_run_label(s: str, max_len: int = 12) -> str:
-        s2 = " ".join(str(s or "").split()).strip()
-        if not s2:
+    def _norm_r_code(v: object) -> str:
+        s = str(v or "").strip().upper()
+        if not s:
             return ""
-        # Prefer R-code style display if present
-        if re.match(r"^R\d{3,}", s2, flags=re.IGNORECASE):
-            return _extract_base_r(s2).upper()
-        # Otherwise keep compact for cell rendering
-        if len(s2) <= int(max_len):
-            return s2
-        return s2[: max(0, int(max_len) - 1)] + "…"
+        m = re.match(r"^(R\\d+)", s)
+        return m.group(1) if m else ""
 
+    records: list[dict[str, object]] = []
     for e in equip_list:
         info = equip_info.get(str(e), {"배정가능": True, "비고": "", "현재제품": ""})
         for sl in slots:
@@ -2202,8 +2226,9 @@ def _build_injection_gantt_chart_df_cached(
             sh = str(sl["shift"])
             key = (str(e), d, b)
             src = s_map.get(key, None)
-            prod = str(src.get("제품명코드") or "").strip() if isinstance(src, dict) else ""
-            prod_name = str(src.get("제품명") or "").strip() if isinstance(src, dict) else ""
+            prod_raw = str(src.get("제품명코드") or "").strip() if isinstance(src, dict) else ""
+            prod = _norm_r_code(prod_raw)
+            prod_name = str(src.get("제품명") or "").strip() if (isinstance(src, dict) and prod) else ""
             qty = int(src.get("배정수량") or 0) if isinstance(src, dict) else 0
             setting = str(src.get("세팅구분") or "").strip() if isinstance(src, dict) else ""
             pw = str(src.get("POWER 리스트") or "").strip() if isinstance(src, dict) else ""
@@ -2217,15 +2242,18 @@ def _build_injection_gantt_chart_df_cached(
                 state = "배정"
                 idle_reason = ""
             else:
+                qty = 0
+                setting = ""
+                pw = ""
+                due = ""
                 if not assignable:
                     state = "배정불가"
                     idle_reason = f"비고: {note}" if note else "비고: -"
                 else:
+                    state = "유휴"
                     if cur_run:
-                        state = "운영중"
                         idle_reason = f"현재 생산중: {cur_run}"
                     else:
-                        state = "유휴"
                         idle_reason = ""
 
             records.append(
@@ -2238,7 +2266,6 @@ def _build_injection_gantt_chart_df_cached(
                     "제품명코드": prod,
                     "제품명": prod_name,
                     "운영중제품": cur_run,
-                    "셀텍스트": (prod if prod else _short_run_label(cur_run) if state == "운영중" else ""),
                     "납기일": due,
                     "배정수량": qty,
                     "세팅구분": setting,
@@ -3936,21 +3963,22 @@ def main() -> None:
             for w in warns[:8]:
                 st.warning(w)
 
-        if sched is None or sched.empty:
-            st.caption("생성된 스케줄이 없습니다.")
-        else:
-            xlsx_ops = _to_injection_operation_xlsx(
-                sched,
-                start_date=start_date,
-                horizon_days=horizon_days,
-                sheet_name="운영양식",
-                equip_all=inj_equip,
-            )
-            st.download_button(
-                "엑셀 다운로드 (상세표)",
-                data=xlsx_ops,
-                file_name=f"사출상세표_{code}_{_today_kst().isoformat()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            if sched is None or sched.empty:
+                st.caption("생성된 스케줄이 없습니다.")
+            else:
+                xlsx_ops = _to_injection_operation_xlsx_cached(
+                    sched,
+                    start_date=start_date,
+                    horizon_days=horizon_days,
+                    sheet_name="운영양식",
+                    equip_all=inj_equip,
+                    excel_mtime=excel_mtime,
+                )
+                st.download_button(
+                    "엑셀 다운로드 (상세표)",
+                    data=xlsx_ops,
+                    file_name=f"사출상세표_{code}_{_today_kst().isoformat()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key=f"inj_{code}_download_ops",
             )
 
@@ -4022,10 +4050,8 @@ def main() -> None:
                                 {"field": "제품명코드", "type": "nominal", "title": "R코드"},
                                 {"field": "제품명", "type": "nominal", "title": "품명(사출시트)"},
                                 {"field": "운영중제품", "type": "nominal", "title": "현재제품(설비)"},
-                                {"field": "납기일", "type": "nominal", "title": "납기일"},
                                 {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
                                 {"field": "세팅구분", "type": "nominal", "title": "세팅"},
-                                {"field": "POWER", "type": "nominal", "title": "POWER(최대8)"},
                                 {"field": "유휴사유", "type": "nominal", "title": "유휴/사유"},
                             ],
                         },
@@ -4037,7 +4063,6 @@ def main() -> None:
                                         "condition": [
                                             {"test": "datum.상태 === '배정불가'", "value": "#d0d0d0"},
                                             {"test": "datum.상태 === '유휴'", "value": "#f2f2f2"},
-                                            {"test": "datum.상태 === '운영중'", "value": "#e0f2ff"},
                                         ],
                                         "field": "제품라벨",
                                         "type": "nominal",
@@ -4057,7 +4082,7 @@ def main() -> None:
                             {
                                 "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 12},
                                 "encoding": {
-                                    "text": {"field": "셀텍스트"},
+                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
                                     "color": {
                                         "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
                                         "value": "#666666",
