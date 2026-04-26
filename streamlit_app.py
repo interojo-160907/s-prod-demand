@@ -3549,6 +3549,42 @@ def main() -> None:
 
                     chart_df = pd.DataFrame(records)
 
+                    # Legend label: show code + product name (many users don't memorize R-codes).
+                    prod_map: dict[str, str] = {}
+                    try:
+                        tmp = chart_df.loc[
+                            chart_df["제품명코드"].astype("string").fillna("").astype(str).str.strip().ne("")
+                            & chart_df["제품명"].astype("string").fillna("").astype(str).str.strip().ne(""),
+                            ["제품명코드", "제품명"],
+                        ].copy()
+                        tmp["제품명코드"] = tmp["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                        tmp["제품명"] = tmp["제품명"].astype("string").fillna("").astype(str).str.strip()
+
+                        def _short_name(s: str, max_len: int = 18) -> str:
+                            s2 = " ".join(str(s or "").split()).strip()
+                            if not s2:
+                                return ""
+                            if len(s2) <= int(max_len):
+                                return s2
+                            return s2[: max(0, int(max_len) - 1)] + "…"
+
+                        for code2, g in tmp.groupby("제품명코드", dropna=False):
+                            if not str(code2).strip():
+                                continue
+                            nm = ""
+                            for v in g["제품명"].tolist():
+                                v2 = str(v or "").strip()
+                                if v2:
+                                    nm = v2
+                                    break
+                            if nm:
+                                prod_map[str(code2)] = _short_name(nm)
+                    except Exception:
+                        prod_map = {}
+
+                    prod_map_js = json.dumps(prod_map, ensure_ascii=False)
+                    legend_label_expr = f"var m={prod_map_js}; m[datum.value] ? datum.value + ' ' + m[datum.value] : datum.value"
+
                     spec = {
                         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
                         "data": {"values": chart_df.to_dict(orient="records")},
@@ -3585,12 +3621,19 @@ def main() -> None:
                                         "field": "제품명코드",
                                         "type": "nominal",
                                         "scale": {"scheme": "tableau20"},
-                                        "legend": {"title": "제품"},
+                                        "legend": {
+                                            "title": "제품",
+                                            "labelExpr": legend_label_expr,
+                                            "labelLimit": 220,
+                                            "labelFontSize": 10,
+                                            "titleFontSize": 11,
+                                            "symbolSize": 70,
+                                        },
                                     }
                                 },
                             },
                             {
-                                "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 11},
+                                "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 10},
                                 "encoding": {
                                     "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
                                     "color": {
@@ -3601,10 +3644,17 @@ def main() -> None:
                             },
                         ],
                         "config": {
-                            "axis": {"grid": True, "gridColor": "#e5e5e5", "gridOpacity": 1, "domain": False},
+                            "axis": {
+                                "grid": True,
+                                "gridColor": "#e5e5e5",
+                                "gridOpacity": 1,
+                                "domain": False,
+                                "labelFontSize": 10,
+                                "titleFontSize": 11,
+                            },
                             "view": {"stroke": "transparent"},
                         },
-                        "height": max(360, min(920, 26 * int(len(equip_list) + 1))),
+                        "height": max(340, min(880, 22 * int(len(equip_list) + 1))),
                     }
 
                     st.vega_lite_chart(spec, use_container_width=True)
