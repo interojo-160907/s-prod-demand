@@ -2181,6 +2181,19 @@ def _build_injection_gantt_chart_df_cached(
     }
 
     records: list[dict[str, object]] = []
+
+    def _short_run_label(s: str, max_len: int = 12) -> str:
+        s2 = " ".join(str(s or "").split()).strip()
+        if not s2:
+            return ""
+        # Prefer R-code style display if present
+        if re.match(r"^R\d{3,}", s2, flags=re.IGNORECASE):
+            return _extract_base_r(s2).upper()
+        # Otherwise keep compact for cell rendering
+        if len(s2) <= int(max_len):
+            return s2
+        return s2[: max(0, int(max_len) - 1)] + "…"
+
     for e in equip_list:
         info = equip_info.get(str(e), {"배정가능": True, "비고": "", "현재제품": ""})
         for sl in slots:
@@ -2208,10 +2221,11 @@ def _build_injection_gantt_chart_df_cached(
                     state = "배정불가"
                     idle_reason = f"비고: {note}" if note else "비고: -"
                 else:
-                    state = "유휴"
                     if cur_run:
+                        state = "운영중"
                         idle_reason = f"현재 생산중: {cur_run}"
                     else:
+                        state = "유휴"
                         idle_reason = ""
 
             records.append(
@@ -2223,6 +2237,8 @@ def _build_injection_gantt_chart_df_cached(
                     "상태": state,
                     "제품명코드": prod,
                     "제품명": prod_name,
+                    "운영중제품": cur_run,
+                    "셀텍스트": (prod if prod else _short_run_label(cur_run) if state == "운영중" else ""),
                     "납기일": due,
                     "배정수량": qty,
                     "세팅구분": setting,
@@ -4005,6 +4021,7 @@ def main() -> None:
                                 {"field": "상태", "type": "nominal", "title": "상태"},
                                 {"field": "제품명코드", "type": "nominal", "title": "R코드"},
                                 {"field": "제품명", "type": "nominal", "title": "품명(사출시트)"},
+                                {"field": "운영중제품", "type": "nominal", "title": "현재제품(설비)"},
                                 {"field": "납기일", "type": "nominal", "title": "납기일"},
                                 {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
                                 {"field": "세팅구분", "type": "nominal", "title": "세팅"},
@@ -4020,6 +4037,7 @@ def main() -> None:
                                         "condition": [
                                             {"test": "datum.상태 === '배정불가'", "value": "#d0d0d0"},
                                             {"test": "datum.상태 === '유휴'", "value": "#f2f2f2"},
+                                            {"test": "datum.상태 === '운영중'", "value": "#e0f2ff"},
                                         ],
                                         "field": "제품라벨",
                                         "type": "nominal",
@@ -4039,7 +4057,7 @@ def main() -> None:
                             {
                                 "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 12},
                                 "encoding": {
-                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
+                                    "text": {"field": "셀텍스트"},
                                     "color": {
                                         "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
                                         "value": "#666666",
