@@ -784,6 +784,23 @@ def _to_injection_operation_xlsx(
     now = datetime.now(KST)
     now_block = 2 if now.hour >= 20 else 1
     for equip in equip_list:
+        info = equip_info.get(str(equip), {})
+        cur_code = str(info.get("현재제품코드") or "").strip().upper()
+        cur_name = str(info.get("현재제품") or "").strip()
+        # Fill running product across the whole horizon only when schedule has no assignments at all for this equipment.
+        has_any_sched = False
+        try:
+            for sl in slots:
+                d = sl["날짜"]
+                b = int(sl["Block"])
+                rec0 = s_map.get((str(equip), d, b), {})
+                if str(rec0.get("제품명코드") or "").strip():
+                    has_any_sched = True
+                    break
+        except Exception:
+            has_any_sched = False
+        fill_running_all = bool(cur_code) and (not has_any_sched)
+
         ws.merge_cells(start_row=start_row, start_column=1, end_row=start_row + 7, end_column=1)
         c0 = ws.cell(row=start_row, column=1, value=str(equip))
         c0.alignment = center
@@ -802,20 +819,17 @@ def _to_injection_operation_xlsx(
             prod = str(rec.get("제품명코드") or "").strip()
             prod_name = str(rec.get("제품명") or "").strip()
 
-            # If this slot is "now" and schedule didn't assign anything, show current running product code/name.
-            # Keep 도수/필요수량 blank (0) to avoid implying allocation.
-            try:
-                info = equip_info.get(str(equip), {})
-                cur_code = str(info.get("현재제품코드") or "").strip().upper()
-                cur_name = str(info.get("현재제품") or "").strip()
-                if (not prod) and isinstance(d, date) and (d == start_date) and (int(b) == int(now_block)) and cur_code:
-                    prod = cur_code
-                    prod_name = cur_name
-            except Exception:
-                pass
+            # Keep running product shown only when:
+            # - the whole horizon has no assignments for this equipment (fill_running_all), OR
+            # - it's the current slot and schedule didn't assign anything.
+            if (not prod) and fill_running_all and cur_code:
+                prod = cur_code
+                prod_name = cur_name
+            elif (not prod) and isinstance(d, date) and (d == start_date) and (int(b) == int(now_block)) and cur_code:
+                prod = cur_code
+                prod_name = cur_name
             info_txt = "\n".join([t for t in [prod, prod_name] if t])
             if not info_txt:
-                info = equip_info.get(str(equip), {})
                 note = str(info.get("비고") or "").strip()
                 assignable = bool(info.get("배정가능", True))
                 if (not assignable) and note:
@@ -880,9 +894,11 @@ def _to_injection_operation_xlsx_cached(
     sheet_name: str,
     equip_all: pd.DataFrame | None,
     excel_mtime: float,
+    now_block: int,
 ) -> bytes:
     # Cache-buster: regenerate when the raw APS Excel changes.
     _ = float(excel_mtime)
+    _ = int(now_block)
     return _to_injection_operation_xlsx(
         sched,
         start_date=start_date,
@@ -2174,6 +2190,7 @@ def _build_injection_gantt_chart_df_cached(
     inj_equip: pd.DataFrame,
     start_date: date,
     horizon_days: int,
+    now_block: int,
 ) -> tuple[pd.DataFrame, list[str]]:
     """
     Build gantt chart dataframe for injection schedule.
@@ -2250,12 +2267,28 @@ def _build_injection_gantt_chart_df_cached(
         m = re.match(r"^(R\d+)", s)
         return m.group(1) if m else ""
 
-    now = datetime.now(KST)
-    now_block = 2 if now.hour >= 20 else 1
+    now_block = 2 if int(now_block) == 2 else 1
+
+    # Precompute whether each equipment has any assigned product within the horizon.
+    # Used to decide whether to "fill" the whole horizon with the currently running product
+    # (only when schedule has no assignments at all for that equipment).
+    assigned_any: dict[str, bool] = {str(e): False for e in equip_list}
+    try:
+        for (eq, _, _), rec in s_map.items():
+            eqs = str(eq)
+            if eqs not in assigned_any:
+                continue
+            pr = _norm_r_code((rec or {}).get("제품명코드"))
+            if pr:
+                assigned_any[eqs] = True
+    except Exception:
+        pass
 
     records: list[dict[str, object]] = []
     for e in equip_list:
         info = equip_info.get(str(e), {"배정가능": True, "비고": "", "현재제품": ""})
+        e_key = str(e)
+        has_any = bool(assigned_any.get(e_key, False))
         for sl in slots:
             d = sl["날짜"]
             b = int(sl["Block"])
@@ -2275,6 +2308,7 @@ def _build_injection_gantt_chart_df_cached(
             cur_run = str(info.get("현재제품") or "").strip()
             cur_run_code = str(info.get("현재제품코드") or "").strip().upper()
             is_now_slot = isinstance(d, date) and (d == start_date) and (int(b) == int(now_block))
+            fill_running_all = bool(cur_run_code) and (not has_any)
 
             if prod:
                 state = "배정"
@@ -2291,12 +2325,19 @@ def _build_injection_gantt_chart_df_cached(
                     state = "유휴"
                     idle_reason = ""
 
-                # Display current running product only for the *current* slot.
-                # Do NOT propagate "현재 생산중" into future slots.
-                if (state == "유휴") and is_now_slot and cur_run_code:
-                    state = "배정"  # show as occupied in the current slot, without affecting scheduling quantities
+                # If schedule has no assignment for this equipment at all, keep the whole horizon occupied
+                # by the currently running product (D2 같은 케이스). Still keep qty/power empty.
+                if (state == "유휴") and fill_running_all:
+                    state = "배정"
                     prod = cur_run_code
                     prod_name = cur_run
+                    idle_reason = ""
+                # Otherwise, show current running info only for the current slot (do not propagate to future slots).
+                elif (state == "유휴") and is_now_slot and cur_run_code:
+                    state = "배정"
+                    prod = cur_run_code
+                    prod_name = cur_run
+                    idle_reason = ""
                 elif (state == "유휴") and is_now_slot and cur_run:
                     idle_reason = f"현재 생산중: {cur_run}"
 
@@ -2309,7 +2350,7 @@ def _build_injection_gantt_chart_df_cached(
                     "상태": state,
                     "제품명코드": prod,
                     "제품명": prod_name,
-                    "운영중제품": (cur_run if is_now_slot else ""),
+                    "운영중제품": (cur_run if (is_now_slot and (not fill_running_all)) else ""),
                     "납기일": due,
                     "배정수량": qty,
                     "세팅구분": setting,
@@ -3999,6 +4040,7 @@ def main() -> None:
         # Fixed horizon + start date (planning is always shown from 'today').
         horizon_days = 5
         start_date = _today_kst()
+        now_block = 2 if datetime.now(KST).hour >= 20 else 1
 
         # Keep "간트" as default; guard old persisted selection values (e.g. "그리드").
         inj_view_options = ["간트", "상세표"]
@@ -4055,6 +4097,7 @@ def main() -> None:
             sheet_name="운영양식",
             equip_all=inj_equip,
             excel_mtime=excel_mtime,
+            now_block=now_block,
         )
         st.download_button(
             "엑셀 다운로드 (상세표)",
@@ -4076,6 +4119,7 @@ def main() -> None:
                 inj_equip=inj_equip,
                 start_date=start_date,
                 horizon_days=horizon_days,
+                now_block=now_block,
             )
             if chart_df is None or chart_df.empty or not equip_list:
                 st.caption("간트 표시할 데이터가 없습니다.")
@@ -4287,12 +4331,21 @@ def main() -> None:
             rows: list[list[object]] = []
             now = datetime.now(KST)
             now_block = 2 if now.hour >= 20 else 1
+            # Equipments that have any scheduled assignment in horizon (used to decide fill-running-all).
+            sched_assigned: set[str] = set()
+            try:
+                for (eq, _, _), rec in s_map.items():
+                    if str((rec or {}).get("제품명코드") or "").strip():
+                        sched_assigned.add(str(eq).strip().upper())
+            except Exception:
+                sched_assigned = set()
             for equip in equip_list:
                 info = equip_info.get(str(equip), {})
                 assignable = bool(info.get("배정가능", True))
                 note = str(info.get("비고") or "").strip()
                 cur_code = str(info.get("현재제품코드") or "").strip().upper()
                 cur_name = str(info.get("현재제품") or "").strip()
+                fill_running_all = bool(cur_code) and (str(equip).strip().upper() not in sched_assigned)
                 for cav_no in idx:
                     row: list[object] = []
                     row.append(str(equip) if cav_no == 1 else "")
@@ -4302,7 +4355,10 @@ def main() -> None:
                         rec = s_map.get((str(equip), d, b), {}) if isinstance(d, date) else {}
                         prod = str(rec.get("제품명코드") or "").strip()
                         prod_name = str(rec.get("제품명") or "").strip()
-                        if (not prod) and isinstance(d, date) and (d == start_date) and (int(b) == int(now_block)) and cur_code:
+                        if (not prod) and fill_running_all and cur_code:
+                            prod = cur_code
+                            prod_name = cur_name
+                        elif (not prod) and isinstance(d, date) and (d == start_date) and (int(b) == int(now_block)) and cur_code:
                             prod = cur_code
                             prod_name = cur_name
                         prod_info = "\n".join([t for t in [prod, prod_name] if t])
