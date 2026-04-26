@@ -764,6 +764,7 @@ def _to_injection_operation_xlsx(
         )
         e["비고"] = e.get("비고", "").astype("string").fillna("").astype(str).str.strip()
         e["생산 제품"] = e.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
+        e["현재제품코드"] = e.get("현재제품코드", "").astype("string").fillna("").astype(str).str.strip().str.upper()
         e["배정가능"] = e.get("배정가능", True).fillna(True)
         for _, r in e.iterrows():
             nm = str(r.get("설비명") or "").strip().upper()
@@ -773,12 +774,15 @@ def _to_injection_operation_xlsx(
                 "배정가능": bool(r.get("배정가능", True)),
                 "비고": str(r.get("비고") or "").strip(),
                 "현재제품": str(r.get("생산 제품") or "").strip(),
+                "현재제품코드": str(r.get("현재제품코드") or "").strip().upper(),
             }
         equip_list = sorted(list(equip_info.keys()), key=_equip_sort_key)
     else:
         equip_list = sorted([e for e in s.get("설비명", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if str(e).strip()], key=_equip_sort_key)
 
     start_row = 3
+    now = datetime.now(KST)
+    now_block = 2 if now.hour >= 20 else 1
     for equip in equip_list:
         ws.merge_cells(start_row=start_row, start_column=1, end_row=start_row + 7, end_column=1)
         c0 = ws.cell(row=start_row, column=1, value=str(equip))
@@ -797,6 +801,18 @@ def _to_injection_operation_xlsx(
 
             prod = str(rec.get("제품명코드") or "").strip()
             prod_name = str(rec.get("제품명") or "").strip()
+
+            # If this slot is "now" and schedule didn't assign anything, show current running product code/name.
+            # Keep 도수/필요수량 blank (0) to avoid implying allocation.
+            try:
+                info = equip_info.get(str(equip), {})
+                cur_code = str(info.get("현재제품코드") or "").strip().upper()
+                cur_name = str(info.get("현재제품") or "").strip()
+                if (not prod) and isinstance(d, date) and (d == start_date) and (int(b) == int(now_block)) and cur_code:
+                    prod = cur_code
+                    prod_name = cur_name
+            except Exception:
+                pass
             info_txt = "\n".join([t for t in [prod, prod_name] if t])
             if not info_txt:
                 info = equip_info.get(str(equip), {})
@@ -1395,6 +1411,21 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
 
     # Allow users to paste full item code (e.g., R1026+03.75...) but normalize to base R (R1026)
     arrange["제품명코드"] = arrange["제품명코드"].map(_to_base_r)
+
+    # Map current running product name -> base R code for display (간트/상세표).
+    try:
+        if (not equip.empty) and (not arrange.empty) and ("생산 제품" in equip.columns) and ("제품명" in arrange.columns):
+            name_to_base: dict[str, str] = {}
+            for _, r in arrange.iterrows():
+                nm = _norm_space(r.get("제품명"))
+                br = str(r.get("제품명코드") or "").strip().upper()
+                if nm and br and (nm not in name_to_base):
+                    name_to_base[nm] = br
+            equip["현재제품코드"] = equip["생산 제품"].map(lambda v: name_to_base.get(_norm_space(v), ""))
+        else:
+            equip["현재제품코드"] = ""
+    except Exception:
+        equip["현재제품코드"] = ""
     return {"equip": equip, "arrange": arrange}
 
 
@@ -2163,6 +2194,7 @@ def _build_injection_gantt_chart_df_cached(
     )
     equip_all["비고"] = equip_all.get("비고", "").astype("string").fillna("").astype(str).str.strip()
     equip_all["생산 제품"] = equip_all.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
+    equip_all["현재제품코드"] = equip_all.get("현재제품코드", "").astype("string").fillna("").astype(str).str.strip().str.upper()
     equip_all["배정가능"] = equip_all.get("배정가능", True).fillna(True)
 
     def _equip_sort_key(s: str) -> tuple[int, int, str]:
@@ -2178,6 +2210,7 @@ def _build_injection_gantt_chart_df_cached(
             "배정가능": bool(r.get("배정가능", True)),
             "비고": str(r.get("비고") or "").strip(),
             "현재제품": str(r.get("생산 제품") or "").strip(),
+            "현재제품코드": str(r.get("현재제품코드") or "").strip().upper(),
         }
         for _, r in equip_all.iterrows()
         if str(r.get("설비명") or "").strip()
@@ -2217,6 +2250,9 @@ def _build_injection_gantt_chart_df_cached(
         m = re.match(r"^(R\d+)", s)
         return m.group(1) if m else ""
 
+    now = datetime.now(KST)
+    now_block = 2 if now.hour >= 20 else 1
+
     records: list[dict[str, object]] = []
     for e in equip_list:
         info = equip_info.get(str(e), {"배정가능": True, "비고": "", "현재제품": ""})
@@ -2237,6 +2273,8 @@ def _build_injection_gantt_chart_df_cached(
             assignable = bool(info.get("배정가능", True))
             note = str(info.get("비고") or "").strip()
             cur_run = str(info.get("현재제품") or "").strip()
+            cur_run_code = str(info.get("현재제품코드") or "").strip().upper()
+            is_now_slot = isinstance(d, date) and (d == start_date) and (int(b) == int(now_block))
 
             if prod:
                 state = "배정"
@@ -2251,10 +2289,16 @@ def _build_injection_gantt_chart_df_cached(
                     idle_reason = f"비고: {note}" if note else "비고: -"
                 else:
                     state = "유휴"
-                    if cur_run:
-                        idle_reason = f"현재 생산중: {cur_run}"
-                    else:
-                        idle_reason = ""
+                    idle_reason = ""
+
+                # Display current running product only for the *current* slot.
+                # Do NOT propagate "현재 생산중" into future slots.
+                if (state == "유휴") and is_now_slot and cur_run_code:
+                    state = "배정"  # show as occupied in the current slot, without affecting scheduling quantities
+                    prod = cur_run_code
+                    prod_name = cur_run
+                elif (state == "유휴") and is_now_slot and cur_run:
+                    idle_reason = f"현재 생산중: {cur_run}"
 
             records.append(
                 {
@@ -2265,7 +2309,7 @@ def _build_injection_gantt_chart_df_cached(
                     "상태": state,
                     "제품명코드": prod,
                     "제품명": prod_name,
-                    "운영중제품": cur_run,
+                    "운영중제품": (cur_run if is_now_slot else ""),
                     "납기일": due,
                     "배정수량": qty,
                     "세팅구분": setting,
@@ -4206,10 +4250,14 @@ def main() -> None:
             cols = pd.MultiIndex.from_tuples(col_blocks, names=["일자/주야", "구분"])
 
             rows: list[list[object]] = []
+            now = datetime.now(KST)
+            now_block = 2 if now.hour >= 20 else 1
             for equip in equip_list:
                 info = equip_info.get(str(equip), {})
                 assignable = bool(info.get("배정가능", True))
                 note = str(info.get("비고") or "").strip()
+                cur_code = str(info.get("현재제품코드") or "").strip().upper()
+                cur_name = str(info.get("현재제품") or "").strip()
                 for cav_no in idx:
                     row: list[object] = []
                     row.append(str(equip) if cav_no == 1 else "")
@@ -4219,6 +4267,9 @@ def main() -> None:
                         rec = s_map.get((str(equip), d, b), {}) if isinstance(d, date) else {}
                         prod = str(rec.get("제품명코드") or "").strip()
                         prod_name = str(rec.get("제품명") or "").strip()
+                        if (not prod) and isinstance(d, date) and (d == start_date) and (int(b) == int(now_block)) and cur_code:
+                            prod = cur_code
+                            prod_name = cur_name
                         prod_info = "\n".join([t for t in [prod, prod_name] if t])
                         if (not prod_info) and note:
                             prod_info = (f"배정불가\n비고: {note}" if (not assignable) else f"유휴\n비고: {note}")
