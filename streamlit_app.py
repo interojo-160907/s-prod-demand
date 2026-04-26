@@ -951,6 +951,31 @@ def _build_injection_capacity_segments(
     return segs
 
 
+@st.cache_data(show_spinner=False)
+def _build_injection_plan_segments_cached(
+    *,
+    demand: pd.DataFrame,
+    inj_equip: pd.DataFrame,
+    inj_arrange: pd.DataFrame,
+    excel_path: str,
+    excel_mtime: float,
+    start_date: date,
+    horizon_days: int,
+) -> list[dict[str, object]]:
+    inj_sched, _, _ = _build_injection_schedule_cached(
+        demand=demand,
+        inj_equip=inj_equip,
+        arrange=inj_arrange,
+        excel_path=excel_path,
+        excel_mtime=excel_mtime,
+        start_date=start_date,
+        horizon_days=horizon_days,
+    )
+    if inj_sched is None or inj_sched.empty:
+        return []
+    return _build_injection_capacity_segments(inj_sched, start_date=start_date, horizon_days=horizon_days)
+
+
 class _CapacityAllocator:
     def __init__(self, segs: list[dict[str, object]]):
         self.segs = segs or []
@@ -2079,6 +2104,134 @@ def _build_injection_schedule_cached(
         start_date=start_date,
         horizon_days=horizon_days,
     )
+
+
+@st.cache_data(show_spinner=False)
+def _build_injection_gantt_chart_df_cached(
+    *,
+    sched: pd.DataFrame,
+    inj_equip: pd.DataFrame,
+    start_date: date,
+    horizon_days: int,
+) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Build gantt chart dataframe for injection schedule.
+    Cached because it is UI-heavy and recomputed on every Streamlit rerun.
+    """
+    if sched is None or sched.empty:
+        return (pd.DataFrame(), [])
+
+    # Equipment list (include idle/disabled equipments for consistent rows)
+    equip_all = inj_equip.copy()
+    equip_all["설비명"] = (
+        equip_all.get("설비코드", "")
+        .astype("string")
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+    equip_all["비고"] = equip_all.get("비고", "").astype("string").fillna("").astype(str).str.strip()
+    equip_all["생산 제품"] = equip_all.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
+    equip_all["배정가능"] = equip_all.get("배정가능", True).fillna(True)
+
+    def _equip_sort_key(s: str) -> tuple[int, int, str]:
+        s2 = str(s or "").strip().upper()
+        m = re.match(r"^([A-Z])(\d+)$", s2)
+        if not m:
+            return (999, 999, s2)
+        return (ord(m.group(1)) - 65, int(m.group(2)), s2)
+
+    equip_list = sorted([e for e in equip_all["설비명"].tolist() if str(e).strip()], key=_equip_sort_key)
+    equip_info = {
+        str(r["설비명"]): {
+            "배정가능": bool(r.get("배정가능", True)),
+            "비고": str(r.get("비고") or "").strip(),
+            "현재제품": str(r.get("생산 제품") or "").strip(),
+        }
+        for _, r in equip_all.iterrows()
+        if str(r.get("설비명") or "").strip()
+    }
+
+    s2 = sched.copy()
+    s2["날짜"] = pd.to_datetime(s2["날짜"], errors="coerce").dt.date
+    s2["Block"] = pd.to_numeric(s2["Block"], errors="coerce").fillna(0).astype(int)
+    s2["설비명"] = s2["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
+    s2["제품명코드"] = s2["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+    s2["제품명"] = s2["제품명"].astype("string").fillna("").astype(str).str.strip()
+    s2["POWER 리스트"] = s2.get("POWER 리스트", "").astype("string").fillna("").astype(str).str.strip()
+    s2["세팅구분"] = s2.get("세팅구분", "").astype("string").fillna("").astype(str).str.strip()
+    s2["배정수량"] = pd.to_numeric(s2.get("배정수량", 0), errors="coerce").fillna(0).astype(int)
+    s2["납기일"] = pd.to_datetime(s2.get("납기일", pd.NaT), errors="coerce").dt.strftime("%Y-%m-%d")
+
+    slots = []
+    horizon_days = int(horizon_days)
+    for i in range(horizon_days):
+        d = start_date + timedelta(days=i)
+        for b, sh in [(1, "주간"), (2, "야간")]:
+            slots.append({"날짜": d, "Block": b, "shift": sh, "slot_key": i * 2 + (0 if b == 1 else 1)})
+
+    def _slot_label(d: date, sh: str) -> str:
+        return f"{d.month}/{d.day} {sh}"
+
+    s_map = {
+        (r["설비명"], r["날짜"], int(r["Block"])): r.to_dict()
+        for _, r in s2.iterrows()
+        if isinstance(r.get("날짜"), date)
+    }
+
+    records: list[dict[str, object]] = []
+    for e in equip_list:
+        info = equip_info.get(str(e), {"배정가능": True, "비고": "", "현재제품": ""})
+        for sl in slots:
+            d = sl["날짜"]
+            b = int(sl["Block"])
+            sh = str(sl["shift"])
+            key = (str(e), d, b)
+            src = s_map.get(key, None)
+            prod = str(src.get("제품명코드") or "").strip() if isinstance(src, dict) else ""
+            prod_name = str(src.get("제품명") or "").strip() if isinstance(src, dict) else ""
+            qty = int(src.get("배정수량") or 0) if isinstance(src, dict) else 0
+            setting = str(src.get("세팅구분") or "").strip() if isinstance(src, dict) else ""
+            pw = str(src.get("POWER 리스트") or "").strip() if isinstance(src, dict) else ""
+            due = str(src.get("납기일") or "").strip() if isinstance(src, dict) else ""
+
+            assignable = bool(info.get("배정가능", True))
+            note = str(info.get("비고") or "").strip()
+            cur_run = str(info.get("현재제품") or "").strip()
+
+            if prod:
+                state = "배정"
+                idle_reason = ""
+            else:
+                if not assignable:
+                    state = "배정불가"
+                    idle_reason = f"비고: {note}" if note else "비고: -"
+                else:
+                    state = "유휴"
+                    if cur_run:
+                        idle_reason = f"현재 생산중: {cur_run}"
+                    else:
+                        idle_reason = ""
+
+            records.append(
+                {
+                    "설비명": e,
+                    "slot_label": _slot_label(d, sh),
+                    "slot_key": int(sl["slot_key"]),
+                    "주야": sh,
+                    "상태": state,
+                    "제품명코드": prod,
+                    "제품명": prod_name,
+                    "납기일": due,
+                    "배정수량": qty,
+                    "세팅구분": setting,
+                    "POWER": pw,
+                    "유휴사유": idle_reason,
+                }
+            )
+
+    return (pd.DataFrame(records), equip_list)
 
 
 def _injection_schedule_to_blocks(sched: pd.DataFrame) -> pd.DataFrame:
@@ -3588,6 +3741,9 @@ def main() -> None:
             inj_daily_fallback = 0.0
         try:
             inj_demand = df.copy()
+            # Reduce columns early (cache hashing + schedule work).
+            keep_cols = [c for c in ["제품코드", "품명", "POWER", "납기일", "사출", "이니셜", "수주번호"] if c in inj_demand.columns]
+            inj_demand = inj_demand[keep_cols].copy() if keep_cols else inj_demand
             inj_demand = _attach_item_codes(inj_demand, detail_for_map, allowed_prefixes=["R"])
             if "제품코드" not in inj_demand.columns:
                 inj_demand["제품코드"] = ""
@@ -3596,17 +3752,15 @@ def main() -> None:
             inj_demand["사출"] = pd.to_numeric(inj_demand["사출"], errors="coerce").fillna(0).astype(int)
             inj_demand = inj_demand.loc[inj_demand["사출"].gt(0)].copy()
             if (not inj_demand.empty) and (inj_equip is not None) and (not inj_equip.empty):
-                inj_sched, _, _ = _build_injection_schedule_cached(
+                inj_segs = _build_injection_plan_segments_cached(
                     demand=inj_demand,
                     inj_equip=inj_equip,
-                    arrange=inj_arrange,
+                    inj_arrange=inj_arrange,
                     excel_path=excel_path,
                     excel_mtime=inj_excel_mtime,
                     start_date=_today_kst(),
                     horizon_days=5,
                 )
-                if inj_sched is not None and (not inj_sched.empty):
-                    inj_segs = _build_injection_capacity_segments(inj_sched, start_date=_today_kst(), horizon_days=5)
         except Exception:
             inj_segs = []
 
@@ -3791,123 +3945,15 @@ def main() -> None:
 
             if view_kind == "간트":
                 # Render as a day/shift grid (주간/야간) instead of detailed time axis.
-                equip_all = inj_equip.copy()
-                equip_all["설비명"] = (
-                    equip_all.get("설비코드", "")
-                    .astype("string")
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
+                chart_df, equip_list = _build_injection_gantt_chart_df_cached(
+                    sched=sched,
+                    inj_equip=inj_equip,
+                    start_date=start_date,
+                    horizon_days=horizon_days,
                 )
-                equip_all["비고"] = equip_all.get("비고", "").astype("string").fillna("").astype(str).str.strip()
-                equip_all["생산 제품"] = equip_all.get("생산 제품", "").astype("string").fillna("").astype(str).str.strip()
-                equip_all["배정가능"] = equip_all.get("배정가능", True).fillna(True)
-
-                def _equip_sort_key(s: str) -> tuple[int, int, str]:
-                    s2 = str(s or "").strip().upper()
-                    m = re.match(r"^([A-Z])(\d+)$", s2)
-                    if not m:
-                        return (999, 999, s2)
-                    return (ord(m.group(1)) - 65, int(m.group(2)), s2)
-
-                equip_list = sorted([e for e in equip_all["설비명"].tolist() if str(e).strip()], key=_equip_sort_key)
-                if not equip_list:
-                    st.caption("설비 목록이 없습니다.")
+                if chart_df is None or chart_df.empty or not equip_list:
+                    st.caption("간트 표시할 데이터가 없습니다.")
                 else:
-                    s2 = sched.copy()
-                    s2["날짜"] = pd.to_datetime(s2["날짜"], errors="coerce").dt.date
-                    s2["Block"] = pd.to_numeric(s2["Block"], errors="coerce").fillna(0).astype(int)
-                    s2["설비명"] = s2["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
-                    s2["제품명코드"] = s2["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
-                    s2["제품명"] = s2["제품명"].astype("string").fillna("").astype(str).str.strip()
-                    s2["POWER 리스트"] = s2.get("POWER 리스트", "").astype("string").fillna("").astype(str).str.strip()
-                    s2["POWER(대표)"] = s2.get("POWER(대표)", "").astype("string").fillna("").astype(str).str.strip()
-                    s2["이전 POWER"] = s2.get("이전 POWER", "").astype("string").fillna("").astype(str).str.strip()
-                    s2["코아교체"] = pd.to_numeric(s2.get("코아교체", 0), errors="coerce").fillna(0).astype(int)
-                    s2["POWER 종류수"] = pd.to_numeric(s2.get("POWER 종류수", 0), errors="coerce").fillna(0).astype(int)
-                    s2["POWER 변경횟수"] = pd.to_numeric(s2.get("POWER 변경횟수", 0), errors="coerce").fillna(0).astype(int)
-                    s2["세팅구분"] = s2.get("세팅구분", "").astype("string").fillna("").astype(str).str.strip()
-                    s2["배정수량"] = pd.to_numeric(s2.get("배정수량", 0), errors="coerce").fillna(0).astype(int)
-                    s2["납기일"] = pd.to_datetime(s2.get("납기일", pd.NaT), errors="coerce").dt.strftime("%Y-%m-%d")
-
-                    slots = []
-                    for i in range(int(horizon_days)):
-                        d = start_date + timedelta(days=i)
-                        for b, sh in [(1, "주간"), (2, "야간")]:
-                            slots.append({"날짜": d, "Block": b, "shift": sh, "slot_key": i * 2 + (0 if b == 1 else 1)})
-
-                    def _slot_label(d: date, sh: str) -> str:
-                        return f"{d.month}/{d.day} {sh}"
-
-                    # Build full grid rows (all equipments, all slots)
-                    records: list[dict[str, object]] = []
-                    s_map = {
-                        (r["설비명"], r["날짜"], int(r["Block"])): r.to_dict()
-                        for _, r in s2.iterrows()
-                        if isinstance(r.get("날짜"), date)
-                    }
-                    equip_info = {
-                        str(r["설비명"]): {
-                            "배정가능": bool(r.get("배정가능", True)),
-                            "비고": str(r.get("비고") or "").strip(),
-                            "현재제품": str(r.get("생산 제품") or "").strip(),
-                        }
-                        for _, r in equip_all.iterrows()
-                        if str(r.get("설비명") or "").strip()
-                    }
-
-                    for e in equip_list:
-                        info = equip_info.get(str(e), {"배정가능": True, "비고": "", "현재제품": ""})
-                        for sl in slots:
-                            d = sl["날짜"]
-                            b = int(sl["Block"])
-                            sh = str(sl["shift"])
-                            key = (str(e), d, b)
-                            src = s_map.get(key, None)
-                            prod = str(src.get("제품명코드") or "").strip() if isinstance(src, dict) else ""
-                            prod_name = str(src.get("제품명") or "").strip() if isinstance(src, dict) else ""
-                            qty = int(src.get("배정수량") or 0) if isinstance(src, dict) else 0
-                            setting = str(src.get("세팅구분") or "").strip() if isinstance(src, dict) else ""
-                            pw = str(src.get("POWER 리스트") or "").strip() if isinstance(src, dict) else ""
-                            due = str(src.get("납기일") or "").strip() if isinstance(src, dict) else ""
-
-                            assignable = bool(info.get("배정가능", True))
-                            note = str(info.get("비고") or "").strip()
-                            cur_run = str(info.get("현재제품") or "").strip()
-
-                            if prod:
-                                state = "배정"
-                                idle_reason = ""
-                            else:
-                                if not assignable:
-                                    state = "배정불가"
-                                    idle_reason = f"비고: {note}" if note else "비고: -"
-                                else:
-                                    state = "유휴"
-                                    if cur_run:
-                                        idle_reason = f"현재 생산중: {cur_run}"
-                                    else:
-                                        idle_reason = ""
-
-                            records.append(
-                                {
-                                    "설비명": e,
-                                    "slot_label": _slot_label(d, sh),
-                                    "slot_key": int(sl["slot_key"]),
-                                    "주야": sh,
-                                    "상태": state,
-                                    "제품명코드": prod,
-                                    "제품명": prod_name,
-                                    "납기일": due,
-                                    "배정수량": qty,
-                                    "세팅구분": setting,
-                                    "POWER": pw,
-                                    "유휴사유": idle_reason,
-                                }
-                            )
-
-                    chart_df = pd.DataFrame(records)
 
                     # Legend label: show code + product name (many users don't memorize R-codes).
                     def _norm_name(s: str) -> str:
