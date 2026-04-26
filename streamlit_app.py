@@ -3564,8 +3564,9 @@ def main() -> None:
                         n = chart_df["제품명"].astype("string").fillna("").astype(str).str.strip()
                         lab = c
                         has_name = n.str.strip().ne("")
-                        lab = lab.where(~has_name, c + " " + n.map(lambda s: _short_name(s)))
-                        # Only assigned rows should appear in legend
+                        # Use multi-line label so the legend doesn't truncate as aggressively.
+                        lab = lab.where(~has_name, c + "\n" + n.map(lambda s: _short_name(s)))
+                        # Only assigned rows should appear in product legend (avoid "null").
                         if "상태" in chart_df.columns:
                             is_assigned = chart_df["상태"].astype("string").fillna("").astype(str).str.strip().eq("배정")
                             lab = lab.where(is_assigned, None)
@@ -3597,19 +3598,28 @@ def main() -> None:
                         },
                         "layer": [
                             {
+                                "transform": [{"filter": "datum.상태 !== '배정'"}],
                                 "mark": {"type": "rect", "stroke": "#dcdcdc", "strokeWidth": 1},
                                 "encoding": {
                                     "color": {
-                                        "condition": [
-                                            {"test": "datum.상태 === '배정불가'", "value": "#d0d0d0"},
-                                            {"test": "datum.상태 === '유휴'", "value": "#f2f2f2"},
-                                        ],
+                                        "field": "상태",
+                                        "type": "nominal",
+                                        "scale": {"domain": ["유휴", "배정불가"], "range": ["#f2f2f2", "#d0d0d0"]},
+                                        "legend": None,
+                                    }
+                                },
+                            },
+                            {
+                                "transform": [{"filter": "datum.상태 === '배정'"}],
+                                "mark": {"type": "rect", "stroke": "#dcdcdc", "strokeWidth": 1},
+                                "encoding": {
+                                    "color": {
                                         "field": "제품라벨",
                                         "type": "nominal",
                                         "scale": {"scheme": "tableau20"},
                                         "legend": {
                                             "title": "제품",
-                                            "labelLimit": 220,
+                                            "labelLimit": 340,
                                             "labelFontSize": 12,
                                             "titleFontSize": 13,
                                             "symbolSize": 90,
@@ -3619,6 +3629,7 @@ def main() -> None:
                                 },
                             },
                             {
+                                "transform": [{"filter": "datum.상태 === '배정'"}],
                                 "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 12},
                                 "encoding": {
                                     "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
@@ -3644,6 +3655,29 @@ def main() -> None:
                     }
 
                     st.vega_lite_chart(spec, use_container_width=True)
+
+                    with st.expander("제품 목록(전체 품명)", expanded=False):
+                        if (not chart_df.empty) and ("상태" in chart_df.columns):
+                            prod_list = chart_df.loc[chart_df["상태"].astype("string").fillna("").astype(str).str.strip().eq("배정"), ["제품명코드", "제품명"]].copy()
+                            if not prod_list.empty:
+                                prod_list["제품명코드"] = prod_list["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                                prod_list["제품명"] = prod_list["제품명"].astype("string").fillna("").astype(str).str.strip()
+                                prod_list = (
+                                    prod_list.loc[prod_list["제품명코드"].ne("")]
+                                    .groupby("제품명코드", dropna=False, as_index=False)["제품명"]
+                                    .agg(lambda s: next((v for v in s.tolist() if str(v).strip()), ""))
+                                    .sort_values("제품명코드", ascending=True, na_position="last")
+                                )
+                                st.dataframe(
+                                    _style_dataframe_like_dashboard(prod_list),
+                                    use_container_width=True,
+                                    height=_table_height_for_rows(len(prod_list), min_height=220, max_height=520),
+                                    hide_index=True,
+                                )
+                            else:
+                                st.caption("배정된 제품이 없습니다.")
+                        else:
+                            st.caption("표시할 제품 목록이 없습니다.")
 
                     st.subheader("일자별 세부 타겟")
                     tgt = chart_df.loc[chart_df["상태"].eq("배정")].copy()
