@@ -1645,6 +1645,7 @@ def _choose_power_slots_min_change(
     slots: int,
     slot_qty: int,
     max_types: int = 2,
+    min_new_type_qty: int | None = None,
 ) -> tuple[list[float], list[int], list[float]]:
     """
     Allocate up to `slots` slots within a block while minimizing POWER changes.
@@ -1686,10 +1687,30 @@ def _choose_power_slots_min_change(
 
     alloc_order = sorted([float(p) for p in chosen_types], key=_alloc_key)
 
+    # Avoid "micro-run" POWERs that cause extra core changes but produce too little.
+    # Policy: do not introduce a new POWER type in a block unless it can produce at least `min_new_type_qty`
+    # within that block, unless it's urgent (due <= block_day).
+    min_new = int(min_new_type_qty) if (min_new_type_qty is not None) else int(slot_qty)
+    if min_new < 0:
+        min_new = 0
+
     for p in alloc_order:
         if len(out_p) >= int(slots):
             break
         info = powers.get(float(p)) or {}
+        due = _power_due_or_far(info.get("due"))
+        try:
+            qty0 = int(info.get("qty") or 0)
+        except Exception:
+            qty0 = 0
+
+        is_urgent = bool(isinstance(due, date) and due <= block_day)
+        is_prev = float(p) in prev_set
+        is_primary = bool(out_p == [])
+        introducing_new = (not is_prev) and (not is_primary)
+        if introducing_new and (not is_urgent) and (qty0 < min_new):
+            # Skip small remainder and keep capacity unused instead of adding another POWER.
+            continue
         while len(out_p) < int(slots):
             try:
                 rem = int(info.get("qty") or 0)
@@ -2046,6 +2067,7 @@ def _build_injection_schedule(
                         slots=8,
                         slot_qty=slot_qty,
                         max_types=2,
+                        min_new_type_qty=slot_qty,
                     )
                     assign_qty = int(sum(slot_q))
                     rem_after = _product_remaining(cur_prod)
