@@ -3417,9 +3417,9 @@ def main() -> None:
                 equip_all=inj_equip,
             )
             st.download_button(
-                "엑셀 다운로드 (운영양식)",
+                "엑셀 다운로드 (상세표)",
                 data=xlsx_ops,
-                file_name=f"사출운영양식_{code}_{_today_kst().isoformat()}.xlsx",
+                file_name=f"사출상세표_{code}_{_today_kst().isoformat()}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key=f"inj_{code}_download_ops",
             )
@@ -3657,23 +3657,24 @@ def main() -> None:
 
                     st.vega_lite_chart(spec, use_container_width=True)
 
-                    st.subheader("일자별 세부 타겟")
-                    tgt = chart_df.loc[chart_df["상태"].eq("배정")].copy()
-                    if tgt.empty:
-                        st.caption("집계할 배정 데이터가 없습니다.")
-                    else:
-                        daily = tgt.groupby(["slot_label", "제품명코드", "제품명", "납기일"], dropna=False, as_index=False).agg(
-                            블록수=("배정수량", "size"),
-                            배정수량=("배정수량", "sum"),
-                        )
-                        daily["배정수량"] = pd.to_numeric(daily["배정수량"], errors="coerce").fillna(0).astype(int)
-                        daily = daily.sort_values(["slot_label", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
-                        st.dataframe(
-                            _style_dataframe_like_dashboard(daily),
-                            use_container_width=True,
-                            height=_table_height_for_rows(len(daily), min_height=220, max_height=520),
-                            hide_index=True,
-                        )
+                    # Optional: daily summary (useful for quick demand/assignment check), keep collapsed by default.
+                    with st.expander("일자별 세부 타겟(요약)", expanded=False):
+                        tgt = chart_df.loc[chart_df["상태"].eq("배정")].copy()
+                        if tgt.empty:
+                            st.caption("집계할 배정 데이터가 없습니다.")
+                        else:
+                            daily = tgt.groupby(["slot_label", "제품명코드", "제품명", "납기일"], dropna=False, as_index=False).agg(
+                                블록수=("배정수량", "size"),
+                                배정수량=("배정수량", "sum"),
+                            )
+                            daily["배정수량"] = pd.to_numeric(daily["배정수량"], errors="coerce").fillna(0).astype(int)
+                            daily = daily.sort_values(["slot_label", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
+                            st.dataframe(
+                                _style_dataframe_like_dashboard(daily),
+                                use_container_width=True,
+                                height=_table_height_for_rows(len(daily), min_height=220, max_height=520),
+                                hide_index=True,
+                            )
 
             elif view_kind == "그리드":
                 grid = blocks.copy()
@@ -3852,11 +3853,17 @@ def main() -> None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key=f"inj_{code}_download_rem",
             )
+            rem_col_cfg = {}
+            if "납기일" in rem_show.columns:
+                rem_col_cfg["납기일"] = st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small")
+            if "잔여수량" in rem_show.columns:
+                rem_col_cfg["잔여수량"] = st.column_config.NumberColumn(format="localized", width="small")
             st.dataframe(
                 _style_dataframe_like_dashboard(rem_show),
                 use_container_width=True,
                 height=_table_height_for_rows(len(rem_show), min_height=220, max_height=520),
                 hide_index=True,
+                column_config=rem_col_cfg if rem_col_cfg else None,
             )
         return
 
