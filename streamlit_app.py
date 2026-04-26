@@ -2214,7 +2214,7 @@ def _build_injection_gantt_chart_df_cached(
         s = str(v or "").strip().upper()
         if not s:
             return ""
-        m = re.match(r"^(R\\d+)", s)
+        m = re.match(r"^(R\d+)", s)
         return m.group(1) if m else ""
 
     records: list[dict[str, object]] = []
