@@ -908,6 +908,139 @@ def _injection_schedule_to_cavity_rows(sched: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _build_injection_capacity_segments(
+    sched: pd.DataFrame,
+    *,
+    start_date: date,
+    horizon_days: int,
+) -> list[dict[str, object]]:
+    """
+    Build a piecewise capacity timeline from injection schedule.
+
+    Time unit: "days since start_date".
+    Each block is 0.5 day: Block1 -> [d+0.0, d+0.5), Block2 -> [d+0.5, d+1.0).
+    Segment capacity is total assigned qty within that block across all equipments.
+    """
+    if sched is None or sched.empty:
+        return []
+
+    df = sched.copy()
+    if "날짜" not in df.columns or "Block" not in df.columns:
+        return []
+
+    df["날짜"] = pd.to_datetime(df["날짜"], errors="coerce").dt.date
+    df["Block"] = pd.to_numeric(df["Block"], errors="coerce").fillna(0).astype(int)
+    df["배정수량"] = pd.to_numeric(df.get("배정수량", 0), errors="coerce").fillna(0).astype(int)
+
+    horizon_days = int(horizon_days)
+    if horizon_days <= 0:
+        horizon_days = 5
+
+    segs: list[dict[str, object]] = []
+    for i in range(horizon_days):
+        d = start_date + timedelta(days=i)
+        for b, start_off in [(1, 0.0), (2, 0.5)]:
+            cap = int(df.loc[(df["날짜"] == d) & (df["Block"] == int(b)), "배정수량"].sum())
+            segs.append(
+                {
+                    "t0": float(i) + float(start_off),
+                    "dur": 0.5,
+                    "cap": int(max(0, cap)),
+                }
+            )
+    return segs
+
+
+class _CapacityAllocator:
+    def __init__(self, segs: list[dict[str, object]]):
+        self.segs = segs or []
+        self.i = 0
+        self.t = float(self.segs[0]["t0"]) if self.segs else 0.0
+        self.rem = int(self.segs[0]["cap"]) if self.segs else 0
+
+    def _advance_to(self, t: float) -> None:
+        # Move to the segment that contains or follows time t.
+        if not self.segs:
+            self.t = float(t)
+            self.i = 0
+            self.rem = 0
+            return
+        while self.i < len(self.segs):
+            seg = self.segs[self.i]
+            t0 = float(seg["t0"])
+            dur = float(seg["dur"])
+            t1 = t0 + dur
+            if float(t) < t0:
+                self.t = t0
+                self.rem = int(seg.get("cap") or 0)
+                return
+            if t0 <= float(t) < t1:
+                self.t = float(t)
+                # Remaining capacity in this segment: proportional to remaining time.
+                cap = int(seg.get("cap") or 0)
+                frac = max(0.0, (t1 - float(t)) / dur) if dur > 0 else 0.0
+                self.rem = int(round(cap * frac))
+                return
+            self.i += 1
+        # Beyond last segment
+        last = self.segs[-1]
+        self.t = float(last["t0"]) + float(last["dur"])
+        self.rem = 0
+
+    def allocate(self, qty: float, *, earliest_start: float) -> float:
+        """
+        Allocate `qty` units onto the capacity timeline.
+        Returns done time (days since start_date).
+        """
+        q = float(qty or 0.0)
+        if q <= 0:
+            return float(max(self.t, float(earliest_start)))
+
+        start = float(max(self.t, float(earliest_start)))
+        self._advance_to(start)
+        if not self.segs:
+            # No capacity info; treat as no-op duration.
+            self.t = start
+            return start
+
+        while q > 0 and self.i < len(self.segs):
+            seg = self.segs[self.i]
+            t0 = float(seg["t0"])
+            dur = float(seg["dur"])
+            t1 = t0 + dur
+            if self.t < t0:
+                self.t = t0
+                self.rem = int(seg.get("cap") or 0)
+
+            if self.rem <= 0:
+                self.i += 1
+                if self.i < len(self.segs):
+                    self.t = float(self.segs[self.i]["t0"])
+                    self.rem = int(self.segs[self.i].get("cap") or 0)
+                continue
+
+            take = min(float(self.rem), q)
+            q -= take
+            self.rem -= int(round(take))
+
+            if q <= 0:
+                return float(self.t)
+
+            # Move to next segment boundary when current segment is exhausted.
+            if self.rem <= 0:
+                self.t = t1
+                self.i += 1
+                if self.i < len(self.segs):
+                    self.t = float(self.segs[self.i]["t0"])
+                    self.rem = int(self.segs[self.i].get("cap") or 0)
+
+        # If we run out of segments, finish at end of last segment.
+        if self.segs:
+            last = self.segs[-1]
+            self.t = float(last["t0"]) + float(last["dur"])
+        return float(self.t)
+
+
 def _format_item_code_list(codes: list[str], *, max_show: int = 12) -> str:
     codes = [str(c).strip() for c in codes if str(c).strip()]
     if not codes:
@@ -2073,6 +2206,9 @@ def _build_order_risk_table(
     today: date,
     buffer_days: float,
     start_offset_days: int = 1,
+    injection_segs: list[dict[str, object]] | None = None,
+    injection_start_date: date | None = None,
+    injection_daily_fallback: float | None = None,
 ) -> pd.DataFrame:
     """
     수주별 리스크 산출.
@@ -2355,6 +2491,34 @@ def _build_order_risk_table(
     completion: dict[str, list[float]] = {p: [] for p in proc_path_all}
     available: dict[str, float] = {p: 0.0 for p in proc_path_all}
 
+    inj_allocator: _CapacityAllocator | None = None
+    inj_start = injection_start_date if isinstance(injection_start_date, date) else today
+    if injection_segs:
+        segs = [dict(s) for s in injection_segs]
+        # Fallback beyond horizon: extend segments with constant daily capacity until we cover all injection qty.
+        try:
+            total_need = float(sched.get("사출", 0).sum()) if "사출" in sched.columns else 0.0
+        except Exception:
+            total_need = 0.0
+        planned_total = float(sum(float(s.get("cap") or 0) for s in segs))
+        daily_fallback = float(injection_daily_fallback) if isinstance(injection_daily_fallback, (int, float)) else 0.0
+        if daily_fallback <= 0:
+            daily_fallback = float(capa_map.get("사출", 0.0) or 0.0)
+        if daily_fallback > 0 and planned_total < total_need:
+            rem = max(0.0, total_need - planned_total)
+            per_block = max(0.0, daily_fallback / 2.0)
+            # Extend at most 180 days to avoid runaway.
+            ext_days = int(min(180, math.ceil(rem / max(1.0, daily_fallback))))
+            # Continue from last segment end.
+            last_t = float(segs[-1]["t0"]) + float(segs[-1]["dur"]) if segs else 0.0
+            # Align to next day boundary.
+            base_day = int(math.ceil(last_t))
+            for di in range(ext_days):
+                day0 = float(base_day + di)
+                segs.append({"t0": day0 + 0.0, "dur": 0.5, "cap": int(round(per_block))})
+                segs.append({"t0": day0 + 0.5, "dur": 0.5, "cap": int(round(per_block))})
+        inj_allocator = _CapacityAllocator(segs)
+
     for _, row in sched.iterrows():
         is_transfer = bool(row.get("후공정_타관"))
         path = ["사출", "분리"] if is_transfer else proc_path_all
@@ -2366,6 +2530,14 @@ def _build_order_risk_table(
             if p not in path or qty <= 0:
                 done = max(available[p], prev_done)
                 completion[p].append(done)
+                prev_done = done
+                continue
+            if p == "사출" and inj_allocator is not None:
+                # Use injection plan capacity timeline (more realistic) instead of average CAPA.
+                earliest = max(available[p], prev_done + float(RISK_WIP_DAYS_PER_PROCESS))
+                done = inj_allocator.allocate(qty, earliest_start=float(earliest))
+                completion[p].append(done)
+                available[p] = max(available[p], done)
                 prev_done = done
                 continue
             if capa <= 0:
@@ -3246,6 +3418,44 @@ def main() -> None:
         as_of = _today_kst() - timedelta(days=1)
         capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
 
+        # Optional: reflect injection short-term schedule into completion dates (more realistic injection start/throughput).
+        inj_excel_mtime = float(os.path.getmtime(excel_path)) if excel_path and os.path.exists(excel_path) else 0.0
+        inj_info = _load_injection_sheet_cached(excel_path, inj_excel_mtime) if excel_path else {"equip": pd.DataFrame(), "arrange": pd.DataFrame()}
+        inj_equip = inj_info.get("equip", pd.DataFrame())
+        inj_arrange = inj_info.get("arrange", pd.DataFrame())
+        inj_segs: list[dict[str, object]] = []
+        inj_daily_fallback = 0.0
+        try:
+            if capa_table is not None and (not capa_table.empty) and ("공정" in capa_table.columns) and ("CAPA" in capa_table.columns):
+                mask_inj = capa_table["공정"].astype("string").fillna("").astype(str).str.strip().eq("사출")
+                if bool(mask_inj.any()):
+                    inj_daily_fallback = float(pd.to_numeric(capa_table.loc[mask_inj, "CAPA"].head(1), errors="coerce").fillna(0).iloc[0])
+        except Exception:
+            inj_daily_fallback = 0.0
+        try:
+            inj_demand = df.copy()
+            inj_demand = _attach_item_codes(inj_demand, detail_for_map, allowed_prefixes=["R"])
+            if "제품코드" not in inj_demand.columns:
+                inj_demand["제품코드"] = ""
+            if "사출" not in inj_demand.columns:
+                inj_demand["사출"] = 0
+            inj_demand["사출"] = pd.to_numeric(inj_demand["사출"], errors="coerce").fillna(0).astype(int)
+            inj_demand = inj_demand.loc[inj_demand["사출"].gt(0)].copy()
+            if (not inj_demand.empty) and (inj_equip is not None) and (not inj_equip.empty):
+                inj_sched, _, _ = _build_injection_schedule(
+                    demand=inj_demand,
+                    inj_equip=inj_equip,
+                    arrange=inj_arrange,
+                    excel_path=excel_path,
+                    excel_mtime=inj_excel_mtime,
+                    start_date=_today_kst(),
+                    horizon_days=5,
+                )
+                if inj_sched is not None and (not inj_sched.empty):
+                    inj_segs = _build_injection_capacity_segments(inj_sched, start_date=_today_kst(), horizon_days=5)
+        except Exception:
+            inj_segs = []
+
         # Compute risk/schedule on ALL orders (schedule_orders), then filter down for display (subset).
         risk_all = _build_order_risk_table(
             schedule_orders,
@@ -3253,6 +3463,9 @@ def main() -> None:
             today=_today_kst(),
             buffer_days=float(RISK_YELLOW_BUFFER_DAYS),
             start_offset_days=int(RISK_SCHED_START_OFFSET_DAYS),
+            injection_segs=inj_segs if inj_segs else None,
+            injection_start_date=_today_kst(),
+            injection_daily_fallback=inj_daily_fallback,
         )
         if risk_all.empty:
             st.caption("표시할 리스크 대상이 없습니다.")
