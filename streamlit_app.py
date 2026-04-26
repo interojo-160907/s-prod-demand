@@ -3357,9 +3357,13 @@ def main() -> None:
         with col2:
             st.caption("블록당 POWER 최대 8칸(중복 허용), 1칸(=1 CAV) 최대 2000ea/쉬프트. E 공란+F 기입 설비는 배정하지 않습니다.")
 
+        # Keep "간트" as default; guard old persisted selection values (e.g. "그리드").
+        inj_view_options = ["간트", "상세표"]
+        if st.session_state.get("inj_view_kind") not in inj_view_options:
+            st.session_state["inj_view_kind"] = "간트"
         view_kind = st.segmented_control(
             "표시",
-            options=["간트", "그리드", "상세표"],
+            options=inj_view_options,
             default="간트",
             key="inj_view_kind",
             label_visibility="collapsed",
@@ -3707,49 +3711,58 @@ def main() -> None:
                         for b, sh in [(1, "주간"), (2, "야간")]:
                             slots.append({"날짜": d, "Block": b, "shift": sh, "label": f"{d.month}/{d.day} {sh}"})
 
-                    # slot -> 제품정보 (R코드 중심)
-                    slot_prod: dict[tuple[date, int], tuple[str, str]] = {}
-                    for sl in slots:
-                        d = sl["날짜"]
-                        b = int(sl["Block"])
-                        rec = view_df.loc[(view_df["날짜"].dt.date == d) & (view_df["Block"] == b)].head(1)
-                        if rec.empty:
-                            slot_prod[(d, b)] = ("", "")
-                            continue
-                        r0 = rec.iloc[0].to_dict()
-                        slot_prod[(d, b)] = (str(r0.get("제품명코드") or "").strip(), str(r0.get("제품명") or "").strip())
-
                     cav = _injection_schedule_to_cavity_rows(view_df)
                     cav = cav.loc[cav["설비명"].eq(str(equip_pick).strip().upper())].copy() if (not cav.empty) else cav
                     cav["날짜"] = pd.to_datetime(cav["날짜"], errors="coerce").dt.date
                     cav["Block"] = pd.to_numeric(cav["Block"], errors="coerce").fillna(0).astype(int)
 
+                    # 운영양식 형태(화면): 엑셀처럼 (일자/주야)별로 4컬럼 블록을 좌->우로 배치
                     idx = list(range(1, 9))
-                    mat = pd.DataFrame({"CAV": idx}).set_index("CAV")
+                    col_blocks: list[tuple[str, str]] = []
+                    for sl in slots:
+                        label = str(sl["label"])
+                        for sub in ["제품정보", "CAV", "도수", "필요수량"]:
+                            col_blocks.append((label, sub))
+                    cols = pd.MultiIndex.from_tuples(col_blocks, names=["일자/주야", "구분"])
+                    op_view = pd.DataFrame(index=idx, columns=cols)
+
                     for sl in slots:
                         d = sl["날짜"]
                         b = int(sl["Block"])
                         label = str(sl["label"])
-                        prod, prod_name = slot_prod.get((d, b), ("", ""))
-                        col_name = f"{label}\n{prod}".strip() if prod else label
+
+                        rec = view_df.loc[(view_df["날짜"].dt.date == d) & (view_df["Block"] == b)].head(1)
+                        if rec.empty:
+                            prod_info = ""
+                        else:
+                            r0 = rec.iloc[0].to_dict()
+                            prod = str(r0.get("제품명코드") or "").strip()
+                            prod_name = str(r0.get("제품명") or "").strip()
+                            prod_info = "\n".join([t for t in [prod, prod_name] if t])
+
+                        # 제품정보: 첫 행만 채워서 "merge된 느낌"으로 표시
+                        op_view[(label, "제품정보")] = [""] * 8
+                        op_view.loc[1, (label, "제품정보")] = prod_info
+                        # CAV
+                        op_view[(label, "CAV")] = idx
 
                         sub = cav.loc[(cav["날짜"] == d) & (cav["Block"] == b), ["CAV", "도수", "필요수량"]].copy()
                         if sub.empty:
-                            mat[col_name] = ""
+                            op_view[(label, "도수")] = [""] * 8
+                            op_view[(label, "필요수량")] = [""] * 8
                             continue
                         sub["필요수량"] = pd.to_numeric(sub["필요수량"], errors="coerce").fillna(0).astype(int)
-                        cell = (
-                            sub.set_index("CAV")
-                            .apply(lambda r: (f"{str(r.get('도수') or '').strip()}\n{int(r.get('필요수량') or 0):,}" if int(r.get("필요수량") or 0) > 0 else str(r.get("도수") or "").strip()).strip(), axis=1)
-                            .to_dict()
-                        )
-                        mat[col_name] = [cell.get(i, "") for i in idx]
+                        pw_map = sub.set_index("CAV")["도수"].astype("string").fillna("").astype(str).str.strip().to_dict()
+                        q_map = sub.set_index("CAV")["필요수량"].to_dict()
+                        op_view[(label, "도수")] = [pw_map.get(i, "") for i in idx]
+                        op_view[(label, "필요수량")] = [("" if int(q_map.get(i, 0) or 0) <= 0 else int(q_map.get(i, 0))) for i in idx]
 
-                    st.caption("표시: 각 셀=도수(POWER) / 필요수량(해당 CAV, 쉬프트당 최대 2000ea 기준)")
+                    op_show = op_view.reset_index(names="CAV(행)")
+                    st.caption("표시: (일자/주야)별로 [제품정보 | CAV | 도수 | 필요수량] 블록, 필요수량은 해당 CAV·쉬프트당 최대 2000ea 기준")
                     st.dataframe(
-                        _style_dataframe_like_dashboard(mat.reset_index()),
+                        _style_dataframe_like_dashboard(op_show),
                         use_container_width=True,
-                        height=_table_height_for_rows(8, min_height=260, max_height=520),
+                        height=_table_height_for_rows(8, min_height=260, max_height=560),
                         hide_index=True,
                     )
 
