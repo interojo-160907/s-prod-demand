@@ -972,6 +972,137 @@ def _choose_power_slots(powers_rem: dict[float, int], *, slots: int, slot_qty: i
     return out_p, out_q
 
 
+def _fmt_power(p: float | None) -> str:
+    if p is None:
+        return ""
+    try:
+        return f"{float(p):+.2f}"
+    except Exception:
+        return ""
+
+
+def _power_due_or_far(d: object) -> date:
+    return d if isinstance(d, date) else date(2099, 12, 31)
+
+
+def _pick_power_types_for_block(
+    powers: dict[float, dict[str, object]],
+    *,
+    prev_types: list[float],
+    block_day: date,
+    max_types: int,
+) -> list[float]:
+    """
+    Decide which POWER types to use for the current block.
+
+    Goals:
+    - Prefer continuing previous block's POWER if remaining.
+    - Reflect POWER-level due date (earlier first).
+    - Minimize POWER variety within a block (default max 2).
+    - Allow exceptions when there are urgent POWERs (due <= block_day).
+    """
+    avail: list[tuple[float, date, int]] = []
+    for p, info in (powers or {}).items():
+        try:
+            qty = int(info.get("qty") or 0)
+        except Exception:
+            qty = 0
+        if qty <= 0:
+            continue
+        due = _power_due_or_far(info.get("due"))
+        avail.append((float(p), due, qty))
+
+    if not avail:
+        return []
+
+    # Best-first by due, then remaining qty, then POWER numeric.
+    avail_sorted = sorted(avail, key=lambda t: (t[1], -t[2], t[0]))
+    urgent = [p for (p, due, qty) in avail_sorted if (qty > 0 and due <= block_day)]
+
+    chosen: list[float] = []
+    # 1) Continue previous POWER(s) first when possible.
+    for p in prev_types or []:
+        if any(p == ap for (ap, _, _) in avail_sorted) and (p not in chosen):
+            chosen.append(float(p))
+        if len(chosen) >= max_types:
+            break
+
+    # 2) Fill up to max_types by due/qty priority.
+    for p, _, _ in avail_sorted:
+        if p in chosen:
+            continue
+        chosen.append(float(p))
+        if len(chosen) >= max_types:
+            break
+
+    # 3) Exception: ensure urgent POWERs are included even if it increases variety.
+    for p in urgent:
+        if p not in chosen:
+            chosen.append(float(p))
+
+    return chosen
+
+
+def _choose_power_slots_min_change(
+    powers: dict[float, dict[str, object]],
+    *,
+    prev_types: list[float],
+    block_day: date,
+    slots: int,
+    slot_qty: int,
+    max_types: int = 2,
+) -> tuple[list[float], list[int], list[float]]:
+    """
+    Allocate up to `slots` slots within a block while minimizing POWER changes.
+
+    Returns (slot_powers, slot_qtys, chosen_types).
+    - Slots are filled contiguously by chosen POWER types (no alternating), to reduce core changes.
+    - Remaining capacity is left unused (0) rather than introducing extra POWER types, unless urgent.
+    """
+    out_p: list[float] = []
+    out_q: list[int] = []
+    if slots <= 0 or slot_qty <= 0 or not powers:
+        return out_p, out_q, []
+
+    chosen_types = _pick_power_types_for_block(powers, prev_types=prev_types, block_day=block_day, max_types=max(1, int(max_types)))
+    if not chosen_types:
+        return out_p, out_q, []
+
+    prev_set = {float(p) for p in (prev_types or []) if isinstance(p, (int, float))}
+
+    def _alloc_key(p: float) -> tuple[int, date, int, int, float]:
+        info = powers.get(float(p)) or {}
+        due = _power_due_or_far(info.get("due"))
+        try:
+            qty = int(info.get("qty") or 0)
+        except Exception:
+            qty = 0
+        urgent_rank = 0 if due <= block_day else 1
+        prev_rank = 0 if float(p) in prev_set else 1
+        return (urgent_rank, due, prev_rank, -qty, float(p))
+
+    alloc_order = sorted([float(p) for p in chosen_types], key=_alloc_key)
+
+    for p in alloc_order:
+        if len(out_p) >= int(slots):
+            break
+        info = powers.get(float(p)) or {}
+        while len(out_p) < int(slots):
+            try:
+                rem = int(info.get("qty") or 0)
+            except Exception:
+                rem = 0
+            if rem <= 0:
+                break
+            q = int(min(rem, int(slot_qty)))
+            out_p.append(float(p))
+            out_q.append(int(q))
+            info["qty"] = int(rem - q)
+        powers[float(p)] = info
+
+    return out_p, out_q, chosen_types
+
+
 def _build_injection_schedule(
     *,
     demand: pd.DataFrame,
@@ -1151,8 +1282,24 @@ def _build_injection_schedule(
             cur_due = info.get("납기일")
             if (cur_due is None) or (isinstance(cur_due, date) and due < cur_due):
                 info["납기일"] = due
-        powers: dict[float, int] = info["powers"]  # type: ignore[assignment]
-        powers[float(p)] = int(powers.get(float(p), 0) + need)
+        powers: dict[float, dict[str, object]] = info["powers"]  # type: ignore[assignment]
+        pf = float(p)
+        pinfo = powers.get(pf)
+        if pinfo is None:
+            pinfo = {"qty": 0, "due": due}
+        # qty
+        try:
+            pinfo["qty"] = int(pinfo.get("qty") or 0) + int(need)
+        except Exception:
+            pinfo["qty"] = int(need)
+        # due (min)
+        if due is not None:
+            cur_due = pinfo.get("due")
+            if (cur_due is None) or (isinstance(cur_due, date) and isinstance(due, date) and due < cur_due):
+                pinfo["due"] = due
+            elif not isinstance(cur_due, date) and isinstance(due, date):
+                pinfo["due"] = due
+        powers[pf] = pinfo
 
     if not product_info:
         return (pd.DataFrame(), pd.DataFrame(), warnings or ["사출 수요가 없습니다."])
@@ -1160,7 +1307,13 @@ def _build_injection_schedule(
     def _product_remaining(base_r: str) -> int:
         info = product_info.get(base_r) or {}
         powers = info.get("powers") or {}
-        return int(sum(int(v) for v in powers.values()))
+        out = 0
+        for v in powers.values():
+            try:
+                out += int((v or {}).get("qty") or 0)
+            except Exception:
+                out += 0
+        return int(out)
 
     def _product_due(base_r: str) -> date:
         d = product_info.get(base_r, {}).get("납기일")
@@ -1182,6 +1335,7 @@ def _build_injection_schedule(
         str(r["설비명"]): str(r.get("현재제품") or "").strip().upper() for _, r in usable.iterrows()
     }
     equip_affinity: dict[str, str] = {}
+    equip_last_power: dict[str, float | None] = {str(r["설비명"]): None for _, r in usable.iterrows()}
 
     rows: list[dict[str, object]] = []
 
@@ -1197,6 +1351,7 @@ def _build_injection_schedule(
             prev_prod = str(equip_last.get(equip_name, "") or "").strip().upper()
             affinity = str(equip_affinity.get(equip_name, "") or "").strip().upper()
             candidates = _eligible_products_for_equipment(er)
+            prev_day_power = equip_last_power.get(equip_name, None)
 
             def _pick_product(prefer: str | None) -> str:
                 if prefer and prefer in candidates and _product_remaining(prefer) > 0:
@@ -1228,6 +1383,7 @@ def _build_injection_schedule(
                 return "잡체인지"
 
             prev_block_prod = ""
+            prev_block_power: float | None = None
             for block in (1, 2):
                 if block == 1:
                     cur_prod = prod1
@@ -1244,39 +1400,71 @@ def _build_injection_schedule(
                 assign_qty = 0
                 rem_after = 0
                 prod_name = ""
+                cur_primary_power: float | None = None
+                prev_power_for_change = prev_day_power if block == 1 else prev_block_power
+                chosen_types: list[float] = []
                 if cur_prod:
                     info = product_info.get(cur_prod) or {}
                     prod_name = str(info.get("제품명") or "").strip()
-                    powers: dict[float, int] = info.get("powers") or {}
-                    slot_p, slot_q = _choose_power_slots(powers, slots=8, slot_qty=slot_qty)
+                    powers: dict[float, dict[str, object]] = info.get("powers") or {}
+                    prev_types = [prev_power_for_change] if isinstance(prev_power_for_change, float) else []
+                    slot_p, slot_q, chosen_types = _choose_power_slots_min_change(
+                        powers,
+                        prev_types=prev_types,
+                        block_day=day,
+                        slots=8,
+                        slot_qty=slot_qty,
+                        max_types=2,
+                    )
                     assign_qty = int(sum(slot_q))
                     rem_after = _product_remaining(cur_prod)
-                    powers_list = [f"{p:+.2f}" for p in slot_p]
+                    powers_list = [_fmt_power(p) for p in slot_p]
+                    cur_primary_power = slot_p[0] if slot_p else None
                     if len(powers_list) < 8:
                         powers_list += [""] * (8 - len(powers_list))
                 else:
                     powers_list = [""] * 8
 
+                # POWER variety / core change stats
+                pw_seq = [p for p in powers_list if str(p).strip()]
+                pw_unique = list(dict.fromkeys(pw_seq))
+                pw_kind_count = int(len(set(pw_seq)))
+                pw_change_in_block = 0
+                for i in range(1, len(pw_seq)):
+                    if pw_seq[i] != pw_seq[i - 1]:
+                        pw_change_in_block += 1
+                prev_pw_s = _fmt_power(prev_power_for_change) if isinstance(prev_power_for_change, float) else ""
+                cur_pw_s = _fmt_power(cur_primary_power) if isinstance(cur_primary_power, float) else ""
+                core_change = int(bool(prev_pw_s and cur_pw_s and (prev_pw_s != cur_pw_s)))
+
                 setting = _setting_label(block=block, cur=cur_prod, prev_day=prev_prod, prev_block=prev_block_prod)
-                rows.append(
-                    {
-                        "날짜": day,
-                        "설비명": equip_name,
-                        "제품명코드": cur_prod,
-                        "제품명": prod_name,
-                        "납기일": (product_info.get(cur_prod, {}).get("납기일") if cur_prod else None),
-                        "Block": block,
-                        "POWER 리스트": ", ".join([p for p in powers_list if str(p).strip()]),
-                        "POWER 개수": int(sum(1 for p in powers_list if str(p).strip())),
-                        "배정수량": int(assign_qty),
-                        "잔여수량": int(rem_after) if cur_prod else 0,
-                        "세팅구분": setting,
-                    }
-                )
+                row = {
+                    "날짜": day,
+                    "설비명": equip_name,
+                    "제품명코드": cur_prod,
+                    "제품명": prod_name,
+                    "납기일": (product_info.get(cur_prod, {}).get("납기일") if cur_prod else None),
+                    "Block": block,
+                    "POWER 리스트": ", ".join([p for p in powers_list if str(p).strip()]),
+                    "POWER 개수": int(sum(1 for p in powers_list if str(p).strip())),
+                    "POWER(대표)": (pw_unique[0] if pw_unique else ""),
+                    "POWER 종류수": pw_kind_count,
+                    "POWER 변경횟수": int(pw_change_in_block),
+                    "이전 POWER": prev_pw_s,
+                    "코아교체": int(core_change),
+                    "배정수량": int(assign_qty),
+                    "잔여수량": int(rem_after) if cur_prod else 0,
+                    "세팅구분": setting,
+                }
+                for i in range(8):
+                    row[f"PW{i + 1}"] = str(powers_list[i] if i < len(powers_list) else "").strip()
+                rows.append(row)
                 if cur_prod:
                     prev_block_prod = cur_prod
+                    prev_block_power = cur_primary_power if isinstance(cur_primary_power, float) else prev_block_power
 
             equip_last[equip_name] = prev_block_prod or prev_prod
+            equip_last_power[equip_name] = prev_block_power if isinstance(prev_block_power, float) else prev_day_power
 
     sched = pd.DataFrame(rows)
 
@@ -2897,13 +3085,14 @@ def main() -> None:
         return
 
     if view_mode == "사출 계획":
-        st.subheader("사출 4~5일 단기 스케줄 (자동 생성)")
-        col1, col2, col3 = st.columns([1, 1, 2])
+        st.subheader("사출 5일 단기 스케줄 (자동 생성)")
+        # Fixed horizon + start date (planning is always shown from 'today').
+        horizon_days = 5
+        start_date = _today_kst()
+        col1, col2 = st.columns([1, 3])
         with col1:
-            horizon_days = int(st.selectbox("기간(일)", options=[4, 5], index=1, key="inj_horizon_days"))
+            st.caption("기간: 5일")
         with col2:
-            start_date = st.date_input("시작일", value=_today_kst(), key="inj_start_date")
-        with col3:
             st.caption("설비 1대/일=2블록, 블록당 POWER 최대 8칸(중복 허용). E 공란+F 기입 설비는 배정하지 않습니다.")
 
         view_kind = st.segmented_control(
@@ -2997,6 +3186,11 @@ def main() -> None:
                     s2["제품명코드"] = s2["제품명코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
                     s2["제품명"] = s2["제품명"].astype("string").fillna("").astype(str).str.strip()
                     s2["POWER 리스트"] = s2.get("POWER 리스트", "").astype("string").fillna("").astype(str).str.strip()
+                    s2["POWER(대표)"] = s2.get("POWER(대표)", "").astype("string").fillna("").astype(str).str.strip()
+                    s2["이전 POWER"] = s2.get("이전 POWER", "").astype("string").fillna("").astype(str).str.strip()
+                    s2["코아교체"] = pd.to_numeric(s2.get("코아교체", 0), errors="coerce").fillna(0).astype(int)
+                    s2["POWER 종류수"] = pd.to_numeric(s2.get("POWER 종류수", 0), errors="coerce").fillna(0).astype(int)
+                    s2["POWER 변경횟수"] = pd.to_numeric(s2.get("POWER 변경횟수", 0), errors="coerce").fillna(0).astype(int)
                     s2["세팅구분"] = s2.get("세팅구분", "").astype("string").fillna("").astype(str).str.strip()
                     s2["배정수량"] = pd.to_numeric(s2.get("배정수량", 0), errors="coerce").fillna(0).astype(int)
                     s2["납기일"] = pd.to_datetime(s2.get("납기일", pd.NaT), errors="coerce").dt.strftime("%Y-%m-%d")
@@ -3040,6 +3234,11 @@ def main() -> None:
                             qty = int(src.get("배정수량") or 0) if isinstance(src, dict) else 0
                             setting = str(src.get("세팅구분") or "").strip() if isinstance(src, dict) else ""
                             pw = str(src.get("POWER 리스트") or "").strip() if isinstance(src, dict) else ""
+                            pw_rep = str(src.get("POWER(대표)") or "").strip() if isinstance(src, dict) else ""
+                            prev_pw = str(src.get("이전 POWER") or "").strip() if isinstance(src, dict) else ""
+                            core_chg = int(src.get("코아교체") or 0) if isinstance(src, dict) else 0
+                            pw_kinds = int(src.get("POWER 종류수") or 0) if isinstance(src, dict) else 0
+                            pw_changes = int(src.get("POWER 변경횟수") or 0) if isinstance(src, dict) else 0
                             due = str(src.get("납기일") or "").strip() if isinstance(src, dict) else ""
 
                             assignable = bool(info.get("배정가능", True))
@@ -3073,6 +3272,12 @@ def main() -> None:
                                     "배정수량": qty,
                                     "세팅구분": setting,
                                     "POWER": pw,
+                                    "POWER(대표)": pw_rep,
+                                    "이전 POWER": prev_pw,
+                                    "코아교체": int(core_chg),
+                                    "POWER 종류수": int(pw_kinds),
+                                    "POWER 변경횟수": int(pw_changes),
+                                    "label": (f"{prod}\n{pw_rep}{' CHG' if int(core_chg) == 1 else ''}".strip() if prod else ""),
                                     "유휴사유": idle_reason,
                                 }
                             )
@@ -3099,6 +3304,11 @@ def main() -> None:
                                 {"field": "납기일", "type": "nominal", "title": "납기일"},
                                 {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
                                 {"field": "세팅구분", "type": "nominal", "title": "세팅"},
+                                {"field": "이전 POWER", "type": "nominal", "title": "이전 POWER"},
+                                {"field": "POWER(대표)", "type": "nominal", "title": "현재 POWER"},
+                                {"field": "코아교체", "type": "quantitative", "title": "코아교체(0/1)"},
+                                {"field": "POWER 종류수", "type": "quantitative", "title": "POWER 종류수"},
+                                {"field": "POWER 변경횟수", "type": "quantitative", "title": "POWER 변경횟수"},
                                 {"field": "POWER", "type": "nominal", "title": "POWER(최대8)"},
                                 {"field": "유휴사유", "type": "nominal", "title": "유휴/사유"},
                             ],
@@ -3122,7 +3332,7 @@ def main() -> None:
                             {
                                 "mark": {"type": "text", "baseline": "middle", "align": "center", "fontSize": 11},
                                 "encoding": {
-                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "제품명코드"}, "value": ""},
+                                    "text": {"condition": {"test": "datum.상태 === '배정'", "field": "label"}, "value": ""},
                                     "color": {
                                         "condition": [{"test": "datum.상태 === '배정'", "value": "#111111"}],
                                         "value": "#666666",
@@ -3160,7 +3370,25 @@ def main() -> None:
             elif view_kind == "그리드":
                 grid = blocks.copy()
                 grid["col"] = grid.apply(lambda r: f"{r['날짜'].month}/{r['날짜'].day} {r.get('shift','')}", axis=1)
-                grid["cell"] = grid["제품명코드"].astype("string").fillna("").astype(str).str.strip()
+                prod = (
+                    grid["제품명코드"].astype("string").fillna("").astype(str).str.strip()
+                    if "제품명코드" in grid.columns
+                    else pd.Series([""] * int(len(grid)), index=grid.index, dtype="string")
+                )
+                pw_rep = (
+                    grid["POWER(대표)"].astype("string").fillna("").astype(str).str.strip()
+                    if "POWER(대표)" in grid.columns
+                    else pd.Series([""] * int(len(grid)), index=grid.index, dtype="string")
+                )
+                core = (
+                    pd.to_numeric(grid["코아교체"], errors="coerce").fillna(0).astype(int)
+                    if "코아교체" in grid.columns
+                    else pd.Series([0] * int(len(grid)), index=grid.index, dtype="int64")
+                )
+                grid["cell"] = prod
+                has_pw = pw_rep.str.strip().ne("")
+                grid.loc[has_pw, "cell"] = grid.loc[has_pw, "cell"] + " " + pw_rep.loc[has_pw]
+                grid.loc[core.eq(1) & prod.str.strip().ne(""), "cell"] = grid.loc[core.eq(1) & prod.str.strip().ne(""), "cell"] + " [CHG]"
                 pivot = (
                     grid.pivot_table(index="설비명", columns="col", values="cell", aggfunc="first", fill_value="")
                     if not grid.empty
@@ -3197,6 +3425,32 @@ def main() -> None:
                     )
 
             else:
+                # 상세표: 설비별로 디테일링해서 (제품/POWER) 이어짐을 쉽게 확인
+                view_df = sched.copy()
+                if "설비명" in view_df.columns:
+                    view_df["설비명"] = view_df["설비명"].astype("string").fillna("").astype(str).str.strip().str.upper()
+                if "날짜" in view_df.columns:
+                    view_df["날짜"] = pd.to_datetime(view_df["날짜"], errors="coerce")
+                if "Block" in view_df.columns:
+                    view_df["Block"] = pd.to_numeric(view_df["Block"], errors="coerce").fillna(0).astype(int)
+
+                equip_vals = (
+                    sorted([e for e in view_df.get("설비명", pd.Series(dtype=str)).dropna().astype(str).unique().tolist() if str(e).strip()])
+                    if not view_df.empty
+                    else []
+                )
+                equip_pick = st.selectbox(
+                    "설비(상세)",
+                    options=["전체", *equip_vals],
+                    index=0,
+                    key=f"inj_detail_equip_{code}",
+                )
+                if equip_pick != "전체" and "설비명" in view_df.columns:
+                    view_df = view_df.loc[view_df["설비명"].eq(str(equip_pick).strip().upper())].copy()
+                sort_cols = [c for c in ["설비명", "날짜", "Block"] if c in view_df.columns]
+                if sort_cols:
+                    view_df = view_df.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+
                 col_cfg = {
                     "날짜": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
                     "설비명": st.column_config.TextColumn(width="small"),
@@ -3204,16 +3458,28 @@ def main() -> None:
                     "제품명": st.column_config.TextColumn(width="large"),
                     "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
                     "Block": st.column_config.NumberColumn(format="%d", width="small"),
-                    "POWER 리스트": st.column_config.TextColumn(width="large"),
+                    "PW1": st.column_config.TextColumn(width="small"),
+                    "PW2": st.column_config.TextColumn(width="small"),
+                    "PW3": st.column_config.TextColumn(width="small"),
+                    "PW4": st.column_config.TextColumn(width="small"),
+                    "PW5": st.column_config.TextColumn(width="small"),
+                    "PW6": st.column_config.TextColumn(width="small"),
+                    "PW7": st.column_config.TextColumn(width="small"),
+                    "PW8": st.column_config.TextColumn(width="small"),
                     "POWER 개수": st.column_config.NumberColumn(format="%d", width="small"),
+                    "POWER(대표)": st.column_config.TextColumn(width="small"),
+                    "이전 POWER": st.column_config.TextColumn(width="small"),
+                    "코아교체": st.column_config.NumberColumn(format="%d", width="small"),
+                    "POWER 종류수": st.column_config.NumberColumn(format="%d", width="small"),
+                    "POWER 변경횟수": st.column_config.NumberColumn(format="%d", width="small"),
                     "배정수량": st.column_config.NumberColumn(format="localized", width="small"),
                     "잔여수량": st.column_config.NumberColumn(format="localized", width="small"),
                     "세팅구분": st.column_config.TextColumn(width="small"),
                 }
-                show_cols = [c for c in col_cfg.keys() if c in sched.columns]
-                table_h = _table_height_for_rows(len(sched), min_height=360, max_height=860)
+                show_cols = [c for c in col_cfg.keys() if c in view_df.columns]
+                table_h = _table_height_for_rows(len(view_df), min_height=360, max_height=860)
                 st.dataframe(
-                    _style_dataframe_like_dashboard(sched[show_cols]),
+                    _style_dataframe_like_dashboard(view_df[show_cols]),
                     use_container_width=True,
                     height=table_h,
                     hide_index=True,
