@@ -1994,6 +1994,10 @@ def _build_injection_schedule(
             # Operator rule: per shift, per cavity slot has a fixed max output.
             # (Overrides 생산실적 기반 CAPA-driven slot sizing.)
             slot_qty = 2000
+            # Color matching / setup policy:
+            # Avoid switching to a new product for tiny remainder in a block (causes matching churn).
+            # If a new product cannot produce at least this qty in the block, leave the block idle unless urgent.
+            min_new_product_qty = int(slot_qty)
 
             prev_prod = str(equip_last.get(equip_name, "") or "").strip().upper()
             affinity = str(equip_affinity.get(equip_name, "") or "").strip().upper()
@@ -2010,7 +2014,28 @@ def _build_injection_schedule(
                     return prefer
                 if affinity and affinity in candidates and _product_remaining(affinity) > 0 and _product_due(affinity) == best_due:
                     return affinity
-                return best
+
+                # Within earliest due group, avoid switching for tiny remainder (unless urgent).
+                earliest = [k for k in candidates if _product_due(k) == best_due]
+                if not earliest:
+                    return best
+
+                def _can_switch(k: str) -> bool:
+                    rem = int(_product_remaining(k) or 0)
+                    due = _product_due(k)
+                    urgent = bool(isinstance(due, date) and due <= day)
+                    # If this would be a product switch for the equipment, require meaningful qty.
+                    if prefer and str(k).strip().upper() != str(prefer).strip().upper():
+                        if (not urgent) and rem < int(min_new_product_qty):
+                            return False
+                    return True
+
+                filtered = [k for k in earliest if _can_switch(k)]
+                if not filtered:
+                    # Better to keep idle than create color matching churn for tiny remainder.
+                    return ""
+                filtered.sort(key=lambda k: (-_product_remaining(k), k))
+                return filtered[0]
 
             prod1 = _pick_product(prev_prod)
             if prod1:
@@ -2044,7 +2069,9 @@ def _build_injection_schedule(
                         cur_prod = prev_block_prod
                     else:
                         candidates = _eligible_products_for_equipment(er)
-                        cur_prod = _pick_product(prev_prod if not prev_block_prod else None)
+                        # Even when block1 product is exhausted, keep previous-day product as the "prefer" reference
+                        # so we can avoid switching for tiny remainder (color matching churn).
+                        cur_prod = _pick_product(prev_prod)
                         if cur_prod:
                             equip_affinity.setdefault(equip_name, cur_prod)
 
