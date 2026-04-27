@@ -163,6 +163,51 @@ def _coerce_single_value(value: str | None, *, default: str, options: list[str])
     return v if v in options else default
 
 
+def _pre_widget_multi_select_fix(*, key: str, default: list[str], options: list[str]) -> None:
+    """
+    Safe to call BEFORE the widget is instantiated in the current run.
+    Fixes invalid/cleared multi-select value in session_state so the widget shows `default`.
+    """
+    v = st.session_state.get(key)
+    if not isinstance(v, list):
+        v = [v] if v else []
+    v = [str(x).strip() for x in v if str(x).strip()]
+    v = [x for x in v if x in options]
+    if not v:
+        st.session_state[key] = list(default)
+    else:
+        st.session_state[key] = v
+
+
+def _on_change_multi_select_all_exclusive(key: str, all_value: str, options: list[str]) -> None:
+    """
+    Callback: multi-select where `all_value` behaves as exclusive default.
+    - empty => [all_value]
+    - selecting [all_value, ...] => [all_value]
+    """
+    v = st.session_state.get(key)
+    if not isinstance(v, list):
+        v = [v] if v else []
+    v = [str(x).strip() for x in v if str(x).strip()]
+    v = [x for x in v if x in options]
+    if not v:
+        st.session_state[key] = [all_value]
+        return
+    if (all_value in v) and (len(v) > 1):
+        st.session_state[key] = [all_value]
+        return
+    st.session_state[key] = v
+
+
+def _coerce_multi_values(value: object, *, default: list[str], options: list[str]) -> list[str]:
+    v = value
+    if not isinstance(v, list):
+        v = [v] if v else []
+    out = [str(x).strip() for x in v if str(x).strip()]
+    out = [x for x in out if x in options]
+    return out if out else list(default)
+
+
 def _find_repo_excel() -> str | None:
     for p in REPO_EXCEL_CANDIDATES:
         if os.path.exists(p):
@@ -2098,6 +2143,33 @@ def _build_injection_schedule(
     rows: list[dict[str, object]] = []
 
     for day in days:
+        # For "urgent" (due <= today/overdue) products, avoid pulling in additional machines unnecessarily.
+        # Heuristic: if the remaining qty of an urgent product can be covered by machines that are *already*
+        # running that product (yesterday/current), keep other machines on their current product to reduce churn.
+        urgent_done_by_running: set[str] = set()
+        try:
+            # Remaining by product at the beginning of the day.
+            urgent_remaining = {
+                k: _product_remaining(k)
+                for k in product_info.keys()
+                if _product_remaining(k) > 0 and _product_due(k) <= day
+            }
+            if urgent_remaining:
+                # Capacity by product from machines whose previous product is that product.
+                cap_by_prod: dict[str, int] = {k: 0 for k in urgent_remaining.keys()}
+                for _, er0 in usable.iterrows():
+                    equip0 = str(er0.get("설비명") or "").strip().upper()
+                    if not equip0:
+                        continue
+                    prev0 = str(equip_last.get(equip0, "") or "").strip().upper()
+                    if prev0 and prev0 in cap_by_prod:
+                        cap_by_prod[prev0] = int(cap_by_prod.get(prev0, 0)) + int(_equip_day_capa(equip0))
+                for k, rem in urgent_remaining.items():
+                    if int(cap_by_prod.get(k, 0)) >= int(rem):
+                        urgent_done_by_running.add(k)
+        except Exception:
+            urgent_done_by_running = set()
+
         for _, er in usable.iterrows():
             equip_name = str(er.get("설비명") or "").strip().upper()
             if not equip_name:
@@ -2122,6 +2194,31 @@ def _build_injection_schedule(
                     return ""
                 best = candidates[0]
                 best_due = _product_due(best)
+
+                # Operational reality: for the *first planning day* (today),
+                # keep the currently running product as-is when there is no "urgent" (due <= today) demand.
+                # This avoids unnecessary back-and-forth assignments like "today A -> tomorrow B"
+                # when the shop floor is already running B.
+                prefer_u = str(prefer or "").strip().upper()
+                if (
+                    prefer_u
+                    and (day == start_date)
+                    and (best_due > day)
+                    and (prefer_u in candidates)
+                    and (_product_remaining(prefer_u) > 0)
+                ):
+                    return prefer_u
+
+                # If the best (urgent) product can be fully handled by machines already running it,
+                # don't switch other machines away from their current product just because it's overdue.
+                if (
+                    prefer_u
+                    and (best_due <= day)
+                    and (best in urgent_done_by_running)
+                    and (prefer_u in candidates)
+                    and (_product_remaining(prefer_u) > 0)
+                ):
+                    return prefer_u
                 # Due date is the top priority. Keep previous/affinity only when they are within the same earliest due group.
                 if prefer and prefer in candidates and _product_remaining(prefer) > 0 and _product_due(prefer) == best_due:
                     return prefer
@@ -2134,8 +2231,6 @@ def _build_injection_schedule(
                 earliest = [k for k in candidates if _product_due(k) == best_due]
                 if not earliest:
                     return best
-
-                prefer_u = str(prefer or "").strip().upper()
 
                 def _switch_penalty(k: str) -> int:
                     rem = int(_product_remaining(k) or 0)
@@ -3584,7 +3679,7 @@ def main() -> None:
 
     prev_mode = st.session_state.get("_prev_view_mode")
     if prev_mode != view_mode:
-        st.session_state["code_pill"] = "전체"
+        st.session_state["code_pill"] = ["전체"]
         if view_mode == "납기별 상세":
             # Reset due-date filter when entering due view.
             st.session_state["due_due_quick"] = "해제"
@@ -3825,31 +3920,60 @@ def main() -> None:
             unsafe_allow_html=True,
         )
         st.markdown(f"<div class='aps-chip-wrap'>{''.join(chips)}</div>", unsafe_allow_html=True)
-        code = "전체"
+        codes_selected = ["전체"]
     else:
-        _pre_widget_single_select_fix(key="code_pill", default="전체", options=code_all_options)
+        _pre_widget_multi_select_fix(key="code_pill", default=["전체"], options=code_all_options)
         code_raw = st.pills(
             "분류",
             options=code_all_options,
-            default="전체",
+            default=["전체"],
             key="code_pill",
             format_func=_code_label,
-            selection_mode="single",
-            on_change=_on_change_single_select,
+            selection_mode="multi",
+            on_change=_on_change_multi_select_all_exclusive,
             args=("code_pill", "전체", code_all_options),
             label_visibility="collapsed",
         )
-        code = _coerce_single_value(code_raw, default="전체", options=code_all_options)
+        codes_selected = _coerce_multi_values(code_raw, default=["전체"], options=code_all_options)
+
+    def _is_all_codes(v: list[str]) -> bool:
+        return (not v) or ("전체" in v)
+
+    def _codes_label(v: list[str]) -> str:
+        if _is_all_codes(v):
+            return "전체"
+        if len(v) == 1:
+            return v[0]
+        vv = [str(x).strip() for x in v if str(x).strip()]
+        return f"{vv[0]}+{len(vv) - 1}"
+
+    def _codes_key(v: list[str]) -> str:
+        if _is_all_codes(v):
+            return "전체"
+        try:
+            import hashlib
+
+            s = "|".join(sorted(set([str(x).strip() for x in v if str(x).strip()])))
+            return "M_" + hashlib.md5(s.encode("utf-8")).hexdigest()[:8]
+        except Exception:
+            return "M_MULTI"
+
+    code_label = _codes_label(codes_selected)
+    code_key = _codes_key(codes_selected)
 
     if view_mode == "수주별 현황":
-        subset = order_df if code == "전체" else order_df[order_df[new_code_col].astype("string") == code].copy()
+        subset = (
+            order_df
+            if _is_all_codes(codes_selected)
+            else order_df[order_df[new_code_col].astype("string").isin(codes_selected)].copy()
+        )
         stage_cols_raw = DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in subset.columns]
 
         search_raw = st.text_input(
             "검색 (품명/이니셜/수주번호)",
             placeholder="예: 해외, 202601, SEPIA",
-            key=f"order_{code}_search",
+            key=f"order_{code_key}_search",
         )
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
 
@@ -3878,7 +4002,7 @@ def main() -> None:
         group_key = [c for c in ["이니셜", "수주번호"] if c in summary_base.columns]
         if not group_key:
             group_key = ["수주번호"] if "수주번호" in summary_base.columns else []
-        if code == "전체" and new_code_col in summary_base.columns:
+        if (_is_all_codes(codes_selected) or len(codes_selected) > 1) and new_code_col in summary_base.columns:
             group_key = [c for c in [*group_key, new_code_col] if c in summary_base.columns]
 
         agg_spec: dict[str, str] = {c: "sum" for c in numeric_cols}
@@ -3912,7 +4036,7 @@ def main() -> None:
             order_view["품목수"] = pd.to_numeric(order_view["품목수"], errors="coerce").fillna(0).astype(int)
 
         base_cols = ["우선순위", "이니셜", "수주번호"]
-        if code == "전체":
+        if _is_all_codes(codes_selected) or len(codes_selected) > 1:
             base_cols.append(new_code_col)
         base_cols += ["품목수", "납기일"]
         summary_cols = [c for c in base_cols if c in order_view.columns] + numeric_cols
@@ -3933,9 +4057,9 @@ def main() -> None:
         st.download_button(
             "엑셀 다운로드 (요약)",
             data=xlsx_bytes_sum,
-            file_name=f"수주요약_{code}_{_today_kst().isoformat()}.xlsx",
+            file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"order_{code}_download_sum",
+            key=f"order_{code_key}_download_sum",
         )
 
         order_show = order_view[summary_cols].copy()
@@ -3988,9 +4112,9 @@ def main() -> None:
         st.download_button(
             "엑셀 다운로드 (상세)",
             data=xlsx_bytes_det,
-            file_name=f"수주상세_{code}_{_today_kst().isoformat()}.xlsx",
+            file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"order_{code}_download_det",
+            key=f"order_{code_key}_download_det",
         )
 
         detail_h = _table_height_for_rows(len(view), min_height=320, max_height=720)
@@ -4106,8 +4230,8 @@ def main() -> None:
 
         # Base filters (code + due) for counts/pills.
         risk_base = risk_all.copy()
-        if code != "전체" and new_code_col in risk_base.columns:
-            risk_base = risk_base.loc[risk_base[new_code_col].astype("string") == code].copy()
+        if (not _is_all_codes(codes_selected)) and new_code_col in risk_base.columns:
+            risk_base = risk_base.loc[risk_base[new_code_col].astype("string").isin(codes_selected)].copy()
         if quick != "해제" and "납기일" in risk_base.columns:
             risk_base = _apply_due_date_end_filter(risk_base, st.session_state.get("risk_due_end", _today_kst()))
 
@@ -4140,7 +4264,7 @@ def main() -> None:
         search_raw = st.text_input(
             "검색 (이니셜/수주번호/품명)",
             placeholder="예: 해외, 202601, O2O2",
-            key=f"risk_{code}_search",
+            key=f"risk_{code_key}_search",
         )
 
         risk_df = _filter_by_any_contains(risk_base, ["품명", "이니셜", "수주번호"], search_raw)
@@ -4168,9 +4292,9 @@ def main() -> None:
         st.download_button(
             "엑셀 다운로드",
             data=xlsx_bytes_risk,
-            file_name=f"리스크_{code}_{_today_kst().isoformat()}.xlsx",
+            file_name=f"리스크_{code_label}_{_today_kst().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"risk_{code}_download",
+            key=f"risk_{code_key}_download",
         )
 
         column_config = {
@@ -4264,9 +4388,9 @@ def main() -> None:
         st.download_button(
             "엑셀 다운로드 (상세표)",
             data=xlsx_ops,
-            file_name=f"사출상세표_{code}_{_today_kst().isoformat()}.xlsx",
+            file_name=f"사출상세표_{code_label}_{_today_kst().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"inj_{code}_download_ops",
+            key=f"inj_{code_key}_download_ops",
         )
 
         blocks = _injection_schedule_to_blocks(sched)
@@ -4572,9 +4696,9 @@ def main() -> None:
             st.download_button(
                 "엑셀 다운로드 (미배정 잔여)",
                 data=xlsx_bytes_rem,
-                file_name=f"사출_미배정_{code}_{_today_kst().isoformat()}.xlsx",
+                file_name=f"사출_미배정_{code_label}_{_today_kst().isoformat()}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"inj_{code}_download_rem",
+                key=f"inj_{code_key}_download_rem",
             )
             rem_col_cfg = {}
             if "납기일" in rem_show.columns:
@@ -4602,13 +4726,17 @@ def main() -> None:
         if proc_quick_state != "해제":
             base_df = _apply_due_date_end_filter(base_df, st.session_state.get("proc_due_end", _today_kst()))
 
-    subset = base_df if code == "전체" else base_df[base_df[new_code_col].astype("string") == code].copy()
+    subset = (
+        base_df
+        if _is_all_codes(codes_selected)
+        else base_df[base_df[new_code_col].astype("string").isin(codes_selected)].copy()
+    )
     page_key = "due" if process_only is None else f"proc_{process_only}"
     render(
         subset,
-        ui_key_prefix=f"{page_key}_{code}",
+        ui_key_prefix=f"{page_key}_{code_key}",
         process_only=process_only,
-        selected_code=code,
+        selected_code=code_label,
     )
 
 
