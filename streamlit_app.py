@@ -354,14 +354,16 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
     equip_ok = os.path.exists(equip_code_target_csv) and (os.path.getmtime(equip_code_target_csv) >= excel_mtime)
     prod_ok = os.path.exists(prod_daily_csv) and (os.path.getmtime(prod_daily_csv) >= excel_mtime)
 
-    if (has_equip and (not equip_ok)) or (has_prod and (not prod_ok)):
+    # NOTE: prod_daily_csv is heavy and only needed for the Risk view.
+    # Keep the dashboard responsive by not forcing regeneration here.
+    if has_equip and (not equip_ok):
         return {
             "ok": True,
             "needs_regen": True,
             "due_csv": due_csv,
             "detail_csv": detail_csv,
             "equip_code_target_csv": equip_code_target_csv if has_equip else None,
-            "prod_daily_csv": prod_daily_csv if has_prod else None,
+            "prod_daily_csv": prod_daily_csv if (has_prod and prod_ok) else None,
         }
 
     return {
@@ -396,7 +398,8 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
             prod_ok = os.path.exists(prod_daily_csv) and os.path.getmtime(prod_daily_csv) >= excel_mtime
 
             # All required/available outputs exist and are up-to-date.
-            if (not has_equip or equip_ok) and (not has_prod or prod_ok):
+            # NOTE: prod_daily_csv is lazily generated when Risk view is opened.
+            if not has_equip or equip_ok:
                 return {
                     "ok": True,
                     "regenerated": False,
@@ -412,12 +415,6 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
     if not info.get("enabled"):
         return {"ok": False, "reason": info.get("reason") or "export failed"}
-    # Optional: production actuals (for risk tab)
-    try:
-        prod_info = excel_analysis.export_production_daily_good_qty(file_path=excel_path, out_dir=out_dir)
-        _ = prod_info
-    except Exception:
-        pass
     return {
         "ok": True,
         "regenerated": True,
@@ -1464,6 +1461,24 @@ def _filter_by_plant(df: pd.DataFrame | None, plant: str | None) -> pd.DataFrame
         return df
     s = df[col].astype("string").fillna("").astype(str).str.strip()
     return df.loc[s.eq(str(plant).strip())].copy()
+
+
+def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
+    try:
+        excel_mtime = float(os.path.getmtime(excel_path))
+    except Exception:
+        return None
+    prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
+    if os.path.exists(prod_daily_csv) and (os.path.getmtime(prod_daily_csv) >= excel_mtime):
+        return prod_daily_csv
+    try:
+        importlib.reload(excel_analysis)
+        info = excel_analysis.export_production_daily_good_qty(file_path=excel_path, out_dir=out_dir)
+        if info.get("enabled") and os.path.exists(prod_daily_csv):
+            return prod_daily_csv
+    except Exception:
+        return None
+    return None
 
 
 @st.cache_data(show_spinner=False)
@@ -4298,7 +4313,16 @@ def main() -> None:
         schedule_orders = _to_order_level(schedule_src)
         view_orders = _to_order_level(view_src)
 
-        prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
+        prod_path = str(prod_daily_csv) if prod_daily_csv else None
+        try:
+            if (not prod_path) or (not os.path.exists(prod_path)) or (excel_path and os.path.exists(excel_path) and os.path.getmtime(prod_path) < os.path.getmtime(excel_path)):
+                with st.spinner("리스크용 생산실적 데이터 생성 중..."):
+                    prod_path = _ensure_prod_daily_csv(excel_path=excel_path, out_dir=out_dir) if excel_path else None
+        except Exception:
+            prod_path = prod_path
+        prod_daily_df = (
+            _load_prod_daily_csv(str(prod_path), os.path.getmtime(str(prod_path))) if (prod_path and os.path.exists(prod_path)) else pd.DataFrame()
+        )
         prod_daily_df = _filter_by_plant(prod_daily_df, selected_plant)
         as_of = _today_kst() - timedelta(days=1)
         capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
