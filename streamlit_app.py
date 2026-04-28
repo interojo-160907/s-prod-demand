@@ -367,8 +367,8 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
 
     # Schema check: ensure plant column exists after app upgrades.
     try:
-        due_header = pd.read_csv(due_csv, nrows=0)
-        det_header = pd.read_csv(detail_csv, nrows=0)
+        due_header = pd.read_csv(due_csv, nrows=0, encoding="utf-8-sig")
+        det_header = pd.read_csv(detail_csv, nrows=0, encoding="utf-8-sig")
         if ("설비 사이트 코드" not in due_header.columns) or ("설비 사이트 코드" not in det_header.columns):
             return {
                 "ok": True,
@@ -1470,12 +1470,12 @@ def _load_item_code_map_cached(
 @st.cache_data(show_spinner=False)
 def _load_due_csv(path: str, mtime: float) -> pd.DataFrame:
     _ = mtime  # cache-buster when file changes
-    header = pd.read_csv(path, nrows=0)
+    header = pd.read_csv(path, nrows=0, encoding="utf-8-sig")
     dtype: dict[str, str] = {}
     for c in ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS"]:
         if c in header.columns:
             dtype[c] = "string"
-    df = pd.read_csv(path, dtype=dtype if dtype else None)
+    df = pd.read_csv(path, dtype=dtype if dtype else None, encoding="utf-8-sig")
     df["납기일"] = pd.to_datetime(df["납기일"], errors="coerce")
     return df
 
@@ -1483,12 +1483,12 @@ def _load_due_csv(path: str, mtime: float) -> pd.DataFrame:
 @st.cache_data(show_spinner=False)
 def _load_order_detail_csv(path: str, mtime: float) -> pd.DataFrame:
     _ = mtime  # cache-buster when file changes
-    header = pd.read_csv(path, nrows=0)
+    header = pd.read_csv(path, nrows=0, encoding="utf-8-sig")
     dtype: dict[str, str] = {}
     for c in ["이니셜", "수주번호", "신규분류 요약코드", "수요 제품 이름", "제품군", "제품 코드", "ADD", "CP", "AXIS"]:
         if c in header.columns:
             dtype[c] = "string"
-    df = pd.read_csv(path, dtype=dtype if dtype else None)
+    df = pd.read_csv(path, dtype=dtype if dtype else None, encoding="utf-8-sig")
     if "납기일" in df.columns:
         df["납기일"] = pd.to_datetime(df["납기일"], errors="coerce")
     return df
@@ -1499,12 +1499,12 @@ def _load_equip_code_min_target_csv(path: str, mtime: float) -> pd.DataFrame:
     _ = mtime  # cache-buster when file changes
     if not path or not os.path.exists(path):
         return pd.DataFrame()
-    header = pd.read_csv(path, nrows=0)
+    header = pd.read_csv(path, nrows=0, encoding="utf-8-sig")
     dtype: dict[str, str] = {}
     for c in ["공정", "제품 코드"]:
         if c in header.columns:
             dtype[c] = "string"
-    df = pd.read_csv(path, dtype=dtype if dtype else None)
+    df = pd.read_csv(path, dtype=dtype if dtype else None, encoding="utf-8-sig")
     if "최소목표일" in df.columns:
         df["최소목표일"] = pd.to_datetime(df["최소목표일"], errors="coerce")
     for c in ["공정", "제품 코드"]:
@@ -1518,12 +1518,12 @@ def _load_prod_daily_csv(path: str | None, mtime: float) -> pd.DataFrame:
     _ = mtime  # cache-buster when file changes
     if not path or not os.path.exists(path):
         return pd.DataFrame()
-    header = pd.read_csv(path, nrows=0)
+    header = pd.read_csv(path, nrows=0, encoding="utf-8-sig")
     dtype: dict[str, str] = {}
     for c in ["공정"]:
         if c in header.columns:
             dtype[c] = "string"
-    df = pd.read_csv(path, dtype=dtype if dtype else None)
+    df = pd.read_csv(path, dtype=dtype if dtype else None, encoding="utf-8-sig")
     if "생산일자" in df.columns:
         df["생산일자"] = pd.to_datetime(df["생산일자"], errors="coerce")
     for c in ["공정"]:
@@ -1566,6 +1566,8 @@ def _filter_by_plant(df: pd.DataFrame | None, plant: str | None) -> pd.DataFrame
     if col is None:
         return df
     s = df[col].astype("string").fillna("").astype(str).str.strip()
+    # Drop workbook total rows if they slip into downstream exports.
+    s = s.where(~s.isin(["총합계", "총합", "종합계"]), other="")
     return df.loc[s.eq(str(plant).strip())].copy()
 
 
