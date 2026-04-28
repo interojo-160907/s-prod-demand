@@ -1405,6 +1405,69 @@ def _attach_item_codes(
 
 
 @st.cache_data(show_spinner=False)
+def _load_item_code_map_cached(
+    detail_csv: str,
+    detail_mtime: float,
+    *,
+    plant: str | None,
+    allowed_prefixes: tuple[str, ...] | None,
+) -> pd.DataFrame:
+    """
+    Precompute item-code mapping table for process view.
+
+    This avoids repeating a heavy groupby/apply on every UI interaction.
+    """
+    detail = _load_order_detail_csv(detail_csv, detail_mtime)
+    detail = _filter_by_plant(detail, plant)
+    if detail is None or detail.empty or "제품 코드" not in detail.columns:
+        return pd.DataFrame()
+
+    key_cols = ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+    required = [c for c in key_cols if c != "납기일"]
+
+    d = detail.copy()
+    if "납기일" in d.columns:
+        d["납기일"] = pd.to_datetime(d["납기일"], errors="coerce")
+
+    for c in required:
+        if c not in d.columns:
+            d[c] = ""
+    for c in key_cols:
+        if c == "납기일":
+            continue
+        d[c] = d[c].astype("string").fillna("").str.strip()
+
+    prefixes: list[str] | None = None
+    if allowed_prefixes:
+        prefixes = [str(p).strip().upper() for p in allowed_prefixes if str(p).strip()]
+
+    def _codes_for_group(s: pd.Series) -> str:
+        items = s.dropna().astype(str).map(lambda x: x.strip())
+        if prefixes:
+            items = items[items.map(lambda x: any(x.upper().startswith(p) for p in prefixes))]
+        try:
+            group_key = s.name if isinstance(s.name, tuple) else (s.name,)
+            axis_idx = key_cols.index("AXIS")
+            axis_val = str(group_key[axis_idx]).strip()
+        except Exception:
+            axis_val = ""
+        if axis_val.isdigit() and len(axis_val) == 3 and len(items) > 1:
+            items_axis = items[items.map(lambda x: str(x)[-3:].isdigit() and str(x)[-3:] == axis_val)]
+            if len(items_axis) > 0:
+                items = items_axis
+        uniq = sorted(set([x for x in items.tolist() if str(x).strip()]))
+        return uniq[0] if uniq else ""
+
+    out = (
+        d.groupby(key_cols, dropna=False)["제품 코드"]
+        .apply(_codes_for_group)
+        .reset_index()
+        .rename(columns={"제품 코드": "제품코드"})
+    )
+    return out
+
+
+@st.cache_data(show_spinner=False)
 def _load_due_csv(path: str, mtime: float) -> pd.DataFrame:
     _ = mtime  # cache-buster when file changes
     header = pd.read_csv(path, nrows=0)
@@ -3737,7 +3800,18 @@ def main() -> None:
                 "누수규격": ["P"],
             }
             allowed_prefixes = prefix_map.get(process_only, None)
-            view = _attach_item_codes(view, detail_for_map, allowed_prefixes=allowed_prefixes)
+            try:
+                item_map = _load_item_code_map_cached(
+                    detail_csv,
+                    os.path.getmtime(detail_csv),
+                    plant=selected_plant,
+                    allowed_prefixes=tuple(allowed_prefixes) if allowed_prefixes else None,
+                )
+            except Exception:
+                item_map = pd.DataFrame()
+            key_cols = ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+            if not item_map.empty and all(c in view.columns for c in key_cols):
+                view = view.merge(item_map, on=key_cols, how="left")
             if "제품코드" not in view.columns:
                 view["제품코드"] = ""
 
