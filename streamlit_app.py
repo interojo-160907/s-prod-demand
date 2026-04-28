@@ -183,7 +183,7 @@ def _on_change_multi_select_all_exclusive(key: str, all_value: str, options: lis
     """
     Callback: multi-select where `all_value` behaves as exclusive default.
     - empty => [all_value]
-    - selecting [all_value, ...] => [all_value]
+    - selecting [all_value, ...] => remove `all_value` (keep specifics)
     """
     v = st.session_state.get(key)
     if not isinstance(v, list):
@@ -194,7 +194,9 @@ def _on_change_multi_select_all_exclusive(key: str, all_value: str, options: lis
         st.session_state[key] = [all_value]
         return
     if (all_value in v) and (len(v) > 1):
-        st.session_state[key] = [all_value]
+        v = [x for x in v if x != all_value]
+        v = list(dict.fromkeys(v))
+        st.session_state[key] = v if v else [all_value]
         return
     st.session_state[key] = v
 
