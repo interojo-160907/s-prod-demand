@@ -3772,9 +3772,8 @@ def main() -> None:
         if (not process_only) and numeric_cols:
             stage_sum = df_num[numeric_cols].sum(axis=1)
             keep_mask = stage_sum.ne(0)
-            if bool(keep_mask.any()):
-                filtered = filtered.loc[keep_mask].copy()
-                df_num = df_num.loc[keep_mask].copy()
+            filtered = filtered.loc[keep_mask].copy()
+            df_num = df_num.loc[keep_mask].copy()
 
         total_col = process_only if process_only in df_num.columns else ("누수규격" if "누수규격" in df_num.columns else None)
         header_ph.subheader(total_label)
@@ -4067,6 +4066,10 @@ def main() -> None:
             label_visibility="collapsed",
         )
         process_only = _coerce_single_value(process_only_raw, default="사출", options=DEFAULT_STAGE_COLS)
+        prev_proc = st.session_state.get("_prev_process_pill")
+        if prev_proc != process_only:
+            st.session_state["code_pill"] = ["전체"]
+            st.session_state["_prev_process_pill"] = process_only
 
         # Due date end quick-picks (same idea as order view).
         proc_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
@@ -4172,6 +4175,13 @@ def main() -> None:
                     codes_src,
                     st.session_state.get("due_due_end", _today_kst()),
                 )
+            # Only show codes that actually have demand on any process column.
+            stage_cols = [c for c in DEFAULT_STAGE_COLS if c in codes_src.columns]
+            if stage_cols:
+                tmp = codes_src.copy()
+                for c in stage_cols:
+                    tmp[c] = pd.to_numeric(tmp[c], errors="coerce").fillna(0)
+                codes_src = tmp.loc[tmp[stage_cols].sum(axis=1).ne(0)].copy()
         if view_mode == "공정별 보기":
             proc_quick_state = st.session_state.get("proc_due_quick", "해제")
             if proc_quick_state != "해제":
@@ -5062,6 +5072,11 @@ def main() -> None:
         proc_quick_state = st.session_state.get("proc_due_quick", "해제")
         if proc_quick_state != "해제":
             base_df = _apply_due_date_end_filter(base_df, st.session_state.get("proc_due_end", _today_kst()))
+        # Filter out codes/rows that have no demand on the selected process.
+        if process_only and process_only in base_df.columns:
+            tmp = base_df.copy()
+            tmp[process_only] = pd.to_numeric(tmp[process_only], errors="coerce").fillna(0)
+            base_df = tmp.loc[tmp[process_only].ne(0)].copy()
 
     subset = (
         base_df
