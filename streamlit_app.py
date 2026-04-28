@@ -4644,7 +4644,13 @@ def main() -> None:
     if view_mode == "리스크":
         st.subheader("리스크 (수주 기준)")
 
-        if not prod_daily_csv:
+        if (not excel_path) or (not os.path.exists(excel_path)):
+            st.error("리스크 계산을 위해 엑셀 파일이 필요합니다. 엑셀 경로를 확인하세요.")
+            st.stop()
+
+        excel_mtime = _excel_version_mtime(excel_path)
+        sheet_names = _xlsx_sheet_names_cached(excel_path, float(excel_mtime)) if excel_mtime else set()
+        if "생산실적" not in sheet_names:
             st.error("`생산실적` 시트 기반 CAPA 데이터가 없습니다. 엑셀에 `생산실적` 시트가 있는지 확인하세요.")
             st.stop()
 
@@ -4684,11 +4690,9 @@ def main() -> None:
         schedule_orders = _to_order_level(schedule_src)
         view_orders = _to_order_level(view_src)
 
-        prod_path = str(prod_daily_csv) if prod_daily_csv else None
+        prod_path = str(prod_daily_csv) if prod_daily_csv else os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
         try:
-            if (not prod_path) or (not os.path.exists(prod_path)) or (
-                excel_path and os.path.exists(excel_path) and os.path.getmtime(prod_path) < _excel_version_mtime(excel_path)
-            ):
+            if (not os.path.exists(prod_path)) or (os.path.getmtime(prod_path) < _excel_version_mtime(excel_path)):
                 with st.spinner("리스크용 생산실적 데이터 생성 중..."):
                     prod_path = _ensure_prod_daily_csv(excel_path=excel_path, out_dir=out_dir) if excel_path else None
         except Exception:
