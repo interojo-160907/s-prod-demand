@@ -241,27 +241,6 @@ def _find_repo_excel() -> str | None:
 
 def _file_mtime_label(path: str) -> str:
     try:
-        def _xlsx_modified_ts(p: str) -> datetime | None:
-            if not str(p).lower().endswith(".xlsx"):
-                return None
-            try:
-                with zipfile.ZipFile(p) as zf:
-                    core = zf.read("docProps/core.xml")
-                root = ET.fromstring(core)
-                ns = {
-                    "dcterms": "http://purl.org/dc/terms/",
-                }
-                modified_el = root.find(".//dcterms:modified", ns)
-                if modified_el is None or not (modified_el.text or "").strip():
-                    return None
-                raw = modified_el.text.strip()
-                raw = raw.replace("Z", "+00:00")
-                dt = datetime.fromisoformat(raw)
-                return dt if dt.tzinfo is not None else dt.replace(tzinfo=ZoneInfo("UTC"))
-            except Exception:
-                return None
-
-        # Prefer Excel's internal "modified" timestamp (prevents git checkout time confusion).
         ts = _xlsx_modified_ts(path)
         if ts is None:
             ts = datetime.fromtimestamp(os.path.getmtime(path), tz=KST)
@@ -270,6 +249,47 @@ def _file_mtime_label(path: str) -> str:
         return ts.strftime("%Y-%m-%d %H:%M:%S %Z")
     except Exception:
         return "-"
+
+
+def _xlsx_modified_ts(p: str) -> datetime | None:
+    if not str(p).lower().endswith(".xlsx"):
+        return None
+    try:
+        with zipfile.ZipFile(p) as zf:
+            core = zf.read("docProps/core.xml")
+        root = ET.fromstring(core)
+        ns = {
+            "dcterms": "http://purl.org/dc/terms/",
+        }
+        modified_el = root.find(".//dcterms:modified", ns)
+        if modified_el is None or not (modified_el.text or "").strip():
+            return None
+        raw = modified_el.text.strip()
+        raw = raw.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(raw)
+        return dt if dt.tzinfo is not None else dt.replace(tzinfo=ZoneInfo("UTC"))
+    except Exception:
+        return None
+
+
+def _excel_version_mtime(path: str) -> float:
+    """
+    Stable mtime-like value for Excel workbooks.
+
+    Streamlit Cloud checkouts can make filesystem mtime change on every deploy/restart,
+    causing unnecessary (slow) regeneration of derived CSVs. Prefer the workbook's
+    internal modified timestamp when available.
+    """
+    try:
+        ts = _xlsx_modified_ts(path)
+        if ts is not None:
+            return ts.timestamp()
+    except Exception:
+        pass
+    try:
+        return float(os.path.getmtime(path))
+    except Exception:
+        return 0.0
 
 
 def _read_bytes(path: str) -> bytes | None:
@@ -324,9 +344,8 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
     equip_code_target_csv = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
     prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
 
-    try:
-        excel_mtime = float(os.path.getmtime(excel_path))
-    except Exception:
+    excel_mtime = _excel_version_mtime(excel_path)
+    if not excel_mtime:
         return {"ok": False, "reason": "엑셀 파일을 찾을 수 없습니다."}
 
     # Base outputs must exist and be newer than the Excel file.
@@ -382,7 +401,7 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     detail_csv = os.path.join(out_dir, "이니셜별_수주상세.csv")
     equip_code_target_csv = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
     prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
-    excel_mtime = os.path.getmtime(excel_path)
+    excel_mtime = _excel_version_mtime(excel_path)
 
     if os.path.exists(due_csv) and os.path.exists(detail_csv):
         if os.path.getmtime(due_csv) >= excel_mtime and os.path.getmtime(detail_csv) >= excel_mtime:
@@ -1464,9 +1483,8 @@ def _filter_by_plant(df: pd.DataFrame | None, plant: str | None) -> pd.DataFrame
 
 
 def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
-    try:
-        excel_mtime = float(os.path.getmtime(excel_path))
-    except Exception:
+    excel_mtime = _excel_version_mtime(excel_path)
+    if not excel_mtime:
         return None
     prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
     if os.path.exists(prod_daily_csv) and (os.path.getmtime(prod_daily_csv) >= excel_mtime):
@@ -3438,6 +3456,8 @@ def _build_order_risk_table_cached(
 
 def main() -> None:
     st.title("S관 생산 필요수량 대시보드")
+    boot_ph = st.empty()
+    boot_ph.caption("초기 로딩 중...")
     _apply_local_theme_css()
 
     dashboard_links = _load_dashboard_links()
@@ -3480,14 +3500,21 @@ def main() -> None:
         st.stop()
 
     out_dir = OUT_DIR
+    boot_ph.caption("데이터 상태 확인 중...")
     status = _outputs_status(excel_path=excel_path, out_dir=out_dir)
     if not status.get("ok"):
         st.error(f"데이터 로딩 실패: {status.get('reason') or '-'}")
         st.stop()
 
     if status.get("needs_regen"):
+        boot_ph.caption("엑셀 변경 감지: 데이터 생성 중...")
         with st.spinner("엑셀 변경 감지: 데이터 생성 중..."):
-            ensure = _ensure_latest_outputs(excel_path=excel_path, out_dir=out_dir)
+            try:
+                ensure = _ensure_latest_outputs(excel_path=excel_path, out_dir=out_dir)
+            except Exception as e:
+                st.error("데이터 생성 중 예외가 발생했습니다.")
+                st.exception(e)
+                st.stop()
     else:
         ensure = status
 
@@ -3496,6 +3523,7 @@ def main() -> None:
         st.stop()
     if ensure.get("regenerated"):
         st.cache_data.clear()
+    boot_ph.empty()
 
     due_csv = str(ensure["due_csv"])
     detail_csv = str(ensure["detail_csv"])
@@ -3547,7 +3575,7 @@ def main() -> None:
     plant_options = []
     if excel_path:
         try:
-            plant_options = _load_plant_options_from_excel(excel_path, os.path.getmtime(excel_path))
+            plant_options = _load_plant_options_from_excel(excel_path, _excel_version_mtime(excel_path))
         except Exception:
             plant_options = []
     if not plant_options and "설비 사이트 코드" in df.columns:
@@ -4315,7 +4343,9 @@ def main() -> None:
 
         prod_path = str(prod_daily_csv) if prod_daily_csv else None
         try:
-            if (not prod_path) or (not os.path.exists(prod_path)) or (excel_path and os.path.exists(excel_path) and os.path.getmtime(prod_path) < os.path.getmtime(excel_path)):
+            if (not prod_path) or (not os.path.exists(prod_path)) or (
+                excel_path and os.path.exists(excel_path) and os.path.getmtime(prod_path) < _excel_version_mtime(excel_path)
+            ):
                 with st.spinner("리스크용 생산실적 데이터 생성 중..."):
                     prod_path = _ensure_prod_daily_csv(excel_path=excel_path, out_dir=out_dir) if excel_path else None
         except Exception:
@@ -4328,7 +4358,7 @@ def main() -> None:
         capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
 
         # Optional: reflect injection short-term schedule into completion dates (more realistic injection start/throughput).
-        inj_excel_mtime = float(os.path.getmtime(excel_path)) if excel_path and os.path.exists(excel_path) else 0.0
+        inj_excel_mtime = _excel_version_mtime(excel_path) if excel_path and os.path.exists(excel_path) else 0.0
         inj_info = _load_injection_sheet_cached(excel_path, inj_excel_mtime) if excel_path else {"equip": pd.DataFrame(), "arrange": pd.DataFrame()}
         inj_equip = inj_info.get("equip", pd.DataFrame())
         inj_arrange = inj_info.get("arrange", pd.DataFrame())
@@ -4496,7 +4526,7 @@ def main() -> None:
             label_visibility="collapsed",
         )
 
-        excel_mtime = float(os.path.getmtime(excel_path))
+        excel_mtime = _excel_version_mtime(excel_path)
         base_df = _filter_by_plant(df, "S관(3공장)") if selected_plant == "전체" else df
 
         # NOTE: product-group pills are for *volume visibility* only.
