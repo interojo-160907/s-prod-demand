@@ -177,14 +177,23 @@ def _pre_widget_multi_select_fix(*, key: str, default: list[str], options: list[
         st.session_state[key] = list(default)
     else:
         st.session_state[key] = v
+    # Track previous selection for callbacks that need to infer "what user clicked".
+    st.session_state.setdefault(f"_{key}__prev_multi", list(st.session_state.get(key) or []))
 
 
 def _on_change_multi_select_all_exclusive(key: str, all_value: str, options: list[str]) -> None:
     """
-    Callback: multi-select where `all_value` behaves as exclusive default.
+    Callback: multi-select where `all_value` behaves as an exclusive default.
     - empty => [all_value]
-    - selecting [all_value, ...] => remove `all_value` (keep specifics)
+    - user clicks `all_value` => [all_value]
+    - user clicks specific while `all_value` is selected => remove `all_value` (keep specifics)
     """
+    prev = st.session_state.get(f"_{key}__prev_multi")
+    if not isinstance(prev, list):
+        prev = [prev] if prev else []
+    prev = [str(x).strip() for x in prev if str(x).strip()]
+    prev = [x for x in prev if x in options]
+
     v = st.session_state.get(key)
     if not isinstance(v, list):
         v = [v] if v else []
@@ -192,13 +201,26 @@ def _on_change_multi_select_all_exclusive(key: str, all_value: str, options: lis
     v = [x for x in v if x in options]
     if not v:
         st.session_state[key] = [all_value]
+        st.session_state[f"_{key}__prev_multi"] = [all_value]
         return
-    if (all_value in v) and (len(v) > 1):
-        v = [x for x in v if x != all_value]
-        v = list(dict.fromkeys(v))
-        st.session_state[key] = v if v else [all_value]
+
+    # If `all_value` has been newly added, user clicked it -> keep only `all_value`.
+    if (all_value in v) and (all_value not in prev):
+        st.session_state[key] = [all_value]
+        st.session_state[f"_{key}__prev_multi"] = [all_value]
         return
+
+    # If `all_value` is mixed with specifics and it was already selected before,
+    # user clicked a specific -> remove `all_value`.
+    if (all_value in v) and (len(v) > 1) and (all_value in prev):
+        v2 = [x for x in v if x != all_value]
+        v2 = list(dict.fromkeys(v2))
+        st.session_state[key] = v2 if v2 else [all_value]
+        st.session_state[f"_{key}__prev_multi"] = list(st.session_state[key])
+        return
+
     st.session_state[key] = v
+    st.session_state[f"_{key}__prev_multi"] = v
 
 
 def _coerce_multi_values(value: object, *, default: list[str], options: list[str]) -> list[str]:
