@@ -3716,7 +3716,8 @@ def main() -> None:
             .tolist()
         )
 
-    default_plant = "S관(3공장)" if "S관(3공장)" in plant_options else (plant_options[0] if len(plant_options) == 1 else "전체")
+    # Default to "전체" on first load; user can narrow down to a plant.
+    default_plant = "전체"
     plant_ui_options = ["전체", *plant_options] if plant_options else ["전체"]
     _pre_widget_single_select_fix(key="plant_filter", default=default_plant, options=plant_ui_options)
     plant_raw = st.pills(
