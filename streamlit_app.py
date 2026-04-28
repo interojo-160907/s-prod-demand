@@ -1432,6 +1432,41 @@ def _load_prod_daily_csv(path: str | None, mtime: float) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def _load_plant_options_from_excel(path: str, mtime: float) -> list[str]:
+    _ = mtime  # cache-buster
+    try:
+        df = pd.read_excel(path, sheet_name="이니셜별", usecols=["설비 사이트 코드"])
+    except Exception:
+        return []
+    s = df.get("설비 사이트 코드")
+    if s is None:
+        return []
+    vals = (
+        s.astype("string")
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .loc[lambda x: x.ne("")]
+        .loc[lambda x: ~x.isin(["총합계", "총합", "종합계"])]
+        .drop_duplicates()
+        .tolist()
+    )
+    return sorted(vals)
+
+
+def _filter_by_plant(df: pd.DataFrame | None, plant: str | None) -> pd.DataFrame | None:
+    if df is None or df.empty:
+        return df
+    if not plant or plant == "전체":
+        return df
+    col = "설비 사이트 코드" if "설비 사이트 코드" in df.columns else ("공장" if "공장" in df.columns else None)
+    if col is None:
+        return df
+    s = df[col].astype("string").fillna("").astype(str).str.strip()
+    return df.loc[s.eq(str(plant).strip())].copy()
+
+
+@st.cache_data(show_spinner=False)
 def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFrame]:
     _ = mtime  # cache-buster when file changes
     try:
@@ -3493,6 +3528,50 @@ def main() -> None:
     df = base
     new_code_col = "신규분류 요약코드" if "신규분류 요약코드" in df.columns else None
 
+    # Top-level plant filter (관/공장) - keep selection across all view modes.
+    plant_options = []
+    if excel_path:
+        try:
+            plant_options = _load_plant_options_from_excel(excel_path, os.path.getmtime(excel_path))
+        except Exception:
+            plant_options = []
+    if not plant_options and "설비 사이트 코드" in df.columns:
+        plant_options = (
+            df["설비 사이트 코드"]
+            .astype("string")
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .loc[lambda x: x.ne("") & ~x.isin(["총합계", "총합", "종합계"])]
+            .drop_duplicates()
+            .sort_values()
+            .tolist()
+        )
+
+    default_plant = "S관(3공장)" if "S관(3공장)" in plant_options else (plant_options[0] if len(plant_options) == 1 else "전체")
+    plant_ui_options = ["전체", *plant_options] if plant_options else ["전체"]
+    _pre_widget_single_select_fix(key="plant_filter", default=default_plant, options=plant_ui_options)
+    plant_raw = st.pills(
+        "공장구분",
+        options=plant_ui_options,
+        default=default_plant,
+        key="plant_filter",
+        selection_mode="single",
+        on_change=_on_change_single_select,
+        args=("plant_filter", default_plant, plant_ui_options),
+        label_visibility="collapsed",
+    )
+    selected_plant = _coerce_single_value(plant_raw, default=default_plant, options=plant_ui_options)
+
+    prev_plant = st.session_state.get("_prev_plant_filter")
+    if prev_plant != selected_plant:
+        st.session_state["code_pill"] = ["전체"]
+        st.session_state["_prev_plant_filter"] = selected_plant
+
+    df = _filter_by_plant(df, selected_plant)
+    detail_for_map = _filter_by_plant(detail_for_map, selected_plant)
+    equip_code_target_df = _filter_by_plant(equip_code_target_df, selected_plant)
+
     def render(
         filtered: pd.DataFrame,
         *,
@@ -4220,6 +4299,7 @@ def main() -> None:
         view_orders = _to_order_level(view_src)
 
         prod_daily_df = _load_prod_daily_csv(str(prod_daily_csv), os.path.getmtime(str(prod_daily_csv)))
+        prod_daily_df = _filter_by_plant(prod_daily_df, selected_plant)
         as_of = _today_kst() - timedelta(days=1)
         capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
 
@@ -4372,6 +4452,9 @@ def main() -> None:
 
     if view_mode == "사출 계획":
         st.subheader("사출 스케줄 (자동 생성)")
+        if selected_plant not in ("S관(3공장)", "전체"):
+            st.info(f"사출 계획은 현재 `S관(3공장)`만 지원합니다. (현재 선택: `{selected_plant}`)")
+            return
         # Fixed horizon + start date (planning is always shown from 'today').
         horizon_days = 5
         start_date = _today_kst()
@@ -4390,7 +4473,7 @@ def main() -> None:
         )
 
         excel_mtime = float(os.path.getmtime(excel_path))
-        base_df = df
+        base_df = _filter_by_plant(df, "S관(3공장)") if selected_plant == "전체" else df
 
         # NOTE: product-group pills are for *volume visibility* only.
         # Injection schedule must always be generated from the full dataset (전체),

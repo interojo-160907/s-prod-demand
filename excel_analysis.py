@@ -657,7 +657,10 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     )
 
     agg = ["생산 수량"] + present_process_cols
-    group_cols = []
+    group_cols: list[str] = []
+    # Plant/Site dimension (관/공장) - enables top-level filtering in dashboard.
+    if "설비 사이트 코드" in demand.columns:
+        group_cols.append("설비 사이트 코드")
     if "신규분류 요약코드" in demand.columns:
         group_cols.append("신규분류 요약코드")
     group_cols += ["제품군", "ADD", "CP", "AXIS", "납기일"]
@@ -713,9 +716,10 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
 
                 equip_min = equip.loc[equip["공정"].ne("") & equip["제품군"].astype("string").fillna("").str.strip().ne("")]
                 if not equip_min.empty:
-                    equip_min = equip_min.groupby([group_col, "제품군", "공정"], dropna=False, as_index=False).agg(
-                        최소목표일=("최소 목표일", "min")
-                    )
+                    equip_group_cols: list[str] = [group_col, "제품군", "공정"]
+                    if "설비 사이트 코드" in equip_min.columns:
+                        equip_group_cols = ["설비 사이트 코드", *equip_group_cols]
+                    equip_min = equip_min.groupby(equip_group_cols, dropna=False, as_index=False).agg(최소목표일=("최소 목표일", "min"))
                     equip_min = equip_min.rename(columns={group_col: "신규분류 요약코드"})
                     equip_target_path = os.path.join(out_dir, "설비별_제품군_공정_최소목표일.csv")
                     equip_min.to_csv(equip_target_path, index=False, encoding="utf-8-sig")
@@ -737,7 +741,10 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
                 )
                 equip_code = equip_code.loc[equip_code["공정"].ne("") & equip_code["제품 코드"].ne("")]
                 if not equip_code.empty:
-                    equip_code_min = equip_code.groupby(["공정", "제품 코드"], dropna=False, as_index=False).agg(
+                    equip_code_group_cols: list[str] = ["공정", "제품 코드"]
+                    if "설비 사이트 코드" in equip_code.columns:
+                        equip_code_group_cols = ["설비 사이트 코드", *equip_code_group_cols]
+                    equip_code_min = equip_code.groupby(equip_code_group_cols, dropna=False, as_index=False).agg(
                         최소목표일=("최소 목표일", "min")
                     )
                     equip_code_target_path = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
@@ -745,11 +752,16 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
 
     out_path = os.path.join(out_dir, "납기_제품군_공정별부족.csv")
     cols = []
+    if "설비 사이트 코드" in g.columns:
+        cols.append("설비 사이트 코드")
     if "신규분류 요약코드" in g.columns:
         cols.append("신규분류 요약코드")
     cols += ["제품군", "ADD", "CP", "AXIS", "납기일", "필요수량", "사출", "분리", "하이드레이션", "접착", "누수규격"]
     cols = [c for c in cols if c in g.columns]
-    sort_cols = ["납기일"]
+    sort_cols: list[str] = []
+    if "설비 사이트 코드" in g.columns:
+        sort_cols.append("설비 사이트 코드")
+    sort_cols.append("납기일")
     if "신규분류 요약코드" in g.columns:
         sort_cols.append("신규분류 요약코드")
     sort_cols.append("제품군")
@@ -770,6 +782,7 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
         }
     )
     detail_cols = [
+        "설비 사이트 코드",
         "이니셜",
         "수주번호",
         "신규분류 요약코드",
@@ -856,10 +869,12 @@ def export_production_daily_good_qty(file_path: str | bytes, out_dir: str) -> di
     prod["양품"] = pd.to_numeric(prod[good_col], errors="coerce").fillna(0)
     prod = prod.loc[prod["생산일자"].notna()].copy()
 
-    g = (
-        prod.groupby(["공정", "생산일자"], dropna=False, as_index=False)[["양품"]]
-        .sum(numeric_only=True)
-        .sort_values(["공정", "생산일자"], ascending=[True, True])
+    group_cols: list[str] = ["공정", "생산일자"]
+    if "공장" in prod.columns:
+        group_cols = ["공장", *group_cols]
+    sort_cols = [c for c in group_cols if c in ["공장", "공정", "생산일자"]]
+    g = prod.groupby(group_cols, dropna=False, as_index=False)[["양품"]].sum(numeric_only=True).sort_values(
+        sort_cols, ascending=[True] * len(sort_cols)
     )
 
     out_path = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
