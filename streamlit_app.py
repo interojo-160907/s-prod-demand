@@ -3478,6 +3478,42 @@ def _build_order_risk_table_cached(
     )
 
 
+@st.cache_data(show_spinner=False)
+def _build_order_risk_from_paths_cached(
+    *,
+    detail_csv: str,
+    detail_mtime: float,
+    prod_daily_csv: str | None,
+    prod_daily_mtime: float,
+    plant: str,
+    today: date,
+    buffer_days: float,
+    start_offset_days: int,
+    injection_segs: list[dict[str, object]] | None,
+    injection_start_date: date | None,
+    injection_daily_fallback: float | None,
+) -> pd.DataFrame:
+    order_df = _load_order_detail_grouped(detail_csv, detail_mtime)
+    order_df = _filter_by_plant(order_df, plant)
+    if prod_daily_csv and os.path.exists(prod_daily_csv):
+        prod_daily_df = _load_prod_daily_csv(prod_daily_csv, prod_daily_mtime)
+        prod_daily_df = _filter_by_plant(prod_daily_df, plant)
+    else:
+        prod_daily_df = pd.DataFrame()
+    as_of = today - timedelta(days=1)
+    capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
+    return _build_order_risk_table(
+        order_df,
+        capa_table,
+        today=today,
+        buffer_days=buffer_days,
+        start_offset_days=start_offset_days,
+        injection_segs=injection_segs,
+        injection_start_date=injection_start_date,
+        injection_daily_fallback=injection_daily_fallback,
+    )
+
+
 def main() -> None:
     st.title("S관 생산 필요수량 대시보드")
     boot_ph = st.empty()
@@ -4421,10 +4457,16 @@ def main() -> None:
         except Exception:
             inj_segs = []
 
-        # Compute risk/schedule on ALL orders (schedule_orders), then filter down for display (subset).
-        risk_all = _build_order_risk_table_cached(
-            schedule_orders,
-            capa_table,
+        # Compute risk/schedule (cached by source file mtimes + plant + schedule params).
+        # This avoids hashing large DataFrames on every UI interaction.
+        prod_path_for_cache = str(prod_path) if (prod_path and os.path.exists(prod_path)) else None
+        prod_mtime_for_cache = float(os.path.getmtime(prod_path_for_cache)) if prod_path_for_cache else 0.0
+        risk_all = _build_order_risk_from_paths_cached(
+            detail_csv=detail_csv,
+            detail_mtime=float(os.path.getmtime(detail_csv)),
+            prod_daily_csv=prod_path_for_cache,
+            prod_daily_mtime=prod_mtime_for_cache,
+            plant=selected_plant,
             today=_today_kst(),
             buffer_days=float(RISK_YELLOW_BUFFER_DAYS),
             start_offset_days=int(RISK_SCHED_START_OFFSET_DAYS),
