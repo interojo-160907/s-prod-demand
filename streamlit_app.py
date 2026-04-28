@@ -348,12 +348,22 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
     if not excel_mtime:
         return {"ok": False, "reason": "엑셀 파일을 찾을 수 없습니다."}
 
-    # Base outputs must exist and be newer than the Excel file.
+    # Base outputs must exist and be newer than the Excel file and analysis code.
+    try:
+        analysis_mtime = float(os.path.getmtime(__file__))
+        try:
+            analysis_mtime = max(analysis_mtime, float(os.path.getmtime(excel_analysis.__file__)))
+        except Exception:
+            pass
+    except Exception:
+        analysis_mtime = 0.0
     base_ok = (
         os.path.exists(due_csv)
         and os.path.exists(detail_csv)
         and (os.path.getmtime(due_csv) >= excel_mtime)
         and (os.path.getmtime(detail_csv) >= excel_mtime)
+        and (os.path.getmtime(due_csv) >= analysis_mtime)
+        and (os.path.getmtime(detail_csv) >= analysis_mtime)
     )
     if not base_ok:
         return {
@@ -1569,6 +1579,63 @@ def _filter_by_plant(df: pd.DataFrame | None, plant: str | None) -> pd.DataFrame
     # Drop workbook total rows if they slip into downstream exports.
     s = s.where(~s.isin(["총합계", "총합", "종합계"]), other="")
     return df.loc[s.eq(str(plant).strip())].copy()
+
+
+@st.cache_data(show_spinner=False)
+def _code_totals_from_due_csv_cached(
+    *,
+    due_csv: str,
+    due_mtime: float,
+    plant: str,
+    view_mode: str,
+    due_end: date | None,
+    process_only: str | None,
+) -> tuple[dict[str, float], float]:
+    _ = due_mtime  # cache-buster
+    usecols = ["설비 사이트 코드", "신규분류 요약코드", "납기일", *DEFAULT_STAGE_COLS]
+    # Only keep columns that exist (older outputs).
+    header = pd.read_csv(due_csv, nrows=0, encoding="utf-8-sig")
+    usecols = [c for c in usecols if c in header.columns]
+    df = pd.read_csv(due_csv, usecols=usecols, encoding="utf-8-sig")
+    df = _filter_by_plant(df, plant) if plant and plant != "전체" else df
+    if df is None or df.empty:
+        return ({}, 0.0)
+    if "납기일" in df.columns:
+        df["납기일"] = pd.to_datetime(df["납기일"], errors="coerce")
+    if due_end is not None and "납기일" in df.columns:
+        df = _apply_due_date_end_filter(df, due_end)
+    if df is None or df.empty:
+        return ({}, 0.0)
+
+    value_col = "필요수량"
+    if view_mode == "공정별 보기" and process_only and process_only in df.columns:
+        value_col = process_only
+    elif view_mode == "사출 계획" and "사출" in df.columns:
+        value_col = "사출"
+    elif view_mode in ("납기별 상세",) and "필요수량" in df.columns:
+        value_col = "필요수량"
+    elif "필요수량" not in df.columns and DEFAULT_STAGE_COLS:
+        # Fallback to sum of stages if 필요수량 is absent.
+        value_col = DEFAULT_STAGE_COLS[0] if DEFAULT_STAGE_COLS[0] in df.columns else value_col
+
+    if value_col in df.columns:
+        df[value_col] = pd.to_numeric(df[value_col], errors="coerce").fillna(0)
+
+    # Drop rows with no demand in the relevant stage(s) so pills only reflect actionable items.
+    stage_cols = [c for c in DEFAULT_STAGE_COLS if c in df.columns]
+    if view_mode == "공정별 보기" and process_only and process_only in df.columns:
+        mask_keep = pd.to_numeric(df[process_only], errors="coerce").fillna(0).ne(0)
+        df = df.loc[mask_keep]
+    elif view_mode == "납기별 상세" and stage_cols:
+        tmp = df[stage_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        df = df.loc[tmp.sum(axis=1).ne(0)]
+
+    if df is None or df.empty or "신규분류 요약코드" not in df.columns:
+        return ({}, 0.0)
+
+    totals_base = df.groupby("신규분류 요약코드", dropna=False)[value_col].sum(numeric_only=True).to_dict()
+    total_all = float(df[value_col].sum()) if value_col in df.columns else 0.0
+    return (totals_base, total_all)
 
 
 def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
@@ -4194,19 +4261,29 @@ def main() -> None:
 
     totals_base: dict[str, float] = {}
     total_all = 0.0
-    if value_col in codes_src.columns:
-        tmp = codes_src.copy()
-        tmp[value_col] = pd.to_numeric(tmp[value_col], errors="coerce").fillna(0)
-        totals_base = tmp.groupby(new_code_col, dropna=False)[value_col].sum(numeric_only=True).to_dict()
-        total_all = float(tmp[value_col].sum())
+    try:
+        due_end_for_totals: date | None = None
+        if view_mode == "납기별 상세" and st.session_state.get("due_due_quick", "해제") != "해제":
+            due_end_for_totals = st.session_state.get("due_due_end", _today_kst())
+        if view_mode == "공정별 보기" and st.session_state.get("proc_due_quick", "해제") != "해제":
+            due_end_for_totals = st.session_state.get("proc_due_end", _today_kst())
+        totals_base, total_all = _code_totals_from_due_csv_cached(
+            due_csv=due_csv,
+            due_mtime=float(os.path.getmtime(due_csv)),
+            plant=selected_plant,
+            view_mode=view_mode,
+            due_end=due_end_for_totals,
+            process_only=process_only,
+        )
+    except Exception:
+        # Fallback (should be rare)
+        if value_col in codes_src.columns:
+            tmp = codes_src.copy()
+            tmp[value_col] = pd.to_numeric(tmp[value_col], errors="coerce").fillna(0)
+            totals_base = tmp.groupby(new_code_col, dropna=False)[value_col].sum(numeric_only=True).to_dict()
+            total_all = float(tmp[value_col].sum())
 
-    codes = (
-        codes_src[new_code_col]
-        .astype("string")
-        .fillna("")
-        .map(lambda x: x.strip() if isinstance(x, str) else "")
-    )
-    code_options = sorted([c for c in codes.unique().tolist() if c], key=_tab_sort_key)
+    code_options = sorted([c for c in totals_base.keys() if str(c).strip()], key=_tab_sort_key)
 
     def _code_label(code: str) -> str:
         if code == "전체":

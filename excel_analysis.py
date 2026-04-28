@@ -165,8 +165,8 @@ def _format_power(power) -> str:
         return str(power).strip()
 
 
-_RE_TORIC = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})(\d{3})$")
-_RE_TWO_FLOATS = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})$")
+_RE_TORIC = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})(\d{3})(?:[A-Za-z0-9]+)?$")
+_RE_TWO_FLOATS = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})(?:[A-Za-z0-9]+)?$")
 _RE_ONE_FLOAT = re.compile(r"([+-]\d+\.\d{2})")
 
 
