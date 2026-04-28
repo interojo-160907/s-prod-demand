@@ -20,7 +20,7 @@ from openpyxl.utils import get_column_letter
 import excel_analysis
 
 st.set_page_config(
-    page_title="S관 생산 필요수량 대시보드",
+    page_title="관별 생산 필요수량 통합 대시보드",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -3756,7 +3756,7 @@ def _build_order_risk_from_paths_cached(
 
 
 def main() -> None:
-    st.title("S관 생산 필요수량 대시보드")
+    st.title("관별 생산 필요수량 통합 대시보드")
     boot_ph = st.empty()
     boot_ph.caption("초기 로딩 중...")
     _apply_local_theme_css()
