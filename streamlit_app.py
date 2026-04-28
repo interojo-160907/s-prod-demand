@@ -365,6 +365,30 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
             "prod_daily_csv": None,
         }
 
+    # Schema check: ensure plant column exists after app upgrades.
+    try:
+        due_header = pd.read_csv(due_csv, nrows=0)
+        det_header = pd.read_csv(detail_csv, nrows=0)
+        if ("설비 사이트 코드" not in due_header.columns) or ("설비 사이트 코드" not in det_header.columns):
+            return {
+                "ok": True,
+                "needs_regen": True,
+                "due_csv": due_csv,
+                "detail_csv": detail_csv,
+                "equip_code_target_csv": None,
+                "prod_daily_csv": None,
+            }
+    except Exception:
+        # If headers cannot be read, fall back to regeneration.
+        return {
+            "ok": True,
+            "needs_regen": True,
+            "due_csv": due_csv,
+            "detail_csv": detail_csv,
+            "equip_code_target_csv": None,
+            "prod_daily_csv": None,
+        }
+
     # Optional outputs are required only if the corresponding sheets exist.
     sheet_names = _xlsx_sheet_names_cached(excel_path, excel_mtime)
     has_equip = "설비별" in sheet_names
@@ -2805,7 +2829,7 @@ def _load_order_detail_grouped(path: str, mtime: float) -> pd.DataFrame:
     else:
         work = df
 
-    group_cols = [c for c in ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in work.columns]
+    group_cols = [c for c in ["설비 사이트 코드", "이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"] if c in work.columns]
     if group_cols and numeric_cols:
         work = work.groupby(group_cols, dropna=False, as_index=False)[numeric_cols].sum(numeric_only=True)
     return work
@@ -3969,6 +3993,7 @@ def main() -> None:
             st.error("수주별/리스크 데이터가 없습니다. 엑셀 시트/컬럼을 확인하세요.")
             st.stop()
         order_df = _load_order_detail_grouped(detail_csv, os.path.getmtime(detail_csv))
+        order_df = _filter_by_plant(order_df, selected_plant)
         if view_mode == "리스크":
             # 리스크의 완료예정일(스케줄)은 전체 backlog 기준으로 계산해야 하므로,
             # 표시 필터(납기일 종료) 적용 전 원본을 별도로 보관한다.
