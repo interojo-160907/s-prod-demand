@@ -411,7 +411,7 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
                 }
 
     _safe_mkdir(out_dir)
-    importlib.reload(excel_analysis)
+    # Avoid importlib.reload() in production: it adds noticeable latency on Streamlit Cloud.
     info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
     if not info.get("enabled"):
         return {"ok": False, "reason": info.get("reason") or "export failed"}
@@ -1472,7 +1472,7 @@ def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
     if os.path.exists(prod_daily_csv) and (os.path.getmtime(prod_daily_csv) >= excel_mtime):
         return prod_daily_csv
     try:
-        importlib.reload(excel_analysis)
+        # Avoid importlib.reload() in production: it adds noticeable latency on Streamlit Cloud.
         info = excel_analysis.export_production_daily_good_qty(file_path=excel_path, out_dir=out_dir)
         if info.get("enabled") and os.path.exists(prod_daily_csv):
             return prod_daily_csv
