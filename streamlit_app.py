@@ -1638,6 +1638,115 @@ def _code_totals_from_due_csv_cached(
     return (totals_base, total_all)
 
 
+_RE_TORIC_CODE = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})(\d{3})(?:[A-Za-z0-9]+)?$")
+_RE_TWO_FLOATS_CODE = re.compile(r"([+-]\d+\.\d{2})([+-]\d+\.\d{2})(?:[A-Za-z0-9]+)?$")
+
+
+def _fill_spec_from_item_code(view: pd.DataFrame) -> pd.DataFrame:
+    """
+    When domestic S-codes don't carry CP/AXIS/ADD, infer them from mapped P/Q/R item codes.
+
+    This is a display-level fix: only fills missing spec columns when `제품코드` is present.
+    """
+    if view is None or view.empty or ("제품코드" not in view.columns):
+        return view
+    s = view["제품코드"].astype("string").fillna("").astype(str).str.strip()
+    if s.eq("").all():
+        return view
+
+    out = view.copy()
+
+    # Toric: ...<POWER><CP><AXIS>(suffix)
+    toric = s.str.extract(_RE_TORIC_CODE)
+    if toric is not None and toric.shape[1] >= 3:
+        power = toric[0]
+        cp = toric[1]
+        axis = toric[2]
+        # CP/AXIS fill
+        if "CP" in out.columns:
+            miss = out["CP"].astype("string").fillna("").astype(str).str.strip().eq("")
+            out.loc[miss, "CP"] = cp.loc[miss]
+        else:
+            out["CP"] = cp
+        if "AXIS" in out.columns:
+            miss = out["AXIS"].astype("string").fillna("").astype(str).str.strip().eq("")
+            out.loc[miss, "AXIS"] = axis.loc[miss]
+        else:
+            out["AXIS"] = axis
+
+        # POWER fill (prefer existing POWER if present)
+        if "POWER" in out.columns:
+            miss = out["POWER"].astype("string").fillna("").astype(str).str.strip().eq("")
+            out.loc[miss, "POWER"] = power.loc[miss]
+
+    # Multifocal: ...<POWER><ADD>(suffix)
+    two = s.str.extract(_RE_TWO_FLOATS_CODE)
+    if two is not None and two.shape[1] >= 2:
+        add = two[1]
+        if "ADD" in out.columns:
+            miss = out["ADD"].astype("string").fillna("").astype(str).str.strip().eq("")
+            out.loc[miss, "ADD"] = add.loc[miss]
+        else:
+            out["ADD"] = add
+
+    # Normalize display strings
+    for c in ["CP", "AXIS", "ADD", "POWER"]:
+        if c in out.columns:
+            out[c] = out[c].astype("string").fillna("").astype(str).str.strip()
+    return out
+
+
+@st.cache_data(show_spinner=False)
+def _sort_due_table_cached(
+    *,
+    due_csv: str,
+    due_mtime: float,
+    plant: str,
+    view_mode: str,
+    due_end: date | None,
+    process_only: str | None,
+    codes_selected: tuple[str, ...],
+) -> pd.DataFrame:
+    """
+    Prepare + sort the main due/process table for display.
+
+    Uses file mtimes + filter params as cache key to avoid repeated sort/conversion costs
+    when users switch tabs/filters.
+    """
+    df = _load_due_prepared(due_csv, due_mtime)
+    df = _filter_by_plant(df, plant)
+    if df is None or df.empty:
+        return pd.DataFrame()
+    if due_end is not None:
+        df = _apply_due_date_end_filter(df, due_end)
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    # Filter out non-actionable rows
+    stage_cols = [c for c in DEFAULT_STAGE_COLS if c in df.columns]
+    if view_mode == "공정별 보기" and process_only and process_only in df.columns:
+        v = pd.to_numeric(df[process_only], errors="coerce").fillna(0)
+        df = df.loc[v.ne(0)]
+    elif view_mode == "납기별 상세" and stage_cols:
+        tmp = df[stage_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        df = df.loc[tmp.sum(axis=1).ne(0)]
+
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    # Code filter
+    if ("전체" not in codes_selected) and ("신규분류 요약코드" in df.columns):
+        df = df.loc[df["신규분류 요약코드"].astype("string").isin(list(codes_selected))].copy()
+
+    # Sort (same as render() logic)
+    sort_cols: list[str] = []
+    for c in ["납기일", "최소목표일", "신규분류 요약코드", "품명", "POWER_group", "POWER_sort", "CP_num", "AXIS_num", "ADD_num"]:
+        if c in df.columns:
+            sort_cols.append(c)
+    if sort_cols:
+        df = df.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+    return df
+
 def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
     excel_mtime = _excel_version_mtime(excel_path)
     if not excel_mtime:
@@ -3891,6 +4000,7 @@ def main() -> None:
                 view = view.merge(item_map, on=key_cols, how="left")
             if "제품코드" not in view.columns:
                 view["제품코드"] = ""
+            view = _fill_spec_from_item_code(view)
 
             if (
                 detail_for_map is not None
@@ -5156,11 +5266,28 @@ def main() -> None:
             tmp[process_only] = pd.to_numeric(tmp[process_only], errors="coerce").fillna(0)
             base_df = tmp.loc[tmp[process_only].ne(0)].copy()
 
-    subset = (
-        base_df
-        if _is_all_codes(codes_selected)
-        else base_df[base_df[new_code_col].astype("string").isin(codes_selected)].copy()
-    )
+    # Cache heavy filtering + sorting for due/process tables (helps large plants like C관).
+    due_end_for_table: date | None = None
+    if view_mode == "납기별 상세" and st.session_state.get("due_due_quick", "해제") != "해제":
+        due_end_for_table = st.session_state.get("due_due_end", _today_kst())
+    if view_mode == "공정별 보기" and st.session_state.get("proc_due_quick", "해제") != "해제":
+        due_end_for_table = st.session_state.get("proc_due_end", _today_kst())
+    try:
+        subset = _sort_due_table_cached(
+            due_csv=due_csv,
+            due_mtime=float(os.path.getmtime(due_csv)),
+            plant=selected_plant,
+            view_mode=view_mode,
+            due_end=due_end_for_table,
+            process_only=process_only,
+            codes_selected=tuple(codes_selected),
+        )
+    except Exception:
+        subset = (
+            base_df
+            if _is_all_codes(codes_selected)
+            else base_df[base_df[new_code_col].astype("string").isin(codes_selected)].copy()
+        )
     page_key = "due" if process_only is None else f"proc_{process_only}"
     render(
         subset,
