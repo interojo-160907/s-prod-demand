@@ -3768,6 +3768,14 @@ def main() -> None:
         for c in numeric_cols:
             df_num[c] = pd.to_numeric(df_num[c], errors="coerce").fillna(0)
 
+        # Due-detail view: hide rows that have no demand on any process column.
+        if (not process_only) and numeric_cols:
+            stage_sum = df_num[numeric_cols].sum(axis=1)
+            keep_mask = stage_sum.ne(0)
+            if bool(keep_mask.any()):
+                filtered = filtered.loc[keep_mask].copy()
+                df_num = df_num.loc[keep_mask].copy()
+
         total_col = process_only if process_only in df_num.columns else ("누수규격" if "누수규격" in df_num.columns else None)
         header_ph.subheader(total_label)
         metric_ph.metric(label="", value=_format_int(df_num[total_col].sum()) if total_col else "0")
