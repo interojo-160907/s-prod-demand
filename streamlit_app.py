@@ -3538,23 +3538,31 @@ def _build_order_risk_table(
     stage_agg = stage_agg.merge(due_agg, on=group_key, how="left")
 
     # Gate stage for completion date: transfer -> 분리(없으면 사출), else 누수규격(없으면 마지막 부족 공정)
-    def _gate_for_done(row) -> str:
-        if bool(row.get("후공정_타관")):
-            if "분리" in stage_cols and float(row.get("분리", 0) or 0) > 0:
-                return "분리"
-            if "사출" in stage_cols and float(row.get("사출", 0) or 0) > 0:
-                return "사출"
-        if "누수규격" in stage_cols and float(row.get("누수규격", 0) or 0) > 0:
-            return "누수규격"
-        last = ""
-        last_ord = -1
-        for p in DEFAULT_STAGE_COLS:
-            if p in stage_cols and float(row.get(p, 0) or 0) > 0 and proc_order.get(p, -1) >= last_ord:
-                last = p
-                last_ord = proc_order.get(p, -1)
-        return last
+    # Vectorize to avoid per-row apply on large frames.
+    is_transfer_s = stage_agg.get("후공정_타관")
+    is_transfer_s = is_transfer_s.fillna(False).astype(bool) if is_transfer_s is not None else pd.Series([False] * len(stage_agg))
+    gate = pd.Series([""] * len(stage_agg), index=stage_agg.index, dtype="string")
 
-    stage_agg["게이트공정"] = stage_agg.apply(_gate_for_done, axis=1)
+    if "누수규격" in stage_cols:
+        leak = pd.to_numeric(stage_agg["누수규격"], errors="coerce").fillna(0.0)
+        gate = gate.mask((~is_transfer_s) & leak.gt(0), "누수규격")
+
+    if "분리" in stage_cols:
+        sep = pd.to_numeric(stage_agg["분리"], errors="coerce").fillna(0.0)
+        gate = gate.mask(is_transfer_s & sep.gt(0), "분리")
+    if "사출" in stage_cols:
+        inj = pd.to_numeric(stage_agg["사출"], errors="coerce").fillna(0.0)
+        gate = gate.mask(is_transfer_s & gate.eq("") & inj.gt(0), "사출")
+
+    # Fallback: last shortage stage by process order.
+    if gate.eq("").any():
+        last_stage = pd.Series([""] * len(stage_agg), index=stage_agg.index, dtype="string")
+        for p in [c for c in DEFAULT_STAGE_COLS if c in stage_cols]:
+            qty = pd.to_numeric(stage_agg[p], errors="coerce").fillna(0.0)
+            last_stage = last_stage.mask(qty.gt(0), p)
+        gate = gate.mask(gate.eq(""), last_stage)
+
+    stage_agg["게이트공정"] = gate
 
     if "납기일" in stage_agg.columns:
         due_col2 = stage_agg["납기일"]
@@ -3599,36 +3607,51 @@ def _build_order_risk_table(
                 segs.append({"t0": day0 + 0.5, "dur": 0.5, "cap": int(round(per_block))})
         inj_allocator = _CapacityAllocator(segs)
 
-    for _, row in sched.iterrows():
-        is_transfer = bool(row.get("후공정_타관"))
-        path = ["사출", "분리"] if is_transfer else proc_path_all
+    # Hot path optimization: avoid iterrows()/row.get() overhead on large plants.
+    wip = float(RISK_WIP_DAYS_PER_PROCESS)
+    proc_set_all = set(proc_path_all)
+    # Keep fixed column order; create missing stage columns as 0 to keep tuple layout stable.
+    cols_needed = ["후공정_타관", *proc_path_all]
+    sched_fast = sched.copy()
+    if "후공정_타관" not in sched_fast.columns:
+        sched_fast["후공정_타관"] = False
+    for p in proc_path_all:
+        if p not in sched_fast.columns:
+            sched_fast[p] = 0.0
+        sched_fast[p] = pd.to_numeric(sched_fast[p], errors="coerce").fillna(0.0)
+    sched_fast = sched_fast.loc[:, cols_needed]
+
+    for row in sched_fast.itertuples(index=False, name=None):
+        # Row layout: [후공정_타관, 사출, 분리, ...] depending on cols_needed order.
+        # Guarantee first is transfer flag by constructing cols_needed that way.
+        is_transfer = bool(row[0])
         prev_done = 0.0
-        for p in proc_path_all:
-            qty = float(row.get(p, 0) or 0)
+        for i, p in enumerate(proc_path_all, start=1):
+            qty = float(row[i]) if i < len(row) else 0.0
             capa = float(capa_map.get(p, 0.0) or 0.0)
             # If process not in this order's path or has no qty, treat as no-op.
-            if p not in path or qty <= 0:
+            if (is_transfer and (p not in ("사출", "분리"))) or (qty <= 0) or (p not in proc_set_all):
                 done = max(available[p], prev_done)
                 completion[p].append(done)
                 prev_done = done
                 continue
             if p == "사출" and inj_allocator is not None:
-                # Use injection plan capacity timeline (more realistic) instead of average CAPA.
-                earliest = max(available[p], prev_done + float(RISK_WIP_DAYS_PER_PROCESS))
+                earliest = max(available[p], prev_done + wip)
                 done = inj_allocator.allocate(qty, earliest_start=float(earliest))
                 completion[p].append(done)
-                available[p] = max(available[p], done)
+                if done > available[p]:
+                    available[p] = done
                 prev_done = done
                 continue
             if capa <= 0:
                 done = float("inf")
                 completion[p].append(done)
                 prev_done = done
-                available[p] = max(available[p], done)
+                if done > available[p]:
+                    available[p] = done
                 continue
-            start = max(available[p], prev_done + float(RISK_WIP_DAYS_PER_PROCESS))
-            dur = qty / capa
-            done = start + dur
+            start = max(available[p], prev_done + wip)
+            done = start + (qty / capa)
             completion[p].append(done)
             available[p] = done
             prev_done = done
@@ -3636,16 +3659,15 @@ def _build_order_risk_table(
     for p in proc_path_all:
         sched[f"_done_{p}"] = completion[p]
 
-    def _done_day(row) -> float:
-        gate = str(row.get("게이트공정") or "").strip()
-        if not gate:
-            return float("nan")
-        try:
-            return float(row.get(f"_done_{gate}", float("nan")))
-        except Exception:
-            return float("nan")
-
-    sched["_done_days"] = sched.apply(_done_day, axis=1)
+    # Vectorize gate-stage lookup (avoid per-row apply).
+    gate_s = sched.get("게이트공정")
+    gate_s = gate_s.astype("string").fillna("").astype(str).str.strip() if gate_s is not None else pd.Series([""] * len(sched))
+    done_days = pd.Series([float("nan")] * len(sched), index=sched.index, dtype="float64")
+    for p in proc_path_all:
+        col = f"_done_{p}"
+        if col in sched.columns:
+            done_days.loc[gate_s.eq(p)] = pd.to_numeric(sched[col], errors="coerce").astype(float)
+    sched["_done_days"] = done_days
 
     def _to_date(x) -> pd.Timestamp:
         try:
@@ -3762,13 +3784,18 @@ def _build_order_risk_from_paths_cached(
 ) -> pd.DataFrame:
     order_df = _load_order_detail_grouped(detail_csv, detail_mtime)
     order_df = _filter_by_plant(order_df, plant)
-    if prod_daily_csv and os.path.exists(prod_daily_csv):
-        prod_daily_df = _load_prod_daily_csv(prod_daily_csv, prod_daily_mtime)
-        prod_daily_df = _filter_by_plant(prod_daily_df, plant)
-    else:
-        prod_daily_df = pd.DataFrame()
     as_of = today - timedelta(days=1)
-    capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
+    capa_table = (
+        _compute_capa_table_cached(
+            prod_daily_csv=str(prod_daily_csv),
+            prod_daily_mtime=float(prod_daily_mtime),
+            plant=plant,
+            n_run_days=int(RISK_CAPA_RUN_DAYS),
+            as_of=as_of,
+        )
+        if (prod_daily_csv and os.path.exists(str(prod_daily_csv)))
+        else pd.DataFrame()
+    )
     return _build_order_risk_table(
         order_df,
         capa_table,
