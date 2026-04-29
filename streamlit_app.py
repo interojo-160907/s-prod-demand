@@ -4194,9 +4194,10 @@ def main() -> None:
             pred_v = pd.to_numeric(export_df2[pred_stage], errors="coerce").fillna(0)
             cur_v = pd.to_numeric(export_df2[str(process_only)], errors="coerce").fillna(0)
             workable_mask = pred_v.eq(0) & cur_v.gt(0)
-            view = view.loc[workable_mask].copy()
-            export_df2 = export_df2.loc[workable_mask].copy()
-            filtered = filtered.loc[workable_mask].copy()
+            keep_idx = export_df2.index[workable_mask]
+            export_df2 = export_df2.loc[keep_idx].copy()
+            # Keep index-based filtering to avoid unalignable boolean index errors.
+            view = view.loc[view.index.intersection(keep_idx)].copy()
 
         with dl_col:
             xlsx_bytes = _to_excel_bytes(export_df2[export_cols], sheet_name="다운로드")
