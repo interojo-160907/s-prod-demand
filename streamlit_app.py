@@ -3229,6 +3229,21 @@ def _compute_capa_table_from_prod_daily(
     return out
 
 
+@st.cache_data(show_spinner=False)
+def _compute_capa_table_cached(
+    *,
+    prod_daily_csv: str,
+    prod_daily_mtime: float,
+    plant: str | None,
+    n_run_days: int,
+    as_of: date,
+) -> pd.DataFrame:
+    _ = prod_daily_mtime  # cache-buster when CSV changes
+    df = _load_prod_daily_csv(prod_daily_csv, float(prod_daily_mtime))
+    df = _filter_by_plant(df, plant)
+    return _compute_capa_table_from_prod_daily(df, n_run_days=int(n_run_days), as_of=as_of)
+
+
 def _grade_from_days(*, required_days: float, remaining_days: float, buffer_days: float) -> str:
     if required_days is None or remaining_days is None:
         return "NO_DUE"
@@ -3319,18 +3334,32 @@ def _build_order_risk_table(
 
     melt["CAPA"] = melt["공정"].map(lambda x: capa_map.get(str(x), 0.0))
     melt["CAPA_days"] = melt["공정"].map(lambda x: capa_days_map.get(str(x), 0))
-    melt["필요일수"] = melt.apply(
-        lambda r: (float(r["부족수량"]) / float(r["CAPA"])) if float(r["CAPA"]) > 0 else float("inf"),
-        axis=1,
-    )
-    melt["슬랙"] = melt.apply(
-        lambda r: (float(r["남은일수"]) - float(r["필요일수"])) if r["남은일수"] is not None else float("nan"),
-        axis=1,
-    )
-    melt["등급"] = melt.apply(
-        lambda r: _grade_from_days(required_days=r["필요일수"], remaining_days=r["남은일수"], buffer_days=buffer_days),
-        axis=1,
-    )
+
+    # Vectorize heavy per-row computations (keep semantics identical).
+    capa_s = pd.to_numeric(melt["CAPA"], errors="coerce").fillna(0.0)
+    need_qty = pd.to_numeric(melt["부족수량"], errors="coerce").fillna(0.0)
+    remaining = pd.to_numeric(melt["남은일수"], errors="coerce")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        req_days = need_qty / capa_s
+    req_days = req_days.where(capa_s.gt(0), other=float("inf"))
+    melt["필요일수"] = req_days.astype(float)
+    melt["슬랙"] = (remaining - melt["필요일수"]).astype(float)
+
+    buf = float(buffer_days) if isinstance(buffer_days, (int, float)) else 0.0
+    rem = remaining.astype(float)
+    r = melt["필요일수"].astype(float)
+    finite_r = pd.Series(np.isfinite(r.to_numpy()), index=r.index)
+
+    # 등급: _grade_from_days와 동일 로직(순서 중요)
+    conds = [
+        rem.isna(),
+        r.eq(0.0) & rem.notna(),
+        (~finite_r) & rem.notna(),
+        (r > rem) & rem.notna(),
+        ((rem - r) <= max(0.0, buf)) & rem.notna(),
+    ]
+    choices = ["NO_DUE", "GREEN", "NO_CAPA", "RED", "YELLOW"]
+    melt["등급"] = pd.Series(np.select(conds, choices, default="GREEN"), index=melt.index).astype("string")
 
     grade_rank = {"RED": 3, "YELLOW": 2, "GREEN": 1, "NO_CAPA": 4, "NO_DUE": 0}
     melt["_grade_rank"] = melt["등급"].map(lambda x: grade_rank.get(str(x), 0))
@@ -3367,20 +3396,17 @@ def _build_order_risk_table(
     )
 
     # Bottleneck: (등급 심각도) -> (슬랙 최소) -> (공정순서) 우선
-    def _pick_bn_index(g: pd.DataFrame) -> int:
-        gg = g.sort_values(
-            by=["_grade_rank", "슬랙", "_proc_order"],
-            ascending=[False, True, True],
-            na_position="last",
-        )
-        return int(gg.index[0])
-
-    try:
-        idx_bn = melt.groupby(group_key, dropna=False, group_keys=False).apply(_pick_bn_index, include_groups=False)
-    except TypeError:
-        # pandas<2.2 compatibility
-        idx_bn = melt.groupby(group_key, dropna=False, group_keys=False).apply(_pick_bn_index)
-    bottleneck = melt.loc[idx_bn, group_key + ["공정", "부족수량", "CAPA", "CAPA_days", "필요일수", "남은일수", "등급", "슬랙"]].copy()
+    bn_sorted = melt.sort_values(
+        by=[*group_key, "_grade_rank", "슬랙", "_proc_order"],
+        ascending=[True] * len(group_key) + [False, True, True],
+        na_position="last",
+        kind="mergesort",
+    )
+    bottleneck = (
+        bn_sorted.drop_duplicates(subset=group_key, keep="first")
+        .loc[:, group_key + ["공정", "부족수량", "CAPA", "CAPA_days", "필요일수", "남은일수", "등급", "슬랙"]]
+        .copy()
+    )
     bottleneck = bottleneck.rename(
         columns={
             "공정": "병목공정",
@@ -4697,12 +4723,18 @@ def main() -> None:
                     prod_path = _ensure_prod_daily_csv(excel_path=excel_path, out_dir=out_dir) if excel_path else None
         except Exception:
             prod_path = prod_path
-        prod_daily_df = (
-            _load_prod_daily_csv(str(prod_path), os.path.getmtime(str(prod_path))) if (prod_path and os.path.exists(prod_path)) else pd.DataFrame()
-        )
-        prod_daily_df = _filter_by_plant(prod_daily_df, selected_plant)
         as_of = _today_kst() - timedelta(days=1)
-        capa_table = _compute_capa_table_from_prod_daily(prod_daily_df, n_run_days=int(RISK_CAPA_RUN_DAYS), as_of=as_of)
+        capa_table = (
+            _compute_capa_table_cached(
+                prod_daily_csv=str(prod_path),
+                prod_daily_mtime=float(os.path.getmtime(str(prod_path))),
+                plant=selected_plant,
+                n_run_days=int(RISK_CAPA_RUN_DAYS),
+                as_of=as_of,
+            )
+            if (prod_path and os.path.exists(prod_path))
+            else pd.DataFrame()
+        )
 
         # Optional: reflect injection short-term schedule into completion dates (more realistic injection start/throughput).
         inj_excel_mtime = _excel_version_mtime(excel_path) if excel_path and os.path.exists(excel_path) else 0.0
