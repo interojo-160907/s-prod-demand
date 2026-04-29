@@ -1824,14 +1824,14 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
     # Rule: E(생산 제품) 공란 + F(비고) 기입 => 배정 불가
     equip["배정가능"] = ~equip.apply(lambda r: _is_blank(r.get("생산 제품")) and (not _is_blank(r.get("비고"))), axis=1)
 
-    arrange_cols = ["제품명코드", "제품명", "구분.1"]
+    arrange_cols = ["제품명코드", "제품명", "구분.1", "구분.2"]
     if "제품명코드" in raw.columns:
         arrange = raw.loc[raw["제품명코드"].notna(), [c for c in arrange_cols if c in raw.columns]].copy()
     else:
         arrange = pd.DataFrame(columns=[c for c in arrange_cols if c in raw.columns])
     if arrange.empty:
-        arrange = pd.DataFrame(columns=["제품명코드", "제품명", "구분.1"])
-    for c in ["제품명코드", "제품명", "구분.1"]:
+        arrange = pd.DataFrame(columns=["제품명코드", "제품명", "구분.1", "구분.2"])
+    for c in ["제품명코드", "제품명", "구분.1", "구분.2"]:
         if c not in arrange.columns:
             arrange[c] = ""
         arrange[c] = arrange[c].astype("string").fillna("").astype(str).str.strip()
@@ -2304,6 +2304,7 @@ def _build_injection_schedule(
         return " ".join(s.split())
 
     arrange_map: dict[str, str] = {}
+    arrange_map2: dict[str, str] = {}
     arrange_name_map: dict[str, str] = {}
     if not arrange.empty and ("제품명코드" in arrange.columns):
         for _, r in arrange.iterrows():
@@ -2311,9 +2312,12 @@ def _build_injection_schedule(
             if not k:
                 continue
             v = _norm_space(r.get("구분.1")) if "구분.1" in arrange.columns else ""
+            v2 = _norm_space(r.get("구분.2")) if "구분.2" in arrange.columns else ""
             nm = _norm_space(r.get("제품명")) if "제품명" in arrange.columns else ""
             if v and k not in arrange_map:
                 arrange_map[k] = v
+            if v2 and k not in arrange_map2:
+                arrange_map2[k] = v2
             if nm and k not in arrange_name_map:
                 arrange_name_map[k] = nm
 
@@ -2322,6 +2326,12 @@ def _build_injection_schedule(
         inj_equip["라인구분"] = inj_equip["구분"].map(_norm_space)
     else:
         inj_equip["라인구분"] = ""
+
+    # Equipment type constraint: prefer '구분2' column (e.g. CLEAR/COLOR). Fallback to blank.
+    if "구분2" in inj_equip.columns:
+        inj_equip["라인구분2"] = inj_equip["구분2"].map(_norm_space)
+    else:
+        inj_equip["라인구분2"] = ""
 
     name_to_base: dict[str, str] = {}
     name_key_to_base: dict[str, str] = {}
@@ -2455,6 +2465,7 @@ def _build_injection_schedule(
                 "납기일": due,
                 "powers": {},
                 "라인구분": arrange_map.get(base_r, ""),
+                "라인구분2": arrange_map2.get(base_r, ""),
                 "order_refs": {},
             }
             product_info[base_r] = info
@@ -2521,11 +2532,16 @@ def _build_injection_schedule(
         line = _norm_space(equip_row.get("라인구분"))
         if not line:
             return []
-        out = [
-            k
-            for k, v in product_info.items()
-            if _norm_space(v.get("라인구분")) == line and _product_remaining(k) > 0
-        ]
+        line2 = _norm_space(equip_row.get("라인구분2"))
+
+        def _ok(v: dict[str, object]) -> bool:
+            if _norm_space(v.get("라인구분")) != line:
+                return False
+            if line2 and (_norm_space(v.get("라인구분2")) != line2):
+                return False
+            return True
+
+        out = [k for k, v in product_info.items() if _ok(v) and _product_remaining(k) > 0]
         out.sort(key=lambda k: (_product_due(k), -_product_remaining(k), k))
         return out
 
@@ -2543,6 +2559,23 @@ def _build_injection_schedule(
         # Heuristic: if the remaining qty of an urgent product can be covered by machines that are *already*
         # running that product (yesterday/current), keep other machines on their current product to reduce churn.
         urgent_done_by_running: set[str] = set()
+        urgent_remaining: dict[str, int] = {}
+        # Total daily capacity per (line, line2) (used to decide whether an urgent item can be covered without
+        # switching a specific machine away from its current product).
+        line_total_capa: dict[tuple[str, str], int] = {}
+        try:
+            for _, er0 in usable.iterrows():
+                equip0 = str(er0.get("설비명") or "").strip().upper()
+                if not equip0:
+                    continue
+                line0 = _norm_space(er0.get("라인구분"))
+                if not line0:
+                    continue
+                line02 = _norm_space(er0.get("라인구분2"))
+                key = (line0, line02)
+                line_total_capa[key] = int(line_total_capa.get(key, 0)) + int(_equip_day_capa(equip0))
+        except Exception:
+            line_total_capa = {}
         try:
             # Remaining by product at the beginning of the day.
             urgent_remaining = {
@@ -2615,6 +2648,28 @@ def _build_injection_schedule(
                     and (_product_remaining(prefer_u) > 0)
                 ):
                     return prefer_u
+
+                # If the best urgent product can be covered by OTHER machines on the same line today,
+                # keep this machine on its current product to preserve continuity (color matching),
+                # even though due-date priority would normally switch it.
+                if (
+                    prefer_u
+                    and (best_due <= day)
+                    and (prefer_u in candidates)
+                    and (_product_remaining(prefer_u) > 0)
+                    and str(best).strip().upper() != prefer_u
+                ):
+                    try:
+                        best_line = _norm_space((product_info.get(best) or {}).get("라인구분"))
+                        best_line2 = _norm_space((product_info.get(best) or {}).get("라인구분2"))
+                        line_capa = int(line_total_capa.get((best_line, best_line2), 0))
+                        rem_urgent = int(urgent_remaining.get(best, 0) or 0)
+                        if best_line and rem_urgent > 0:
+                            other_capa = int(max(0, line_capa - int(_equip_day_capa(equip_name))))
+                            if other_capa >= rem_urgent:
+                                return prefer_u
+                    except Exception:
+                        pass
                 # Due date is the top priority. Keep previous/affinity only when they are within the same earliest due group.
                 if prefer and prefer in candidates and _product_remaining(prefer) > 0 and _product_due(prefer) == best_due:
                     return prefer
