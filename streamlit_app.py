@@ -4171,35 +4171,43 @@ def main() -> None:
                 column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        # Optional filter: show only "workable" rows (선행공정=0 & 현재공정>0) for downstream processes.
-        workable_only = False
-        workable_mask = None
+        # Optional filter: show only "workable" rows (선행공정=0 & 현재공정>0).
+        # This filter applies ONLY to the 공정별 보기 tab (process_only is set).
         pred_map = {"분리": "사출", "하이드레이션": "분리", "접착": "하이드레이션", "누수규격": "접착"}
         pred_stage = pred_map.get(str(process_only or ""))
         applicable = bool(process_only) and bool(pred_stage) and (pred_stage in export_df2.columns) and (str(process_only) in export_df2.columns)
 
-        # Download button should not push the totals row away from the table header,
-        # so render it BEFORE totals grid. Place the filter checkbox next to it.
-        dl_col, cb_col = st.columns([3, 2], gap="small")
-        with cb_col:
-            workable_only = st.checkbox(
-                "작업가능만",
-                value=False,
-                key=f"{ui_key_prefix}_workable_only",
-                disabled=not applicable,
-                help="선행공정 필요수량=0 이고 현재 공정 필요수량>0 인 항목만 표시합니다.",
-            )
+        if applicable:
+            # Download button should not push the totals row away from the table header,
+            # so render it BEFORE totals grid. Place the filter checkbox next to it.
+            dl_col, cb_col = st.columns([3, 2], gap="small")
+            with cb_col:
+                workable_only = st.checkbox(
+                    "작업가능만",
+                    value=False,
+                    key=f"{ui_key_prefix}_workable_only",
+                    help="선행공정 필요수량=0 이고 현재 공정 필요수량>0 인 항목만 표시합니다.",
+                )
 
-        if workable_only and applicable:
-            pred_v = pd.to_numeric(export_df2[pred_stage], errors="coerce").fillna(0)
-            cur_v = pd.to_numeric(export_df2[str(process_only)], errors="coerce").fillna(0)
-            workable_mask = pred_v.eq(0) & cur_v.gt(0)
-            keep_idx = export_df2.index[workable_mask]
-            export_df2 = export_df2.loc[keep_idx].copy()
-            # Keep index-based filtering to avoid unalignable boolean index errors.
-            view = view.loc[view.index.intersection(keep_idx)].copy()
+            if workable_only:
+                pred_v = pd.to_numeric(export_df2[pred_stage], errors="coerce").fillna(0)
+                cur_v = pd.to_numeric(export_df2[str(process_only)], errors="coerce").fillna(0)
+                workable_mask = pred_v.eq(0) & cur_v.gt(0)
+                keep_idx = export_df2.index[workable_mask]
+                export_df2 = export_df2.loc[keep_idx].copy()
+                # Keep index-based filtering to avoid unalignable boolean index errors.
+                view = view.loc[view.index.intersection(keep_idx)].copy()
 
-        with dl_col:
+            with dl_col:
+                xlsx_bytes = _to_excel_bytes(export_df2[export_cols], sheet_name="다운로드")
+                st.download_button(
+                    "엑셀 다운로드",
+                    data=xlsx_bytes,
+                    file_name=f"{'공정' if process_only else '납기'}_{selected_code or '전체'}_{process_only or '전체'}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"{ui_key_prefix}_download",
+                )
+        else:
             xlsx_bytes = _to_excel_bytes(export_df2[export_cols], sheet_name="다운로드")
             st.download_button(
                 "엑셀 다운로드",
