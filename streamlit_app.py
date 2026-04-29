@@ -1659,10 +1659,15 @@ def _fill_spec_from_item_code(view: pd.DataFrame) -> pd.DataFrame:
 
     # Toric: ...<POWER><CP><AXIS>(suffix)
     toric = s.str.extract(_RE_TORIC_CODE)
+    is_toric_match = pd.Series([False] * len(out), index=out.index)
     if toric is not None and toric.shape[1] >= 3:
         power = toric[0]
         cp = toric[1]
         axis = toric[2]
+        try:
+            is_toric_match = power.notna() & cp.notna() & axis.notna()
+        except Exception:
+            is_toric_match = pd.Series([False] * len(out), index=out.index)
         # CP/AXIS fill
         if "CP" in out.columns:
             miss = out["CP"].astype("string").fillna("").astype(str).str.strip().eq("")
@@ -1686,14 +1691,22 @@ def _fill_spec_from_item_code(view: pd.DataFrame) -> pd.DataFrame:
         add = two[1]
         if "ADD" in out.columns:
             miss = out["ADD"].astype("string").fillna("").astype(str).str.strip().eq("")
-            out.loc[miss, "ADD"] = add.loc[miss]
+            # Avoid false positives: toric codes also match "two floats" (POWER+CP).
+            out.loc[miss & (~is_toric_match), "ADD"] = add.loc[miss & (~is_toric_match)]
         else:
-            out["ADD"] = add
+            out["ADD"] = ""
+            out.loc[~is_toric_match, "ADD"] = add.loc[~is_toric_match]
 
     # Normalize display strings
     for c in ["CP", "AXIS", "ADD", "POWER"]:
         if c in out.columns:
             out[c] = out[c].astype("string").fillna("").astype(str).str.strip()
+    # Ensure ADD formatting is consistent (+0.00) when present.
+    if "ADD" in out.columns:
+        add_s = out["ADD"].astype("string").fillna("").astype(str).str.strip()
+        non_blank = add_s.ne("")
+        if bool(non_blank.any()):
+            out.loc[non_blank, "ADD"] = add_s.loc[non_blank].map(lambda x: _normalize_signed_2dp(x, zero_sign="+"))
     return out
 
 
