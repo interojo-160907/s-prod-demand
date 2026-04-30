@@ -1824,14 +1824,14 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
     # Rule: E(생산 제품) 공란 + F(비고) 기입 => 배정 불가
     equip["배정가능"] = ~equip.apply(lambda r: _is_blank(r.get("생산 제품")) and (not _is_blank(r.get("비고"))), axis=1)
 
-    arrange_cols = ["제품명코드", "제품명", "구분.1", "구분.2"]
+    arrange_cols = ["제품명코드", "제품명", "구분.1"]
     if "제품명코드" in raw.columns:
         arrange = raw.loc[raw["제품명코드"].notna(), [c for c in arrange_cols if c in raw.columns]].copy()
     else:
         arrange = pd.DataFrame(columns=[c for c in arrange_cols if c in raw.columns])
     if arrange.empty:
-        arrange = pd.DataFrame(columns=["제품명코드", "제품명", "구분.1", "구분.2"])
-    for c in ["제품명코드", "제품명", "구분.1", "구분.2"]:
+        arrange = pd.DataFrame(columns=["제품명코드", "제품명", "구분.1"])
+    for c in ["제품명코드", "제품명", "구분.1"]:
         if c not in arrange.columns:
             arrange[c] = ""
         arrange[c] = arrange[c].astype("string").fillna("").astype(str).str.strip()
@@ -2304,7 +2304,6 @@ def _build_injection_schedule(
         return " ".join(s.split())
 
     arrange_map: dict[str, str] = {}
-    arrange_map2: dict[str, str] = {}
     arrange_name_map: dict[str, str] = {}
     if not arrange.empty and ("제품명코드" in arrange.columns):
         for _, r in arrange.iterrows():
@@ -2312,12 +2311,9 @@ def _build_injection_schedule(
             if not k:
                 continue
             v = _norm_space(r.get("구분.1")) if "구분.1" in arrange.columns else ""
-            v2 = _norm_space(r.get("구분.2")) if "구분.2" in arrange.columns else ""
             nm = _norm_space(r.get("제품명")) if "제품명" in arrange.columns else ""
             if v and k not in arrange_map:
                 arrange_map[k] = v
-            if v2 and k not in arrange_map2:
-                arrange_map2[k] = v2
             if nm and k not in arrange_name_map:
                 arrange_name_map[k] = nm
 
@@ -2326,12 +2322,6 @@ def _build_injection_schedule(
         inj_equip["라인구분"] = inj_equip["구분"].map(_norm_space)
     else:
         inj_equip["라인구분"] = ""
-
-    # Equipment type constraint: prefer '구분2' column (e.g. CLEAR/COLOR). Fallback to blank.
-    if "구분2" in inj_equip.columns:
-        inj_equip["라인구분2"] = inj_equip["구분2"].map(_norm_space)
-    else:
-        inj_equip["라인구분2"] = ""
 
     name_to_base: dict[str, str] = {}
     name_key_to_base: dict[str, str] = {}
@@ -2423,14 +2413,6 @@ def _build_injection_schedule(
     for c in ["제품코드", "품명", "POWER", "납기일", "이니셜", "수주번호"]:
         if c not in work.columns:
             work[c] = ""
-    # Some exports use `AXIS` instead of `POWER` for lens power.
-    # For injection planning we treat them equivalently.
-    if ("POWER" in work.columns) and (work["POWER"].astype("string").fillna("").astype(str).str.strip().eq("").all()):
-        if "AXIS" in work.columns:
-            work["POWER"] = work["AXIS"]
-    elif "POWER" not in work.columns:
-        if "AXIS" in work.columns:
-            work["POWER"] = work["AXIS"]
     if "사출" not in work.columns:
         work["사출"] = 0
 
@@ -2459,7 +2441,7 @@ def _build_injection_schedule(
         # IMPORTANT: shortage-tab '품명' is sales name; injection planning must use injection-sheet name(J) via mapping(I).
         name = str(arrange_name_map.get(base_r, "") or "").strip()
         p = r.get("POWER_num", None)
-        if p is None or bool(pd.isna(p)) or (isinstance(p, float) and math.isnan(p)):
+        if p is None or (isinstance(p, float) and math.isnan(p)):
             continue
         need = int(r.get("사출") or 0)
         if need <= 0:
@@ -2473,7 +2455,6 @@ def _build_injection_schedule(
                 "납기일": due,
                 "powers": {},
                 "라인구분": arrange_map.get(base_r, ""),
-                "라인구분2": arrange_map2.get(base_r, ""),
                 "order_refs": {},
             }
             product_info[base_r] = info
@@ -2540,21 +2521,11 @@ def _build_injection_schedule(
         line = _norm_space(equip_row.get("라인구분"))
         if not line:
             return []
-        line2 = _norm_space(equip_row.get("라인구분2"))
-
-        def _ok(v: dict[str, object]) -> bool:
-            if _norm_space(v.get("라인구분")) != line:
-                return False
-            # If equipment has a type constraint (구분2), match when the product declares one.
-            # When product 구분2 is blank/missing, treat it as "unspecified" (do not block),
-            # to avoid eliminating all candidates for legacy sheets that don't fill 구분.2.
-            if line2:
-                p2 = _norm_space(v.get("라인구분2"))
-                if p2 and (p2 != line2):
-                    return False
-            return True
-
-        out = [k for k, v in product_info.items() if _ok(v) and _product_remaining(k) > 0]
+        out = [
+            k
+            for k, v in product_info.items()
+            if _norm_space(v.get("라인구분")) == line and _product_remaining(k) > 0
+        ]
         out.sort(key=lambda k: (_product_due(k), -_product_remaining(k), k))
         return out
 
