@@ -2762,23 +2762,23 @@ def _build_injection_schedule(
                 ):
                     return prefer_u
 
-                # If the best (urgent) product can be fully handled by machines already running it,
+                # If the best (hard-urgent: due <= today) product can be fully handled by machines already running it,
                 # don't switch other machines away from their current product just because it's overdue.
                 if (
                     prefer_u
-                    and (best_due <= urgent_cutoff)
+                    and (best_due <= day)
                     and (best in urgent_done_by_running)
                     and (prefer_u in candidates)
                     and (_product_remaining(prefer_u) > 0)
                 ):
                     return prefer_u
 
-                # If the best urgent product can be covered by OTHER machines on the same line today,
+                # If the best hard-urgent product can be covered by OTHER machines on the same line today,
                 # keep this machine on its current product to preserve continuity (color matching),
                 # even though due-date priority would normally switch it.
                 if (
                     prefer_u
-                    and (best_due <= urgent_cutoff)
+                    and (best_due <= day)
                     and (prefer_u in candidates)
                     and (_product_remaining(prefer_u) > 0)
                     and str(best).strip().upper() != prefer_u
