@@ -3171,7 +3171,7 @@ def _build_injection_gantt_chart_df_cached(
                     "상태": state,
                     "제품명코드": prod,
                     "제품명": prod_name,
-                    "운영중제품": (cur_run if (is_now_slot and (not fill_running_all)) else ""),
+                    "운영중제품": (cur_run if is_now_slot else ""),
                     "납기일": due,
                     "배정수량": qty,
                     "세팅구분": setting,
