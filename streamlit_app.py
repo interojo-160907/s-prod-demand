@@ -2423,6 +2423,14 @@ def _build_injection_schedule(
     for c in ["제품코드", "품명", "POWER", "납기일", "이니셜", "수주번호"]:
         if c not in work.columns:
             work[c] = ""
+    # Some exports use `AXIS` instead of `POWER` for lens power.
+    # For injection planning we treat them equivalently.
+    if ("POWER" in work.columns) and (work["POWER"].astype("string").fillna("").astype(str).str.strip().eq("").all()):
+        if "AXIS" in work.columns:
+            work["POWER"] = work["AXIS"]
+    elif "POWER" not in work.columns:
+        if "AXIS" in work.columns:
+            work["POWER"] = work["AXIS"]
     if "사출" not in work.columns:
         work["사출"] = 0
 
@@ -2451,7 +2459,7 @@ def _build_injection_schedule(
         # IMPORTANT: shortage-tab '품명' is sales name; injection planning must use injection-sheet name(J) via mapping(I).
         name = str(arrange_name_map.get(base_r, "") or "").strip()
         p = r.get("POWER_num", None)
-        if p is None or (isinstance(p, float) and math.isnan(p)):
+        if p is None or bool(pd.isna(p)) or (isinstance(p, float) and math.isnan(p)):
             continue
         need = int(r.get("사출") or 0)
         if need <= 0:
