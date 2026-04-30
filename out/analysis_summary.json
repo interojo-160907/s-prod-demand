@@ -1,27 +1,50 @@
 {
   "file": "s관 부족수량.xlsx",
-  "generated_at": "2026-04-28T08:31:46",
+  "generated_at": "2026-04-30T18:12:30",
   "sheets": {
     "설비별": {
-      "rows": 1196,
-      "cols": 9,
-      "outputs": [
-        "out\\설비별_공정_계획수량.csv"
-      ]
+      "rows": 44769,
+      "cols": 17,
+      "outputs": []
     },
     "이니셜별": {
-      "rows": 1075,
-      "cols": 14,
+      "rows": 44769,
+      "cols": 17,
       "process_cols": [
         "[10]사출조립",
         "[20]분리",
+        "[25]외주이동",
+        "[30]외주",
         "[45]하이드레이션/전면검사",
         "[55]접착/멸균",
-        "[80]누수/규격검사"
+        "[80]누수/규격검사",
+        "[85]포장"
       ],
       "outputs": [
         "out\\이니셜별_공정별_합계.csv"
       ]
     }
+  },
+  "outputs": [
+    "out\\analysis_summary.json"
+  ],
+  "due_process": {
+    "enabled": true,
+    "rows": 33254,
+    "outputs": [
+      "out\\납기_제품군_공정별부족.csv",
+      "out\\이니셜별_수주상세.csv",
+      "out\\제품코드_매핑누락.csv"
+    ],
+    "mapping_size": 0,
+    "mapping_miss_unique_codes": 0
+  },
+  "prod_daily": {
+    "enabled": true,
+    "rows": 446,
+    "outputs": [
+      "out\\생산실적_공정별_일별양품.csv"
+    ],
+    "good_col": "샘플제외 양품수량"
   }
 }

@@ -4,10 +4,14 @@ import json
 import math
 import os
 import re
-from datetime import datetime
+import zipfile
+from datetime import datetime, timezone
 from io import BytesIO
+from xml.etree import ElementTree as ET
 
 import pandas as pd
+
+EXPORT_VERSION = 1
 
 
 def _open_excel(source) -> pd.ExcelFile:
@@ -25,6 +29,54 @@ def _find_default_excel_path() -> str:
 
 def _safe_mkdir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
+
+
+def _xlsx_modified_ts(p: str) -> datetime | None:
+    if not str(p).lower().endswith(".xlsx"):
+        return None
+    try:
+        with zipfile.ZipFile(p) as zf:
+            core = zf.read("docProps/core.xml")
+        root = ET.fromstring(core)
+        ns = {"dcterms": "http://purl.org/dc/terms/"}
+        modified_el = root.find(".//dcterms:modified", ns)
+        if modified_el is None or not (modified_el.text or "").strip():
+            return None
+        raw = modified_el.text.strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(raw)
+        return dt
+    except Exception:
+        return None
+
+
+def _excel_version_mtime(path: str) -> float:
+    try:
+        ts = _xlsx_modified_ts(path)
+        if ts is not None:
+            return float(ts.timestamp())
+    except Exception:
+        pass
+    try:
+        return float(os.path.getmtime(path))
+    except Exception:
+        return 0.0
+
+
+def _write_outputs_meta(*, out_dir: str, excel_path: str) -> None:
+    """
+    Write a tiny metadata snapshot used by the Streamlit app to determine freshness.
+    """
+    try:
+        _safe_mkdir(out_dir)
+        payload = {
+            "export_version": int(EXPORT_VERSION),
+            "excel_mtime": float(_excel_version_mtime(excel_path)),
+            "written_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        }
+        with open(os.path.join(out_dir, "_outputs_meta.json"), "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except Exception:
+        return
 
 
 def _atomic_to_csv(df: pd.DataFrame, path: str, **kwargs) -> None:
@@ -854,6 +906,13 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     if equip_code_target_path:
         outputs.append(equip_code_target_path)
 
+    # Write freshness metadata for the Streamlit app (used to avoid slow runtime regeneration).
+    try:
+        if not isinstance(file_path, (bytes, bytearray)):
+            _write_outputs_meta(out_dir=out_dir, excel_path=str(file_path))
+    except Exception:
+        pass
+
     return {
         "enabled": True,
         "rows": int(g.shape[0]),
@@ -983,20 +1042,33 @@ def analyze(file_path: str | bytes, out_dir: str) -> dict:
         equip = _coerce_numeric(equip, ["계획 수량"])
         equip = _to_datetime(equip, ["최소 납기일", "최소 목표일"])
 
-        equip_by_process = (
-            equip.groupby(["설비 사이트 코드", "공정 코드"], dropna=False, as_index=False)[
-                ["계획 수량"]
-            ]
-            .sum(numeric_only=True)
-            .sort_values("계획 수량", ascending=False)
-        )
-        equip_proc_path = os.path.join(out_dir, "설비별_공정_계획수량.csv")
-        equip_by_process.to_csv(equip_proc_path, index=False, encoding="utf-8-sig")
+        # Be resilient to minor header variations.
+        def _pick_col(candidates: list[str]) -> str | None:
+            for c in candidates:
+                if c in equip.columns:
+                    return c
+            return None
+
+        site_col = _pick_col(["설비 사이트 코드", "설비사이트코드", "SITE", "공장"])
+        proc_col = _pick_col(["공정 코드", "공정코드", "공정"])
+        qty_col = _pick_col(["계획 수량", "계획수량", "계획"])
+
+        outputs: list[str] = []
+        if site_col and proc_col and qty_col:
+            equip_by_process = (
+                equip.groupby([site_col, proc_col], dropna=False, as_index=False)[[qty_col]]
+                .sum(numeric_only=True)
+                .rename(columns={site_col: "설비 사이트 코드", proc_col: "공정 코드", qty_col: "계획 수량"})
+                .sort_values("계획 수량", ascending=False)
+            )
+            equip_proc_path = os.path.join(out_dir, "설비별_공정_계획수량.csv")
+            equip_by_process.to_csv(equip_proc_path, index=False, encoding="utf-8-sig")
+            outputs.append(equip_proc_path)
 
         report["sheets"]["설비별"] = {
             "rows": int(equip.shape[0]),
             "cols": int(equip.shape[1]),
-            "outputs": [equip_proc_path],
+            "outputs": outputs,
         }
 
     # Sheet: 이니셜별
@@ -1125,6 +1197,11 @@ def main() -> None:
         action="store_true",
         help="Export 납기 기준 제품군 공정별 부족 (out/납기_제품군_공정별부족.csv).",
     )
+    ap.add_argument(
+        "--prod-daily",
+        action="store_true",
+        help="Export 생산실적 공정별 일별 양품 (out/생산실적_공정별_일별양품.csv).",
+    )
     args = ap.parse_args()
 
     file_path = args.file or _find_default_excel_path()
@@ -1147,6 +1224,14 @@ def main() -> None:
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
 
+    prod_daily_info = None
+    if args.prod_daily:
+        prod_daily_info = export_production_daily_good_qty(file_path=file_path, out_dir=args.out)
+        report["prod_daily"] = prod_daily_info
+        report_path = os.path.join(args.out, "analysis_summary.json")
+        with open(report_path, "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+
     print("OK")
     print(f"- file: {report['file']}")
     print(f"- out:  {args.out}")
@@ -1162,6 +1247,8 @@ def main() -> None:
             f"- due_process: rows={due_process_info.get('rows')} mapping_size={due_process_info.get('mapping_size')} "
             f"missing_codes={due_process_info.get('mapping_miss_unique_codes')}"
         )
+    if prod_daily_info and prod_daily_info.get("enabled"):
+        print(f"- prod_daily: rows={prod_daily_info.get('rows')} good_col={prod_daily_info.get('good_col')}")
 
 
 if __name__ == "__main__":

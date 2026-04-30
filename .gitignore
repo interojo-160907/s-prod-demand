@@ -206,5 +206,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# App runtime outputs
-out/_outputs_meta.json
+# App runtime outputs (temporary/ephemeral)
+out/_tmp_*
+out/_tmp_run/

@@ -1,9 +1,7 @@
 import os
 import math
-import importlib
 import json
 import re
-import threading
 import zipfile
 from xml.etree import ElementTree as ET
 from datetime import date
@@ -15,7 +13,6 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import numpy as np
 import streamlit as st
-import streamlit.components.v1 as components
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -41,7 +38,11 @@ STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
 DASHBOARD_LINKS_PATH = "dashboard_links.json"
 
 # Bump only when derived output schema/meaning changes (not for UI-only tweaks).
-EXPORT_VERSION = 1
+EXPORT_VERSION = int(getattr(excel_analysis, "EXPORT_VERSION", 1))
+
+# Runtime regeneration (reading the whole Excel and rebuilding out/*.csv) is very slow on hosted
+# deployments. Default to snapshot-only mode; enable regen explicitly for local debugging.
+ALLOW_RUNTIME_REGEN = str(os.environ.get("APS_ALLOW_RUNTIME_REGEN") or "").strip().lower() in ("1", "true", "yes", "y")
 
 # Risk tab business defaults (fixed; no user settings)
 RISK_CAPA_RUN_DAYS = 7
@@ -370,66 +371,6 @@ def _read_outputs_meta(out_dir: str) -> dict:
         return {}
 
 
-def _write_outputs_meta(*, out_dir: str, excel_mtime: float) -> None:
-    try:
-        _safe_mkdir(out_dir)
-        p = _outputs_meta_path(out_dir)
-        payload = {
-            "export_version": int(EXPORT_VERSION),
-            "excel_mtime": float(excel_mtime),
-            "written_at_kst": datetime.now(tz=KST).isoformat(),
-        }
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-    except Exception:
-        # Meta is an optimization/guardrail; don't fail the app if it cannot be written.
-        return
-
-
-_REGEN_LOCK = threading.Lock()
-_REGEN_RUNNING = False
-_REGEN_TARGET_TS = 0.0
-_REGEN_LAST_ERROR = ""
-
-
-def _regen_is_running() -> bool:
-    with _REGEN_LOCK:
-        return bool(_REGEN_RUNNING)
-
-
-def _regen_last_error() -> str:
-    with _REGEN_LOCK:
-        return str(_REGEN_LAST_ERROR or "")
-
-
-def _kickoff_regen_async(*, excel_path: str, out_dir: str, excel_mtime: float) -> None:
-    global _REGEN_RUNNING, _REGEN_TARGET_TS, _REGEN_LAST_ERROR
-    with _REGEN_LOCK:
-        if _REGEN_RUNNING:
-            return
-        if _REGEN_TARGET_TS >= float(excel_mtime):
-            return
-        _REGEN_RUNNING = True
-        _REGEN_TARGET_TS = float(excel_mtime)
-        _REGEN_LAST_ERROR = ""
-
-    def _worker() -> None:
-        global _REGEN_RUNNING, _REGEN_LAST_ERROR
-        try:
-            info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
-            if not info.get("enabled"):
-                raise RuntimeError(str(info.get("reason") or "export failed"))
-            _write_outputs_meta(out_dir=out_dir, excel_mtime=float(excel_mtime))
-        except Exception as e:
-            with _REGEN_LOCK:
-                _REGEN_LAST_ERROR = str(e)
-        finally:
-            with _REGEN_LOCK:
-                _REGEN_RUNNING = False
-
-    threading.Thread(target=_worker, name="aps_regen_outputs", daemon=True).start()
-
-
 @st.cache_data(show_spinner=False)
 def _xlsx_sheet_names_cached(path: str, _mtime: float) -> set[str]:
     _ = _mtime  # cache-buster when file changes
@@ -560,60 +501,18 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
     }
 
 
-def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
-    due_csv = os.path.join(out_dir, "납기_제품군_공정별부족.csv")
-    detail_csv = os.path.join(out_dir, "이니셜별_수주상세.csv")
-    equip_code_target_csv = os.path.join(out_dir, "설비별_공정_제품코드_최소목표일.csv")
-    prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
-    excel_mtime = _excel_version_mtime(excel_path)
-
-    if os.path.exists(due_csv) and os.path.exists(detail_csv):
-        if True:
-            gen_ts = float(_analysis_generated_ts(out_dir) or 0.0)
-            meta = _read_outputs_meta(out_dir)
-            meta_ts = float(meta.get("excel_mtime") or 0.0)
-            meta_ver = int(meta.get("export_version") or 0)
-            gen_ts = max(gen_ts, meta_ts if meta_ver == int(EXPORT_VERSION) else 0.0)
-            meta_ok = gen_ts >= float(excel_mtime)
-            try:
-                sheet_names = _xlsx_sheet_names_cached(excel_path, float(excel_mtime))
-                has_equip = "설비별" in sheet_names
-                has_prod = "생산실적" in sheet_names
-            except Exception:
-                has_equip = False
-                has_prod = False
-
-            equip_ok = os.path.exists(equip_code_target_csv) and os.path.getmtime(equip_code_target_csv) >= excel_mtime
-            prod_ok = os.path.exists(prod_daily_csv) and os.path.getmtime(prod_daily_csv) >= excel_mtime
-
-            # All required/available outputs exist and are up-to-date.
-            # NOTE: prod_daily_csv is lazily generated when Risk view is opened.
-            if meta_ok and (not has_equip or equip_ok):
-                return {
-                    "ok": True,
-                    "regenerated": False,
-                    "needs_regen": False,
-                    "due_csv": due_csv,
-                    "detail_csv": detail_csv,
-                    "equip_code_target_csv": equip_code_target_csv if has_equip and equip_ok else None,
-                    "prod_daily_csv": prod_daily_csv if has_prod and prod_ok else None,
-                }
-
-    _safe_mkdir(out_dir)
-    # Avoid importlib.reload() in production: it adds noticeable latency on Streamlit Cloud.
-    info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
-    if not info.get("enabled"):
-        return {"ok": False, "reason": info.get("reason") or "export failed"}
-    _write_outputs_meta(out_dir=out_dir, excel_mtime=float(excel_mtime))
-    return {
-        "ok": True,
-        "regenerated": True,
-        "needs_regen": False,
-        "due_csv": due_csv,
-        "detail_csv": detail_csv,
-        "equip_code_target_csv": equip_code_target_csv if os.path.exists(equip_code_target_csv) else None,
-        "prod_daily_csv": prod_daily_csv if os.path.exists(prod_daily_csv) else None,
-    }
+def _outputs_generated_label(out_dir: str) -> str:
+    gen_ts = float(_analysis_generated_ts(out_dir) or 0.0)
+    meta = _read_outputs_meta(out_dir)
+    meta_ts = float(meta.get("excel_mtime") or 0.0)
+    meta_ver = int(meta.get("export_version") or 0)
+    gen_ts = max(gen_ts, meta_ts if meta_ver == int(EXPORT_VERSION) else 0.0)
+    if gen_ts <= 0:
+        return "-"
+    try:
+        return datetime.fromtimestamp(gen_ts, tz=KST).strftime("%Y-%m-%d %H:%M:%S %Z")
+    except Exception:
+        return "-"
 
 
 def _load_theme_from_config() -> dict:
@@ -1277,6 +1176,8 @@ def _build_injection_plan_segments_cached(
     inj_arrange: pd.DataFrame,
     excel_path: str,
     excel_mtime: float,
+    detail_csv: str | None,
+    detail_mtime: float,
     start_date: date,
     horizon_days: int,
 ) -> list[dict[str, object]]:
@@ -1286,6 +1187,8 @@ def _build_injection_plan_segments_cached(
         arrange=inj_arrange,
         excel_path=excel_path,
         excel_mtime=excel_mtime,
+        detail_csv=detail_csv,
+        detail_mtime=detail_mtime,
         start_date=start_date,
         horizon_days=horizon_days,
     )
@@ -1455,6 +1358,65 @@ def _build_order_refs_by_base_r(detail: pd.DataFrame) -> dict[str, list[tuple[da
         if not br or not ref:
             continue
         out.setdefault(br, []).append((_power_due_or_far(due), ref))
+    return out
+
+
+@st.cache_data(show_spinner=False)
+def _min_due_by_base_r_from_detail_csv_cached(detail_csv: str, detail_mtime: float) -> dict[str, date]:
+    """
+    Compute base-R -> earliest due date from order-detail CSV.
+
+    This is used by injection planning to avoid relying solely on aggregated (제품군) due dates,
+    which can mis-rank urgent items (e.g. Toric) after code-mapping/aggregation.
+    """
+    _ = detail_mtime  # cache-buster
+    if not detail_csv or (not os.path.exists(detail_csv)):
+        return {}
+
+    out: dict[str, date] = {}
+    usecols = ["제품 코드", "납기일"]
+    try:
+        header = pd.read_csv(detail_csv, nrows=0, encoding="utf-8-sig")
+        usecols = [c for c in usecols if c in header.columns]
+        if "제품 코드" not in usecols or "납기일" not in usecols:
+            return {}
+    except Exception:
+        return {}
+
+    try:
+        for chunk in pd.read_csv(
+            detail_csv,
+            usecols=usecols,
+            encoding="utf-8-sig",
+            chunksize=250_000,
+        ):
+            if chunk is None or chunk.empty:
+                continue
+            c = chunk["제품 코드"].astype("string").fillna("").astype(str).str.strip().str.upper()
+            chunk = chunk.loc[c.str.startswith("R")].copy()
+            if chunk.empty:
+                continue
+            chunk["base_r"] = c.loc[chunk.index].map(_extract_base_r).astype("string").fillna("").astype(str).str.strip().str.upper()
+            chunk = chunk.loc[chunk["base_r"].ne("")].copy()
+            if chunk.empty:
+                continue
+            dd = pd.to_datetime(chunk["납기일"], errors="coerce").dt.date
+            chunk = chunk.loc[dd.notna()].copy()
+            if chunk.empty:
+                continue
+            chunk["due"] = dd.loc[chunk.index]
+            g = chunk.groupby("base_r", dropna=False, as_index=False)["due"].min()
+            for _, r in g.iterrows():
+                br = str(r.get("base_r") or "").strip().upper()
+                due = r.get("due")
+                if not br or not isinstance(due, date):
+                    continue
+                prev = out.get(br)
+                if prev is None or due < prev:
+                    out[br] = due
+    except Exception:
+        return out
+
     return out
 
 
@@ -1902,6 +1864,10 @@ def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
     if not excel_mtime:
         return None
     prod_daily_csv = os.path.join(out_dir, "생산실적_공정별_일별양품.csv")
+    # Snapshot-only mode: never regenerate at runtime (too slow on hosted deployments).
+    if not ALLOW_RUNTIME_REGEN:
+        return prod_daily_csv if os.path.exists(prod_daily_csv) else None
+
     if os.path.exists(prod_daily_csv) and (os.path.getmtime(prod_daily_csv) >= excel_mtime):
         return prod_daily_csv
     try:
@@ -1917,8 +1883,12 @@ def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
 @st.cache_data(show_spinner=False)
 def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFrame]:
     _ = mtime  # cache-buster when file changes
+    # Speed: load only the columns we use (the 사출 sheet can be wide).
+    equip_cols = ["위치", "사출 호기", "구분", "구분2", "생산 제품", "비고"]
+    arrange_cols = ["제품명코드", "제품명", "구분.1"]
+    want_cols = list(dict.fromkeys([*equip_cols, *arrange_cols]))
     try:
-        raw = pd.read_excel(path, sheet_name="사출")
+        raw = pd.read_excel(path, sheet_name="사출", usecols=want_cols)
     except Exception:
         return {"equip": pd.DataFrame(), "arrange": pd.DataFrame()}
 
@@ -2398,6 +2368,8 @@ def _build_injection_schedule(
     arrange: pd.DataFrame,
     excel_path: str,
     excel_mtime: float,
+    detail_csv: str | None,
+    detail_mtime: float,
     start_date: date,
     horizon_days: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
@@ -2564,6 +2536,14 @@ def _build_injection_schedule(
     work["POWER_num"] = pd.to_numeric(work["POWER"], errors="coerce")
     work["_due"] = work["납기일"].map(_coerce_date_value)
 
+    # Use order-detail CSV as the source of truth for due ranking (base-R).
+    base_r_due_map: dict[str, date] = {}
+    try:
+        if detail_csv and float(detail_mtime) > 0:
+            base_r_due_map = _min_due_by_base_r_from_detail_csv_cached(str(detail_csv), float(detail_mtime))
+    except Exception:
+        base_r_due_map = {}
+
     product_info: dict[str, dict[str, object]] = {}
 
     def _order_ref(row: pd.Series) -> str:
@@ -2574,6 +2554,12 @@ def _build_injection_schedule(
         if not base_r:
             continue
         due = r.get("_due", None)
+        try:
+            bd = base_r_due_map.get(base_r)
+            if isinstance(bd, date):
+                due = bd if (not isinstance(due, date) or bd < due) else due
+        except Exception:
+            pass
         # IMPORTANT: shortage-tab '품명' is sales name; injection planning must use injection-sheet name(J) via mapping(I).
         name = str(arrange_name_map.get(base_r, "") or "").strip()
         p = r.get("POWER_num", None)
@@ -2653,15 +2639,26 @@ def _build_injection_schedule(
         d = product_info.get(base_r, {}).get("납기일")
         return d if isinstance(d, date) else date(2099, 12, 31)
 
+    try:
+        miss_prod_line = [k for k, v in product_info.items() if _product_remaining(k) > 0 and _norm_space((v or {}).get("라인구분")) == ""]
+        if miss_prod_line and (len(miss_prod_line) >= max(5, int(round(0.25 * max(1, len(product_info)))))):
+            ex = ", ".join(miss_prod_line[:6])
+            warnings.append(f"어레인지(라인구분) 매핑 누락 제품이 많습니다: {ex} ... (총 {len(miss_prod_line)}개)")
+    except Exception:
+        pass
+
     def _eligible_products_for_equipment(equip_row: pd.Series) -> list[str]:
         line = _norm_space(equip_row.get("라인구분"))
-        if not line:
-            return []
-        out = [
-            k
-            for k, v in product_info.items()
-            if _norm_space(v.get("라인구분")) == line and _product_remaining(k) > 0
-        ]
+        out: list[str] = []
+        for k, v in product_info.items():
+            if _product_remaining(k) <= 0:
+                continue
+            p_line = _norm_space((v or {}).get("라인구분"))
+            # Be resilient to missing mappings:
+            # - If the machine has no line label, allow all products.
+            # - If a product has no line label, allow it on any machine.
+            if (not line) or (not p_line) or (p_line == line):
+                out.append(k)
         out.sort(key=lambda k: (_product_due(k), -_product_remaining(k), k))
         return out
 
@@ -3004,6 +3001,8 @@ def _build_injection_schedule_cached(
     arrange: pd.DataFrame,
     excel_path: str,
     excel_mtime: float,
+    detail_csv: str | None,
+    detail_mtime: float,
     start_date: date,
     horizon_days: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
@@ -3013,6 +3012,8 @@ def _build_injection_schedule_cached(
         arrange=arrange,
         excel_path=excel_path,
         excel_mtime=excel_mtime,
+        detail_csv=detail_csv,
+        detail_mtime=detail_mtime,
         start_date=start_date,
         horizon_days=horizon_days,
     )
@@ -4048,52 +4049,32 @@ def main() -> None:
         st.stop()
 
     ensure = status
+
+    due_csv_try = str(status.get("due_csv") or "")
+    detail_csv_try = str(status.get("detail_csv") or "")
+    has_existing = bool(due_csv_try and detail_csv_try and os.path.exists(due_csv_try) and os.path.exists(detail_csv_try))
+
+    excel_label = _file_mtime_label(excel_path)
+    gen_label = _outputs_generated_label(out_dir)
+    with st.sidebar:
+        st.markdown("<div class='sb-title'>데이터 업데이트</div>", unsafe_allow_html=True)
+        st.caption(f"- 엑셀: `{excel_label}`")
+        st.caption(f"- 산출물: `{gen_label}`")
+        if status.get("needs_regen"):
+            st.caption("상태: 산출물 업데이트 필요")
+            if not ALLOW_RUNTIME_REGEN:
+                st.caption("모드: 스냅샷 전용(런타임 재생성 OFF)")
+            else:
+                st.caption("모드: 런타임 재생성 ON")
+
     if status.get("needs_regen"):
-        due_csv_try = str(status.get("due_csv") or "")
-        detail_csv_try = str(status.get("detail_csv") or "")
-        has_existing = bool(
-            due_csv_try and detail_csv_try and os.path.exists(due_csv_try) and os.path.exists(detail_csv_try)
-        )
-
-        gen_ts = float(_analysis_generated_ts(out_dir) or 0.0)
-        meta = _read_outputs_meta(out_dir)
-        gen_ts = max(gen_ts, float(meta.get("excel_mtime") or 0.0))
-        excel_label = _file_mtime_label(excel_path)
-        gen_label = datetime.fromtimestamp(gen_ts, tz=KST).strftime("%Y-%m-%d %H:%M:%S %Z") if gen_ts > 0 else "-"
-
-        with st.sidebar:
-            st.markdown("<div class='sb-title'>데이터 업데이트</div>", unsafe_allow_html=True)
-            st.caption(f"- 엑셀: `{excel_label}`")
-            st.caption(f"- 산출물: `{gen_label}`")
-            if has_existing and _regen_is_running():
-                st.caption("업데이트 중…")
-            err = _regen_last_error()
-            if err:
-                st.caption(f"업데이트 실패: {err}")
-
         if not has_existing:
-            boot_ph.caption("엑셀 변경 감지: 데이터 생성 중…")
-            with st.spinner("엑셀 변경 감지: 데이터 생성 중…"):
-                try:
-                    ensure = _ensure_latest_outputs(excel_path=excel_path, out_dir=out_dir)
-                except Exception as e:
-                    st.error("데이터 생성 중 예외가 발생했습니다.")
-                    st.exception(e)
-                    st.stop()
-        else:
-            _kickoff_regen_async(excel_path=excel_path, out_dir=out_dir, excel_mtime=_excel_version_mtime(excel_path))
-            if _regen_is_running():
-                # Auto-refresh while regeneration runs so users see the new data ASAP without manual actions.
-                components.html(
-                    "<script>setTimeout(() => window.location.reload(), 2500);</script>",
-                    height=0,
-                )
+            st.error("산출물(out/*.csv)이 없습니다. 먼저 스냅샷 산출물을 생성해야 합니다.")
+            st.caption("권장: GitHub Actions 워크플로(precompute) 실행 또는 커밋 후 자동 생성 대기")
+            st.caption("로컬: `python excel_analysis.py --file \"s관 부족수량.xlsx\" --out out --due-process --prod-daily`")
+            st.stop()
+        st.warning("엑셀 변경 감지: 산출물(out/*.csv) 업데이트 전입니다. 현재는 이전 스냅샷을 표시합니다.")
 
-    if not ensure.get("ok"):
-        st.error(f"데이터 생성 실패: {ensure.get('reason')}")
-        st.stop()
-    if ensure.get("regenerated"):
-        st.cache_data.clear()
     boot_ph.empty()
 
     due_csv = str(ensure["due_csv"])
@@ -5052,6 +5033,8 @@ def main() -> None:
                     inj_arrange=inj_arrange,
                     excel_path=excel_path,
                     excel_mtime=inj_excel_mtime,
+                    detail_csv=detail_csv,
+                    detail_mtime=float(os.path.getmtime(detail_csv)) if detail_csv and os.path.exists(detail_csv) else 0.0,
                     start_date=_today_kst(),
                     horizon_days=5,
                 )
@@ -5212,12 +5195,20 @@ def main() -> None:
             st.error("엑셀에 `사출` 시트(설비 현황)가 없습니다.")
             st.stop()
 
+        detail_mtime_for_sched = 0.0
+        try:
+            detail_mtime_for_sched = float(os.path.getmtime(detail_csv)) if detail_csv and os.path.exists(detail_csv) else 0.0
+        except Exception:
+            detail_mtime_for_sched = 0.0
+
         sched, remaining, warns = _build_injection_schedule_cached(
             demand=demand_for_sched,
             inj_equip=inj_equip,
             arrange=inj_arrange,
             excel_path=excel_path,
             excel_mtime=excel_mtime,
+            detail_csv=detail_csv,
+            detail_mtime=detail_mtime_for_sched,
             start_date=start_date,
             horizon_days=horizon_days,
         )
