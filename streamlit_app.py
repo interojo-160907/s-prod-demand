@@ -2537,8 +2537,13 @@ def _build_injection_schedule(
         def _ok(v: dict[str, object]) -> bool:
             if _norm_space(v.get("라인구분")) != line:
                 return False
-            if line2 and (_norm_space(v.get("라인구분2")) != line2):
-                return False
+            # If equipment has a type constraint (구분2), match when the product declares one.
+            # When product 구분2 is blank/missing, treat it as "unspecified" (do not block),
+            # to avoid eliminating all candidates for legacy sheets that don't fill 구분.2.
+            if line2:
+                p2 = _norm_space(v.get("라인구분2"))
+                if p2 and (p2 != line2):
+                    return False
             return True
 
         out = [k for k, v in product_info.items() if _ok(v) and _product_remaining(k) > 0]
@@ -2560,9 +2565,10 @@ def _build_injection_schedule(
         # running that product (yesterday/current), keep other machines on their current product to reduce churn.
         urgent_done_by_running: set[str] = set()
         urgent_remaining: dict[str, int] = {}
-        # Total daily capacity per (line, line2) (used to decide whether an urgent item can be covered without
+        # Total daily capacity per (line, line2) and per line (used to decide whether an urgent item can be covered without
         # switching a specific machine away from its current product).
         line_total_capa: dict[tuple[str, str], int] = {}
+        line_total_capa_any: dict[str, int] = {}
         try:
             for _, er0 in usable.iterrows():
                 equip0 = str(er0.get("설비명") or "").strip().upper()
@@ -2574,8 +2580,10 @@ def _build_injection_schedule(
                 line02 = _norm_space(er0.get("라인구분2"))
                 key = (line0, line02)
                 line_total_capa[key] = int(line_total_capa.get(key, 0)) + int(_equip_day_capa(equip0))
+                line_total_capa_any[line0] = int(line_total_capa_any.get(line0, 0)) + int(_equip_day_capa(equip0))
         except Exception:
             line_total_capa = {}
+            line_total_capa_any = {}
         try:
             # Remaining by product at the beginning of the day.
             urgent_remaining = {
@@ -2662,7 +2670,10 @@ def _build_injection_schedule(
                     try:
                         best_line = _norm_space((product_info.get(best) or {}).get("라인구분"))
                         best_line2 = _norm_space((product_info.get(best) or {}).get("라인구분2"))
-                        line_capa = int(line_total_capa.get((best_line, best_line2), 0))
+                        if best_line2:
+                            line_capa = int(line_total_capa.get((best_line, best_line2), 0))
+                        else:
+                            line_capa = int(line_total_capa_any.get(best_line, 0))
                         rem_urgent = int(urgent_remaining.get(best, 0) or 0)
                         if best_line and rem_urgent > 0:
                             other_capa = int(max(0, line_capa - int(_equip_day_capa(equip_name))))
