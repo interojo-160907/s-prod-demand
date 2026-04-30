@@ -3,6 +3,7 @@ import math
 import importlib
 import json
 import re
+import threading
 import zipfile
 from xml.etree import ElementTree as ET
 from datetime import date
@@ -14,6 +15,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import numpy as np
 import streamlit as st
+import streamlit.components.v1 as components
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -37,6 +39,9 @@ TEMPLATE_XLSX_PATH = "업로드 양식.xlsx"
 OUT_DIR = "out"
 STREAMLIT_CONFIG_PATH = os.path.join(".streamlit", "config.toml")
 DASHBOARD_LINKS_PATH = "dashboard_links.json"
+
+# Bump only when derived output schema/meaning changes (not for UI-only tweaks).
+EXPORT_VERSION = 1
 
 # Risk tab business defaults (fixed; no user settings)
 RISK_CAPA_RUN_DAYS = 7
@@ -361,13 +366,13 @@ def _read_outputs_meta(out_dir: str) -> dict:
         return {}
 
 
-def _write_outputs_meta(*, out_dir: str, excel_mtime: float, analysis_mtime: float) -> None:
+def _write_outputs_meta(*, out_dir: str, excel_mtime: float) -> None:
     try:
         _safe_mkdir(out_dir)
         p = _outputs_meta_path(out_dir)
         payload = {
+            "export_version": int(EXPORT_VERSION),
             "excel_mtime": float(excel_mtime),
-            "analysis_mtime": float(analysis_mtime),
             "written_at_kst": datetime.now(tz=KST).isoformat(),
         }
         with open(p, "w", encoding="utf-8") as f:
@@ -375,6 +380,50 @@ def _write_outputs_meta(*, out_dir: str, excel_mtime: float, analysis_mtime: flo
     except Exception:
         # Meta is an optimization/guardrail; don't fail the app if it cannot be written.
         return
+
+
+_REGEN_LOCK = threading.Lock()
+_REGEN_RUNNING = False
+_REGEN_TARGET_TS = 0.0
+_REGEN_LAST_ERROR = ""
+
+
+def _regen_is_running() -> bool:
+    with _REGEN_LOCK:
+        return bool(_REGEN_RUNNING)
+
+
+def _regen_last_error() -> str:
+    with _REGEN_LOCK:
+        return str(_REGEN_LAST_ERROR or "")
+
+
+def _kickoff_regen_async(*, excel_path: str, out_dir: str, excel_mtime: float) -> None:
+    global _REGEN_RUNNING, _REGEN_TARGET_TS, _REGEN_LAST_ERROR
+    with _REGEN_LOCK:
+        if _REGEN_RUNNING:
+            return
+        if _REGEN_TARGET_TS >= float(excel_mtime):
+            return
+        _REGEN_RUNNING = True
+        _REGEN_TARGET_TS = float(excel_mtime)
+        _REGEN_LAST_ERROR = ""
+
+    def _worker() -> None:
+        global _REGEN_RUNNING, _REGEN_LAST_ERROR
+        try:
+            info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
+            if not info.get("enabled"):
+                raise RuntimeError(str(info.get("reason") or "export failed"))
+            _write_outputs_meta(out_dir=out_dir, excel_mtime=float(excel_mtime))
+        except Exception as e:
+            with _REGEN_LOCK:
+                _REGEN_LAST_ERROR = str(e)
+        finally:
+            with _REGEN_LOCK:
+                _REGEN_RUNNING = False
+
+    threading.Thread(target=_worker, name="aps_regen_outputs", daemon=True).start()
 
 
 @st.cache_data(show_spinner=False)
@@ -421,23 +470,8 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
     if not excel_mtime:
         return {"ok": False, "reason": "엑셀 파일을 찾을 수 없습니다."}
 
-    # Base outputs must exist and be newer than the Excel file and analysis code.
-    try:
-        analysis_mtime = float(os.path.getmtime(__file__))
-        try:
-            analysis_mtime = max(analysis_mtime, float(os.path.getmtime(excel_analysis.__file__)))
-        except Exception:
-            pass
-    except Exception:
-        analysis_mtime = 0.0
-    base_ok = (
-        os.path.exists(due_csv)
-        and os.path.exists(detail_csv)
-        and (os.path.getmtime(due_csv) >= excel_mtime)
-        and (os.path.getmtime(detail_csv) >= excel_mtime)
-        and (os.path.getmtime(due_csv) >= analysis_mtime)
-        and (os.path.getmtime(detail_csv) >= analysis_mtime)
-    )
+    # Base outputs must exist. (mtime is unreliable on hosted deployments.)
+    base_ok = os.path.exists(due_csv) and os.path.exists(detail_csv)
     if not base_ok:
         return {
             "ok": True,
@@ -448,16 +482,16 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
             "prod_daily_csv": None,
         }
 
-    # Hosted deployments: mtimes can lie (checkout time). Prefer analysis_summary.json (repo-friendly).
-    # If unavailable, fall back to a local build stamp written after regeneration.
-    gen_ts = _analysis_generated_ts(out_dir)
-    if gen_ts <= 0.0:
-        meta = _read_outputs_meta(out_dir)
-        gen_ts = float(meta.get("excel_mtime") or 0.0)
-        meta_analysis = float(meta.get("analysis_mtime") or 0.0)
-        if meta_analysis < float(analysis_mtime):
-            gen_ts = 0.0
-    if gen_ts < float(excel_mtime) or gen_ts < float(analysis_mtime):
+    # Hosted deployments: mtimes can lie (checkout time). Prefer analysis_summary.json (repo-friendly),
+    # but also accept runtime regeneration stamps written to out/_outputs_meta.json.
+    gen_ts = float(_analysis_generated_ts(out_dir) or 0.0)
+    meta = _read_outputs_meta(out_dir)
+    meta_excel = float(meta.get("excel_mtime") or 0.0)
+    meta_ver = int(meta.get("export_version") or 0)
+    if meta_ver != int(EXPORT_VERSION):
+        meta_excel = 0.0
+    gen_ts = max(gen_ts, meta_excel)
+    if gen_ts < float(excel_mtime):
         return {
             "ok": True,
             "needs_regen": True,
@@ -530,11 +564,12 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     excel_mtime = _excel_version_mtime(excel_path)
 
     if os.path.exists(due_csv) and os.path.exists(detail_csv):
-        if os.path.getmtime(due_csv) >= excel_mtime and os.path.getmtime(detail_csv) >= excel_mtime:
-            gen_ts = _analysis_generated_ts(out_dir)
-            if gen_ts <= 0.0:
-                meta = _read_outputs_meta(out_dir)
-                gen_ts = float(meta.get("excel_mtime") or 0.0)
+        if True:
+            gen_ts = float(_analysis_generated_ts(out_dir) or 0.0)
+            meta = _read_outputs_meta(out_dir)
+            meta_ts = float(meta.get("excel_mtime") or 0.0)
+            meta_ver = int(meta.get("export_version") or 0)
+            gen_ts = max(gen_ts, meta_ts if meta_ver == int(EXPORT_VERSION) else 0.0)
             meta_ok = gen_ts >= float(excel_mtime)
             try:
                 sheet_names = _xlsx_sheet_names_cached(excel_path, float(excel_mtime))
@@ -565,15 +600,7 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
     if not info.get("enabled"):
         return {"ok": False, "reason": info.get("reason") or "export failed"}
-    try:
-        analysis_mtime = float(os.path.getmtime(__file__))
-        try:
-            analysis_mtime = max(analysis_mtime, float(os.path.getmtime(excel_analysis.__file__)))
-        except Exception:
-            pass
-    except Exception:
-        analysis_mtime = 0.0
-    _write_outputs_meta(out_dir=out_dir, excel_mtime=float(excel_mtime), analysis_mtime=float(analysis_mtime))
+    _write_outputs_meta(out_dir=out_dir, excel_mtime=float(excel_mtime))
     return {
         "ok": True,
         "regenerated": True,
@@ -4024,13 +4051,17 @@ def main() -> None:
         st.error(f"데이터 로딩 실패: {status.get('reason') or '-'}")
         st.stop()
 
-    force_regen = False
+    ensure = status
     if status.get("needs_regen"):
         due_csv_try = str(status.get("due_csv") or "")
         detail_csv_try = str(status.get("detail_csv") or "")
-        has_existing = bool(due_csv_try and detail_csv_try and os.path.exists(due_csv_try) and os.path.exists(detail_csv_try))
+        has_existing = bool(
+            due_csv_try and detail_csv_try and os.path.exists(due_csv_try) and os.path.exists(detail_csv_try)
+        )
 
-        gen_ts = _analysis_generated_ts(out_dir)
+        gen_ts = float(_analysis_generated_ts(out_dir) or 0.0)
+        meta = _read_outputs_meta(out_dir)
+        gen_ts = max(gen_ts, float(meta.get("excel_mtime") or 0.0))
         excel_label = _file_mtime_label(excel_path)
         gen_label = datetime.fromtimestamp(gen_ts, tz=KST).strftime("%Y-%m-%d %H:%M:%S %Z") if gen_ts > 0 else "-"
 
@@ -4038,27 +4069,29 @@ def main() -> None:
             st.markdown("<div class='sb-title'>데이터 업데이트</div>", unsafe_allow_html=True)
             st.caption(f"- 엑셀: `{excel_label}`")
             st.caption(f"- 산출물: `{gen_label}`")
-            force_regen = st.button("지금 재생성(시간 소요)", use_container_width=True, key="btn_regen_outputs")
+            if has_existing and _regen_is_running():
+                st.caption("업데이트 중…")
+            err = _regen_last_error()
+            if err:
+                st.caption(f"업데이트 실패: {err}")
 
         if not has_existing:
-            force_regen = True
-        elif not force_regen:
-            st.warning(
-                "엑셀 변경이 감지됐지만, 기존 산출물로 먼저 표시합니다. "
-                "정확한 최신 데이터가 필요하면 사이드바의 `지금 재생성(시간 소요)`를 눌러주세요."
-            )
-
-    if status.get("needs_regen") and force_regen:
-        boot_ph.caption("엑셀 변경 감지: 데이터 생성 중...")
-        with st.spinner("엑셀 변경 감지: 데이터 생성 중..."):
-            try:
-                ensure = _ensure_latest_outputs(excel_path=excel_path, out_dir=out_dir)
-            except Exception as e:
-                st.error("데이터 생성 중 예외가 발생했습니다.")
-                st.exception(e)
-                st.stop()
-    else:
-        ensure = status
+            boot_ph.caption("엑셀 변경 감지: 데이터 생성 중…")
+            with st.spinner("엑셀 변경 감지: 데이터 생성 중…"):
+                try:
+                    ensure = _ensure_latest_outputs(excel_path=excel_path, out_dir=out_dir)
+                except Exception as e:
+                    st.error("데이터 생성 중 예외가 발생했습니다.")
+                    st.exception(e)
+                    st.stop()
+        else:
+            _kickoff_regen_async(excel_path=excel_path, out_dir=out_dir, excel_mtime=_excel_version_mtime(excel_path))
+            if _regen_is_running():
+                # Auto-refresh while regeneration runs so users see the new data ASAP without manual actions.
+                components.html(
+                    "<script>setTimeout(() => window.location.reload(), 2500);</script>",
+                    height=0,
+                )
 
     if not ensure.get("ok"):
         st.error(f"데이터 생성 실패: {ensure.get('reason')}")

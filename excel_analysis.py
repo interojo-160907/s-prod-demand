@@ -27,6 +27,16 @@ def _safe_mkdir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
+def _atomic_to_csv(df: pd.DataFrame, path: str, **kwargs) -> None:
+    """
+    Write CSV atomically so readers never see partial files.
+    """
+    _safe_mkdir(os.path.dirname(path) or ".")
+    tmp = f"{path}.tmp_{os.getpid()}"
+    df.to_csv(tmp, **kwargs)
+    os.replace(tmp, path)
+
+
 def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
@@ -648,14 +658,17 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     else:
         demand["제품군"] = pd.NA
 
-    # Fallback to 설비별 매핑 if needed (mainly for missing 수요 제품 이름 or POWER parsing).
-    product_family_map = _build_product_family_map(xl)
-    mapped = demand["제품 코드"].map(product_family_map) if product_family_map else pd.Series([pd.NA] * len(demand))
-    miss = demand.loc[mapped.isna()].copy() if product_family_map else demand.copy()
-    demand["제품군"] = demand["제품군"].where(
-        demand["제품군"].astype("string").fillna("").str.strip().ne(""),
-        mapped,
-    )
+    # Optional fallback to 설비별 매핑 only when needed (big speed win on hosted environments).
+    demand["제품군"] = demand["제품군"].astype("string").fillna("").str.strip()
+    need_map = demand["제품군"].eq("").any()
+    product_family_map: dict[str, str] = {}
+    miss = demand.iloc[0:0].copy()
+    if need_map:
+        product_family_map = _build_product_family_map(xl)
+        if product_family_map:
+            mapped = demand["제품 코드"].map(product_family_map)
+            miss = demand.loc[mapped.isna()].copy()
+            demand["제품군"] = demand["제품군"].where(demand["제품군"].ne(""), mapped)
 
     if "수요 제품 이름" in demand.columns:
         fallback = base_family.fillna("").astype(str).str.strip() + " | " + demand["제품 코드"].astype(str).str.strip()
@@ -665,13 +678,16 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     demand.loc[demand["제품군"].eq(""), "제품군"] = fallback
     miss_out = os.path.join(out_dir, "제품코드_매핑누락.csv")
     miss_key_col = "제품 코드"
-    (
-        miss.groupby([miss_key_col], as_index=False)
-        .agg(건수=(miss_key_col, "size"), 예시_제품군=("제품군", "first"))
-        .sort_values("건수", ascending=False)
-        .head(5000)
-        .to_csv(miss_out, index=False, encoding="utf-8-sig")
-    )
+    if need_map and (not miss.empty):
+        miss_df = (
+            miss.groupby([miss_key_col], as_index=False)
+            .agg(건수=(miss_key_col, "size"), 예시_제품군=("제품군", "first"))
+            .sort_values("건수", ascending=False)
+            .head(5000)
+        )
+    else:
+        miss_df = pd.DataFrame(columns=[miss_key_col, "건수", "예시_제품군"])
+    _atomic_to_csv(miss_df, miss_out, index=False, encoding="utf-8-sig")
 
     agg = ["생산 수량"] + present_process_cols
     group_cols: list[str] = []
@@ -782,8 +798,11 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     if "신규분류 요약코드" in g.columns:
         sort_cols.append("신규분류 요약코드")
     sort_cols.append("제품군")
-    g[cols].sort_values(sort_cols, ascending=[True] * len(sort_cols)).to_csv(
-        out_path, index=False, encoding="utf-8-sig"
+    _atomic_to_csv(
+        g[cols].sort_values(sort_cols, ascending=[True] * len(sort_cols)),
+        out_path,
+        index=False,
+        encoding="utf-8-sig",
     )
 
     # Order-level detail export (for per-order priority view).
@@ -819,8 +838,11 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     ]
     detail_cols = [c for c in detail_cols if c in detail.columns]
     detail_path = os.path.join(out_dir, "이니셜별_수주상세.csv")
-    detail[detail_cols].sort_values(["납기일"], ascending=[True]).to_csv(
-        detail_path, index=False, encoding="utf-8-sig"
+    _atomic_to_csv(
+        detail[detail_cols].sort_values(["납기일"], ascending=[True]),
+        detail_path,
+        index=False,
+        encoding="utf-8-sig",
     )
 
     if "_map_key" in demand.columns:
