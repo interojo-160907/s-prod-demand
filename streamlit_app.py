@@ -1883,14 +1883,51 @@ def _ensure_prod_daily_csv(*, excel_path: str, out_dir: str) -> str | None:
 @st.cache_data(show_spinner=False)
 def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFrame]:
     _ = mtime  # cache-buster when file changes
-    # Speed: load only the columns we use (the 사출 sheet can be wide).
+    # Speed: load only the columns we use (the injection sheet can be wide).
     equip_cols = ["위치", "사출 호기", "구분", "구분2", "생산 제품", "비고"]
     arrange_cols = ["제품명코드", "제품명", "구분.1"]
     want_cols = list(dict.fromkeys([*equip_cols, *arrange_cols]))
+
+    def _pick_injection_sheet_name() -> tuple[str | None, list[str]]:
+        avail = sorted(list(_xlsx_sheet_names_cached(path, float(mtime))))
+        avail_norm = {str(s).strip(): str(s) for s in avail if str(s).strip()}
+
+        # Preferred explicit candidates (keep order).
+        candidates = [
+            "사출",
+            "사출(설비현황)",
+            "사출(설비 현황)",
+            "사출설비",
+            "사출_설비",
+            "사출 계획",
+            "사출계획",
+            "사출 스케줄",
+            "사출스케줄",
+        ]
+        for c in candidates:
+            if c in avail_norm:
+                return (avail_norm[c], avail)
+
+        # Fuzzy: any sheet whose stripped name contains "사출"
+        for k, orig in avail_norm.items():
+            if "사출" in k:
+                return (orig, avail)
+        return (None, avail)
+
+    sheet_name, avail = _pick_injection_sheet_name()
+    if not sheet_name:
+        # Return empty but include metadata for better UI diagnostics.
+        return {"equip": pd.DataFrame(), "arrange": pd.DataFrame(), "sheet_name": None, "available_sheets": avail}
+
     try:
-        raw = pd.read_excel(path, sheet_name="사출", usecols=want_cols)
+        raw = pd.read_excel(path, sheet_name=sheet_name, usecols=want_cols)
     except Exception:
-        return {"equip": pd.DataFrame(), "arrange": pd.DataFrame()}
+        return {
+            "equip": pd.DataFrame(),
+            "arrange": pd.DataFrame(),
+            "sheet_name": sheet_name,
+            "available_sheets": avail,
+        }
 
     # Note: in current xlsx, columns map as:
     # - 사출 호기: A1/A2... (equipment code)
@@ -1964,7 +2001,12 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
             equip["현재제품코드"] = ""
     except Exception:
         equip["현재제품코드"] = ""
-    return {"equip": equip, "arrange": arrange}
+    return {
+        "equip": equip,
+        "arrange": arrange,
+        "sheet_name": sheet_name,
+        "available_sheets": avail,
+    }
 
 
 @st.cache_data(show_spinner=False)
@@ -5192,7 +5234,15 @@ def main() -> None:
         inj_equip = inj_info.get("equip", pd.DataFrame())
         inj_arrange = inj_info.get("arrange", pd.DataFrame())
         if inj_equip is None or inj_equip.empty:
-            st.error("엑셀에 `사출` 시트(설비 현황)가 없습니다.")
+            sh = inj_info.get("sheet_name", None)
+            avail = inj_info.get("available_sheets", None)
+            if avail:
+                st.error("엑셀에 사출 시트(설비 현황)를 찾지 못했습니다.")
+                st.caption(f"감지된 시트: `{', '.join([str(x) for x in avail])}`")
+                if sh is not None:
+                    st.caption(f"선택된 시트: `{sh}` (로딩 실패)")
+            else:
+                st.error("엑셀에 사출 시트(설비 현황)가 없습니다.")
             st.stop()
 
         detail_mtime_for_sched = 0.0
