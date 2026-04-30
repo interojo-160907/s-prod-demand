@@ -1919,8 +1919,44 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
         # Return empty but include metadata for better UI diagnostics.
         return {"equip": pd.DataFrame(), "arrange": pd.DataFrame(), "sheet_name": None, "available_sheets": avail}
 
+    def _norm_col_name(c: object) -> str:
+        s = str(c or "").strip()
+        if not s:
+            return ""
+        # Collapse whitespace for robust matching.
+        return " ".join(s.split())
+
+    def _normalize_and_rename_columns(df: pd.DataFrame) -> pd.DataFrame:
+        if df is None or df.empty:
+            return df
+        df = df.copy()
+        df.columns = [_norm_col_name(c) for c in df.columns]
+
+        # Common header variants seen in uploads.
+        rename = {
+            "사출호기": "사출 호기",
+            "사출기": "사출 호기",
+            "생산제품": "생산 제품",
+            "생산품": "생산 제품",
+            "구분1": "구분.1",
+            "구분 1": "구분.1",
+            "구분_1": "구분.1",
+            "제품명 코드": "제품명코드",
+        }
+        df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns})
+        return df
+
     try:
-        raw = pd.read_excel(path, sheet_name=sheet_name, usecols=want_cols)
+        # Some uploads rename columns slightly; reading with strict usecols can fail.
+        try:
+            hdr = pd.read_excel(path, sheet_name=sheet_name, nrows=0)
+            hdr = _normalize_and_rename_columns(hdr)
+            present = [c for c in want_cols if c in hdr.columns]
+            # If none of the expected columns exist, fall back to reading the full sheet.
+            raw = pd.read_excel(path, sheet_name=sheet_name, usecols=present) if present else pd.read_excel(path, sheet_name=sheet_name)
+        except Exception:
+            raw = pd.read_excel(path, sheet_name=sheet_name)
+        raw = _normalize_and_rename_columns(raw)
     except Exception:
         return {
             "equip": pd.DataFrame(),
