@@ -584,7 +584,31 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
     if "이니셜별" not in xl.sheet_names:
         return {"enabled": False, "reason": "Missing sheet: 이니셜별"}
 
-    demand = _clean_columns(xl.parse("이니셜별"))
+    # Speed: load only the columns we actually use (big win on hosted environments).
+    base_cols = [
+        "설비 사이트 코드",
+        "이니셜",
+        "수주번호",
+        "신규분류 요약코드",
+        "수요 제품 이름",
+        "제품 코드",
+        "납기일",
+        "생산 수량",
+    ]
+    process_cols = [
+        "[10]사출조립",
+        "[20]분리",
+        "[45]하이드레이션/전면검사",
+        "[55]접착/멸균",
+        "[80]누수/규격검사",
+    ]
+    try:
+        hdr = _clean_columns(xl.parse("이니셜별", nrows=0))
+        usecols = [c for c in (base_cols + process_cols) if c in hdr.columns]
+        demand = _clean_columns(xl.parse("이니셜별", usecols=usecols))
+    except Exception:
+        # Fallback: read full sheet if the engine doesn't support usecols by name.
+        demand = _clean_columns(xl.parse("이니셜별"))
     demand = _drop_total_rows(demand)
     demand = _to_datetime(demand, ["납기일"])
 
@@ -593,13 +617,6 @@ def export_due_process_shortage(file_path: str | bytes, out_dir: str) -> dict:
         if c not in demand.columns:
             return {"enabled": False, "reason": f"Missing column: {c}"}
 
-    process_cols = [
-        "[10]사출조립",
-        "[20]분리",
-        "[45]하이드레이션/전면검사",
-        "[55]접착/멸균",
-        "[80]누수/규격검사",
-    ]
     present_process_cols = [c for c in process_cols if c in demand.columns]
 
     demand = _coerce_numeric(demand, ["생산 수량"] + present_process_cols)

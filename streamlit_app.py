@@ -309,6 +309,39 @@ def _outputs_meta_path(out_dir: str) -> str:
     return os.path.join(out_dir, "_outputs_meta.json")
 
 
+def _analysis_summary_path(out_dir: str) -> str:
+    return os.path.join(out_dir, "analysis_summary.json")
+
+
+def _read_analysis_summary(out_dir: str) -> dict:
+    try:
+        p = _analysis_summary_path(out_dir)
+        if not os.path.exists(p):
+            return {}
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _analysis_generated_ts(out_dir: str) -> float:
+    """
+    Return analysis_summary.json generated_at as a POSIX timestamp (KST assumed if naive).
+    """
+    try:
+        data = _read_analysis_summary(out_dir)
+        raw = str(data.get("generated_at") or "").strip()
+        if not raw:
+            return 0.0
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=KST)
+        return float(dt.timestamp())
+    except Exception:
+        return 0.0
+
+
 def _read_outputs_meta(out_dir: str) -> dict:
     """
     Read metadata written after derived CSV generation.
@@ -415,11 +448,16 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
             "prod_daily_csv": None,
         }
 
-    # Hosted deployments: mtime can lie (checkout time). Require explicit build stamp.
-    meta = _read_outputs_meta(out_dir)
-    meta_excel = float(meta.get("excel_mtime") or 0.0)
-    meta_analysis = float(meta.get("analysis_mtime") or 0.0)
-    if (meta_excel < float(excel_mtime)) or (meta_analysis < float(analysis_mtime)):
+    # Hosted deployments: mtimes can lie (checkout time). Prefer analysis_summary.json (repo-friendly).
+    # If unavailable, fall back to a local build stamp written after regeneration.
+    gen_ts = _analysis_generated_ts(out_dir)
+    if gen_ts <= 0.0:
+        meta = _read_outputs_meta(out_dir)
+        gen_ts = float(meta.get("excel_mtime") or 0.0)
+        meta_analysis = float(meta.get("analysis_mtime") or 0.0)
+        if meta_analysis < float(analysis_mtime):
+            gen_ts = 0.0
+    if gen_ts < float(excel_mtime) or gen_ts < float(analysis_mtime):
         return {
             "ok": True,
             "needs_regen": True,
@@ -493,12 +531,11 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
 
     if os.path.exists(due_csv) and os.path.exists(detail_csv):
         if os.path.getmtime(due_csv) >= excel_mtime and os.path.getmtime(detail_csv) >= excel_mtime:
-            meta = _read_outputs_meta(out_dir)
-            meta_excel = float(meta.get("excel_mtime") or 0.0)
-            if meta_excel >= float(excel_mtime):
-                meta_ok = True
-            else:
-                meta_ok = False
+            gen_ts = _analysis_generated_ts(out_dir)
+            if gen_ts <= 0.0:
+                meta = _read_outputs_meta(out_dir)
+                gen_ts = float(meta.get("excel_mtime") or 0.0)
+            meta_ok = gen_ts >= float(excel_mtime)
             try:
                 sheet_names = _xlsx_sheet_names_cached(excel_path, float(excel_mtime))
                 has_equip = "설비별" in sheet_names
@@ -3987,7 +4024,31 @@ def main() -> None:
         st.error(f"데이터 로딩 실패: {status.get('reason') or '-'}")
         st.stop()
 
+    force_regen = False
     if status.get("needs_regen"):
+        due_csv_try = str(status.get("due_csv") or "")
+        detail_csv_try = str(status.get("detail_csv") or "")
+        has_existing = bool(due_csv_try and detail_csv_try and os.path.exists(due_csv_try) and os.path.exists(detail_csv_try))
+
+        gen_ts = _analysis_generated_ts(out_dir)
+        excel_label = _file_mtime_label(excel_path)
+        gen_label = datetime.fromtimestamp(gen_ts, tz=KST).strftime("%Y-%m-%d %H:%M:%S %Z") if gen_ts > 0 else "-"
+
+        with st.sidebar:
+            st.markdown("<div class='sb-title'>데이터 업데이트</div>", unsafe_allow_html=True)
+            st.caption(f"- 엑셀: `{excel_label}`")
+            st.caption(f"- 산출물: `{gen_label}`")
+            force_regen = st.button("지금 재생성(시간 소요)", use_container_width=True, key="btn_regen_outputs")
+
+        if not has_existing:
+            force_regen = True
+        elif not force_regen:
+            st.warning(
+                "엑셀 변경이 감지됐지만, 기존 산출물로 먼저 표시합니다. "
+                "정확한 최신 데이터가 필요하면 사이드바의 `지금 재생성(시간 소요)`를 눌러주세요."
+            )
+
+    if status.get("needs_regen") and force_regen:
         boot_ph.caption("엑셀 변경 감지: 데이터 생성 중...")
         with st.spinner("엑셀 변경 감지: 데이터 생성 중..."):
             try:
