@@ -51,6 +51,10 @@ RISK_WIP_DAYS_PER_PROCESS = 1.0
 # Scheduling start offset (calendar days). Use 0 to allow same-day completion dates like 4/22.
 RISK_SCHED_START_OFFSET_DAYS = 0.0
 
+# Injection plan policy: treat near-due items as urgent and allow them to override
+# "keep current product" continuity rules.
+INJ_DUE_URGENT_BUFFER_DAYS = 1  # e.g. due today/tomorrow should be prioritized
+
 
 @st.cache_data(show_spinner=False)
 def _load_theme_from_config_cached(_mtime: float) -> dict:
@@ -2695,12 +2699,13 @@ def _build_injection_schedule(
         except Exception:
             line_total_capa = {}
             line_total_capa_any = {}
+        urgent_cutoff = day + timedelta(days=int(INJ_DUE_URGENT_BUFFER_DAYS))
         try:
             # Remaining by product at the beginning of the day.
             urgent_remaining = {
                 k: _product_remaining(k)
                 for k in product_info.keys()
-                if _product_remaining(k) > 0 and _product_due(k) <= day
+                if _product_remaining(k) > 0 and _product_due(k) <= urgent_cutoff
             }
             if urgent_remaining:
                 # Capacity by product from machines whose previous product is that product.
@@ -2744,14 +2749,14 @@ def _build_injection_schedule(
                 best_due = _product_due(best)
 
                 # Operational reality: for the *first planning day* (today),
-                # keep the currently running product as-is when there is no "urgent" (due <= today) demand.
+                # keep the currently running product as-is when there is no "urgent" (due <= today+buffer) demand.
                 # This avoids unnecessary back-and-forth assignments like "today A -> tomorrow B"
                 # when the shop floor is already running B.
                 prefer_u = str(prefer or "").strip().upper()
                 if (
                     prefer_u
                     and (day == start_date)
-                    and (best_due > day)
+                    and (best_due > urgent_cutoff)
                     and (prefer_u in candidates)
                     and (_product_remaining(prefer_u) > 0)
                 ):
@@ -2761,7 +2766,7 @@ def _build_injection_schedule(
                 # don't switch other machines away from their current product just because it's overdue.
                 if (
                     prefer_u
-                    and (best_due <= day)
+                    and (best_due <= urgent_cutoff)
                     and (best in urgent_done_by_running)
                     and (prefer_u in candidates)
                     and (_product_remaining(prefer_u) > 0)
@@ -2773,7 +2778,7 @@ def _build_injection_schedule(
                 # even though due-date priority would normally switch it.
                 if (
                     prefer_u
-                    and (best_due <= day)
+                    and (best_due <= urgent_cutoff)
                     and (prefer_u in candidates)
                     and (_product_remaining(prefer_u) > 0)
                     and str(best).strip().upper() != prefer_u
@@ -2808,7 +2813,7 @@ def _build_injection_schedule(
                 def _switch_penalty(k: str) -> int:
                     rem = int(_product_remaining(k) or 0)
                     due = _product_due(k)
-                    urgent = bool(isinstance(due, date) and due <= day)
+                    urgent = bool(isinstance(due, date) and due <= urgent_cutoff)
                     is_switch = bool(prefer_u and str(k).strip().upper() != prefer_u)
                     if is_switch and (not urgent) and rem < int(min_new_product_qty):
                         return 1
