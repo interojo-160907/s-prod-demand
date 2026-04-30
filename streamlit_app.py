@@ -4520,6 +4520,10 @@ def main() -> None:
     total_all = 0.0
     try:
         due_end_for_totals: date | None = None
+        if view_mode == "수주별 현황" and st.session_state.get("order_due_quick", "해제") != "해제":
+            due_end_for_totals = st.session_state.get("order_due_end", _today_kst())
+        if view_mode == "리스크" and st.session_state.get("risk_due_quick", "해제") != "해제":
+            due_end_for_totals = st.session_state.get("risk_due_end", _today_kst())
         if view_mode == "납기별 상세" and st.session_state.get("due_due_quick", "해제") != "해제":
             due_end_for_totals = st.session_state.get("due_due_end", _today_kst())
         if view_mode == "공정별 보기" and st.session_state.get("proc_due_quick", "해제") != "해제":
