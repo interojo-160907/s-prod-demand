@@ -305,6 +305,45 @@ def _safe_mkdir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
+def _outputs_meta_path(out_dir: str) -> str:
+    return os.path.join(out_dir, "_outputs_meta.json")
+
+
+def _read_outputs_meta(out_dir: str) -> dict:
+    """
+    Read metadata written after derived CSV generation.
+
+    Rationale: on hosted deployments, file mtimes for repo-tracked `out/*.csv` can
+    appear "new" (checkout time) even if the contents were generated from an older
+    workbook. We keep an explicit build stamp to decide whether regeneration is needed.
+    """
+    try:
+        p = _outputs_meta_path(out_dir)
+        if not os.path.exists(p):
+            return {}
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_outputs_meta(*, out_dir: str, excel_mtime: float, analysis_mtime: float) -> None:
+    try:
+        _safe_mkdir(out_dir)
+        p = _outputs_meta_path(out_dir)
+        payload = {
+            "excel_mtime": float(excel_mtime),
+            "analysis_mtime": float(analysis_mtime),
+            "written_at_kst": datetime.now(tz=KST).isoformat(),
+        }
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except Exception:
+        # Meta is an optimization/guardrail; don't fail the app if it cannot be written.
+        return
+
+
 @st.cache_data(show_spinner=False)
 def _xlsx_sheet_names_cached(path: str, _mtime: float) -> set[str]:
     _ = _mtime  # cache-buster when file changes
@@ -367,6 +406,20 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
         and (os.path.getmtime(detail_csv) >= analysis_mtime)
     )
     if not base_ok:
+        return {
+            "ok": True,
+            "needs_regen": True,
+            "due_csv": due_csv,
+            "detail_csv": detail_csv,
+            "equip_code_target_csv": None,
+            "prod_daily_csv": None,
+        }
+
+    # Hosted deployments: mtime can lie (checkout time). Require explicit build stamp.
+    meta = _read_outputs_meta(out_dir)
+    meta_excel = float(meta.get("excel_mtime") or 0.0)
+    meta_analysis = float(meta.get("analysis_mtime") or 0.0)
+    if (meta_excel < float(excel_mtime)) or (meta_analysis < float(analysis_mtime)):
         return {
             "ok": True,
             "needs_regen": True,
@@ -440,6 +493,12 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
 
     if os.path.exists(due_csv) and os.path.exists(detail_csv):
         if os.path.getmtime(due_csv) >= excel_mtime and os.path.getmtime(detail_csv) >= excel_mtime:
+            meta = _read_outputs_meta(out_dir)
+            meta_excel = float(meta.get("excel_mtime") or 0.0)
+            if meta_excel >= float(excel_mtime):
+                meta_ok = True
+            else:
+                meta_ok = False
             try:
                 sheet_names = _xlsx_sheet_names_cached(excel_path, float(excel_mtime))
                 has_equip = "설비별" in sheet_names
@@ -453,7 +512,7 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
 
             # All required/available outputs exist and are up-to-date.
             # NOTE: prod_daily_csv is lazily generated when Risk view is opened.
-            if not has_equip or equip_ok:
+            if meta_ok and (not has_equip or equip_ok):
                 return {
                     "ok": True,
                     "regenerated": False,
@@ -469,6 +528,15 @@ def _ensure_latest_outputs(*, excel_path: str, out_dir: str) -> dict:
     info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
     if not info.get("enabled"):
         return {"ok": False, "reason": info.get("reason") or "export failed"}
+    try:
+        analysis_mtime = float(os.path.getmtime(__file__))
+        try:
+            analysis_mtime = max(analysis_mtime, float(os.path.getmtime(excel_analysis.__file__)))
+        except Exception:
+            pass
+    except Exception:
+        analysis_mtime = 0.0
+    _write_outputs_meta(out_dir=out_dir, excel_mtime=float(excel_mtime), analysis_mtime=float(analysis_mtime))
     return {
         "ok": True,
         "regenerated": True,
