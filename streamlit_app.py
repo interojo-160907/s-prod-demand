@@ -3138,8 +3138,6 @@ def _build_injection_gantt_chart_df_cached(
             cur_run = str(info.get("현재제품") or "").strip()
             cur_run_code = str(info.get("현재제품코드") or "").strip().upper()
             is_now_slot = isinstance(d, date) and (d == start_date) and (int(b) == int(now_block))
-            fill_running_all = bool(cur_run_code) and (not has_any)
-
             if prod:
                 state = "배정"
                 idle_reason = ""
@@ -3155,15 +3153,8 @@ def _build_injection_gantt_chart_df_cached(
                     state = "유휴"
                     idle_reason = ""
 
-                # If schedule has no assignment for this equipment at all, keep the whole horizon occupied
-                # by the currently running product (D2 같은 케이스). Still keep qty/power empty.
-                if (state == "유휴") and fill_running_all:
-                    state = "배정"
-                    prod = cur_run_code
-                    prod_name = cur_run
-                    idle_reason = ""
-                # Otherwise, show current running info only for the current slot (do not propagate to future slots).
-                elif (state == "유휴") and is_now_slot and cur_run_code:
+                # Show current running info only for the current slot (do not propagate to future slots).
+                if (state == "유휴") and is_now_slot and cur_run_code:
                     state = "배정"
                     prod = cur_run_code
                     prod_name = cur_run
