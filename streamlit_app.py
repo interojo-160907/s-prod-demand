@@ -558,6 +558,18 @@ def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
         return df
 
 
+def _cap_df_for_display(df: pd.DataFrame, *, max_rows: int) -> tuple[pd.DataFrame, bool]:
+    if df is None or (not isinstance(df, pd.DataFrame)) or df.empty:
+        return (df, False)
+    try:
+        n = int(df.shape[0])
+    except Exception:
+        n = 0
+    if n <= int(max_rows):
+        return (df, False)
+    return (df.head(int(max_rows)).copy(), True)
+
+
 def _apply_local_theme_css() -> None:
     theme = _load_theme_from_config()
     bg = theme.get("backgroundColor", "#FBF7EE")
@@ -792,6 +804,9 @@ def _filter_by_any_contains(df: pd.DataFrame, cols: list[str], raw_terms: str) -
 
 
 DEFAULT_STAGE_COLS = ["사출", "분리", "하이드레이션", "접착", "누수규격"]
+
+# UI performance guardrails (large tables are expensive to render in Streamlit).
+MAX_DF_ROWS_DISPLAY = 3000
 
 
 @st.cache_data(show_spinner=False)
@@ -4852,11 +4867,15 @@ def main() -> None:
         stage_cols_raw = DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in subset.columns]
 
-        search_raw = st.text_input(
-            "검색 (품명/이니셜/수주번호)",
-            placeholder="예: 해외, 202601, SEPIA",
-            key=f"order_{code_key}_search",
-        )
+        # Performance: avoid recomputing heavy tables on every keystroke.
+        # (In a form, widget values only apply when submitted.)
+        with st.form(key=f"order_{code_key}_search_form", border=False):
+            search_raw = st.text_input(
+                "검색 (품명/이니셜/수주번호)",
+                placeholder="예: 해외, 202601, SEPIA",
+                key=f"order_{code_key}_search",
+            )
+            _ = st.form_submit_button("검색 적용")
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
 
         detail_num = subset.copy()
@@ -4935,14 +4954,21 @@ def main() -> None:
             col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
         col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
 
-        xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
-        st.download_button(
-            "엑셀 다운로드 (요약)",
-            data=xlsx_bytes_sum,
-            file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"order_{code_key}_download_sum",
+        enable_xlsx = st.checkbox(
+            "엑셀 다운로드 준비(느림)",
+            value=False,
+            key=f"order_{code_key}_enable_xlsx",
+            help="엑셀 파일 생성은 큰 테이블에서 시간이 걸릴 수 있어 필요할 때만 켜는 것을 권장합니다.",
         )
+        if enable_xlsx:
+            xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
+            st.download_button(
+                "엑셀 다운로드 (요약)",
+                data=xlsx_bytes_sum,
+                file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"order_{code_key}_download_sum",
+            )
 
         order_show = order_view[summary_cols].copy()
         order_show.columns = summary_cols
@@ -4955,9 +4981,12 @@ def main() -> None:
             ])
             st.markdown(f"<div style='margin-bottom: 8px; padding: 4px 8px;'>{totals_html}</div>", unsafe_allow_html=True)
 
-        sum_h = _table_height_for_rows(len(order_view), min_height=260, max_height=520)
+        order_show2, sum_capped = _cap_df_for_display(order_show, max_rows=MAX_DF_ROWS_DISPLAY)
+        if sum_capped:
+            st.caption(f"표시 성능을 위해 요약 표는 상위 {MAX_DF_ROWS_DISPLAY:,}행만 표시합니다. (전체는 엑셀 다운로드로 확인)")
+        sum_h = _table_height_for_rows(len(order_show2), min_height=260, max_height=520)
         st.dataframe(
-            _style_dataframe_like_dashboard(order_show),
+            _style_dataframe_like_dashboard(order_show2),
             use_container_width=True,
             height=sum_h,
             hide_index=True,
@@ -4990,18 +5019,22 @@ def main() -> None:
             column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        xlsx_bytes_det = _to_excel_bytes(view[cols], sheet_name="수주상세")
-        st.download_button(
-            "엑셀 다운로드 (상세)",
-            data=xlsx_bytes_det,
-            file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"order_{code_key}_download_det",
-        )
+        if enable_xlsx:
+            xlsx_bytes_det = _to_excel_bytes(view[cols], sheet_name="수주상세")
+            st.download_button(
+                "엑셀 다운로드 (상세)",
+                data=xlsx_bytes_det,
+                file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"order_{code_key}_download_det",
+            )
 
-        detail_h = _table_height_for_rows(len(view), min_height=320, max_height=720)
+        view2, det_capped = _cap_df_for_display(view[cols], max_rows=MAX_DF_ROWS_DISPLAY)
+        if det_capped:
+            st.caption(f"표시 성능을 위해 상세 표는 상위 {MAX_DF_ROWS_DISPLAY:,}행만 표시합니다. (전체는 엑셀 다운로드로 확인)")
+        detail_h = _table_height_for_rows(len(view2), min_height=320, max_height=720)
         st.dataframe(
-            _style_dataframe_like_dashboard(view[cols]),
+            _style_dataframe_like_dashboard(view2),
             use_container_width=True,
             height=detail_h,
             hide_index=True,
