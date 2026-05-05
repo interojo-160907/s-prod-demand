@@ -645,13 +645,44 @@ def _render_dataframe_with_copy(
     except Exception:
         pass
 
-    st.caption("표에서 셀 선택(드래그 가능) 후 Ctrl+C 하면 복사됩니다. 안 되면 아래 박스를 클릭해서 복사하세요.")
-    st.text_input(
-        "선택한 셀 값",
-        value=val_text,
-        key=f"{key}_copy_value",
-        label_visibility="collapsed",
-    )
+    st.caption("표에서 셀 선택(드래그 가능) 후 Ctrl+C로 복사해보세요. 계속 'Clear caches'가 뜨면 아래 '복사' 버튼을 사용하면 확실합니다.")
+    c1, c2 = st.columns([0.75, 0.25], vertical_alignment="bottom")
+    with c1:
+        st.text_input(
+            "선택한 셀 값",
+            value=val_text,
+            key=f"{key}_copy_value",
+            label_visibility="collapsed",
+        )
+    with c2:
+        # One-click copy that doesn't rely on keyboard shortcuts.
+        components.html(
+            f"""
+<button id="btn" style="
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(49, 51, 63, 0.2);
+  border-radius: 0.5rem;
+  background: white;
+  cursor: pointer;
+">복사</button>
+<script>
+  (function() {{
+    const v = {json.dumps(val_text)};
+    const btn = document.getElementById('btn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {{
+      try {{
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {{
+          await navigator.clipboard.writeText(v);
+        }}
+      }} catch (_) {{}}
+    }});
+  }})();
+</script>
+""",
+            height=46,
+        )
 
 
 def _cap_df_for_display(df: pd.DataFrame, *, max_rows: int) -> tuple[pd.DataFrame, bool]:
