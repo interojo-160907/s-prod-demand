@@ -558,6 +558,64 @@ def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
         return df
 
 
+def _render_dataframe_with_copy(
+    data: object,
+    df_for_copy: pd.DataFrame | None,
+    *,
+    key: str,
+    height: int | None = None,
+    use_container_width: bool | None = None,
+    hide_index: bool | None = None,
+    column_config: dict | None = None,
+) -> None:
+    """
+    Render a dataframe and expose a simple "copy selected cell" UX.
+
+    Streamlit's app-level keyboard shortcuts can intercept Ctrl+C when a table cell
+    isn't a real text input. Enabling `on_select` lets users click a cell, then copy
+    its value from a dedicated text box below.
+    """
+
+    event = st.dataframe(
+        data,
+        use_container_width=use_container_width,
+        height=height,
+        hide_index=hide_index,
+        column_config=column_config,
+        key=key,
+        on_select="rerun",
+        selection_mode="single-cell",
+    )
+
+    selected_value = None
+    try:
+        sel = getattr(event, "selection", None)
+        rows = getattr(sel, "rows", None)
+        cols = getattr(sel, "columns", None)
+        if rows and cols and df_for_copy is not None and isinstance(df_for_copy, pd.DataFrame) and (not df_for_copy.empty):
+            r = int(rows[0])
+            c = str(cols[0])
+            if (0 <= r < int(df_for_copy.shape[0])) and (c in df_for_copy.columns):
+                selected_value = df_for_copy.iloc[r][c]
+    except Exception:
+        selected_value = None
+
+    if selected_value is None:
+        return
+
+    try:
+        val_text = "" if selected_value is None else str(selected_value)
+    except Exception:
+        val_text = ""
+
+    st.text_input(
+        "선택한 셀 값 (여기 클릭 후 Ctrl+C로 복사)",
+        value=val_text,
+        key=f"{key}_copy_value",
+        label_visibility="collapsed",
+    )
+
+
 def _cap_df_for_display(df: pd.DataFrame, *, max_rows: int) -> tuple[pd.DataFrame, bool]:
     if df is None or (not isinstance(df, pd.DataFrame)) or df.empty:
         return (df, False)
@@ -4523,8 +4581,10 @@ def main() -> None:
         view_show.columns = cols
 
         table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
-        st.dataframe(
+        _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(view_show),
+            view_show,
+            key=f"{ui_key_prefix}_table",
             use_container_width=True,
             height=table_h,
             hide_index=True,
@@ -4985,8 +5045,10 @@ def main() -> None:
         if sum_capped:
             st.caption(f"표시 성능을 위해 요약 표는 상위 {MAX_DF_ROWS_DISPLAY:,}행만 표시합니다. (전체는 엑셀 다운로드로 확인)")
         sum_h = _table_height_for_rows(len(order_show2), min_height=260, max_height=520)
-        st.dataframe(
+        _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(order_show2),
+            order_show2,
+            key=f"order_{code_key}_summary_table",
             use_container_width=True,
             height=sum_h,
             hide_index=True,
@@ -5033,8 +5095,10 @@ def main() -> None:
         if det_capped:
             st.caption(f"표시 성능을 위해 상세 표는 상위 {MAX_DF_ROWS_DISPLAY:,}행만 표시합니다. (전체는 엑셀 다운로드로 확인)")
         detail_h = _table_height_for_rows(len(view2), min_height=320, max_height=720)
-        st.dataframe(
+        _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(view2),
+            view2,
+            key=f"order_{code_key}_detail_table",
             use_container_width=True,
             height=detail_h,
             hide_index=True,
@@ -5257,8 +5321,11 @@ def main() -> None:
         column_config = {k: v for k, v in column_config.items() if k in show_cols}
 
         table_h = _table_height_for_rows(len(risk_df), min_height=320, max_height=780)
-        st.dataframe(
-            _style_dataframe_like_dashboard(risk_df[show_cols]),
+        show_df = risk_df[show_cols].copy()
+        _render_dataframe_with_copy(
+            _style_dataframe_like_dashboard(show_df),
+            show_df,
+            key=f"risk_{code_key}_table",
             use_container_width=True,
             height=table_h,
             hide_index=True,
@@ -5493,8 +5560,10 @@ def main() -> None:
                         )
                         daily["배정수량"] = pd.to_numeric(daily["배정수량"], errors="coerce").fillna(0).astype(int)
                         daily = daily.sort_values(["slot_label", "납기일", "배정수량"], ascending=[True, True, False], na_position="last")
-                        st.dataframe(
+                        _render_dataframe_with_copy(
                             _style_dataframe_like_dashboard(daily),
+                            daily,
+                            key=f"inj_{code_key}_daily_summary",
                             use_container_width=True,
                             height=_table_height_for_rows(len(daily), min_height=220, max_height=520),
                             hide_index=True,
@@ -5625,8 +5694,10 @@ def main() -> None:
                     rows.append(row)
 
             op_show = pd.DataFrame(rows, columns=cols)
-            st.dataframe(
+            _render_dataframe_with_copy(
                 _style_dataframe_like_dashboard(op_show),
+                op_show,
+                key=f"inj_{code_key}_op_table",
                 use_container_width=True,
                 height=_table_height_for_rows(len(op_show), min_height=360, max_height=860),
                 hide_index=True,
@@ -5671,8 +5742,10 @@ def main() -> None:
                 rem_col_cfg["잔여수량"] = st.column_config.NumberColumn(format="localized", width="small")
             if "영향수주" in rem_show.columns:
                 rem_col_cfg["영향수주"] = st.column_config.TextColumn(width="large")
-            st.dataframe(
+            _render_dataframe_with_copy(
                 _style_dataframe_like_dashboard(rem_show),
+                rem_show,
+                key=f"inj_{code_key}_remaining",
                 use_container_width=True,
                 height=_table_height_for_rows(len(rem_show), min_height=220, max_height=520),
                 hide_index=True,
