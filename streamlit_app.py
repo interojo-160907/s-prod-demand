@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import numpy as np
 import streamlit as st
+import streamlit.components.v1 as components
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -584,7 +585,7 @@ def _render_dataframe_with_copy(
         column_config=column_config,
         key=key,
         on_select="rerun",
-        selection_mode="single-cell",
+        selection_mode="multi-cell",
     )
 
     selected_value = None
@@ -608,8 +609,40 @@ def _render_dataframe_with_copy(
     except Exception:
         val_text = ""
 
+    # Best-effort: intercept Ctrl+C and copy the selected value to clipboard.
+    # This prevents Streamlit's global shortcuts (e.g. "Clear caches") from triggering on Ctrl+C.
+    try:
+        js_val = json.dumps(val_text)
+        components.html(
+            f"""
+<script>
+  window.__st_clipboard_value = {js_val};
+  if (!window.__st_clipboard_listener_installed) {{
+    window.addEventListener('keydown', async (e) => {{
+      try {{
+        const isCopy = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C');
+        if (!isCopy) return;
+        const v = window.__st_clipboard_value;
+        if (typeof v !== 'string') return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {{
+          await navigator.clipboard.writeText(v);
+        }}
+      }} catch (_) {{}}
+    }}, true);
+    window.__st_clipboard_listener_installed = true;
+  }}
+</script>
+""",
+            height=0,
+        )
+    except Exception:
+        pass
+
+    st.caption("표에서 셀 선택(드래그 가능) 후 Ctrl+C 하면 복사됩니다. 안 되면 아래 박스를 클릭해서 복사하세요.")
     st.text_input(
-        "선택한 셀 값 (여기 클릭 후 Ctrl+C로 복사)",
+        "선택한 셀 값",
         value=val_text,
         key=f"{key}_copy_value",
         label_visibility="collapsed",
@@ -4927,15 +4960,11 @@ def main() -> None:
         stage_cols_raw = DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in subset.columns]
 
-        # Performance: avoid recomputing heavy tables on every keystroke.
-        # (In a form, widget values only apply when submitted.)
-        with st.form(key=f"order_{code_key}_search_form", border=False):
-            search_raw = st.text_input(
-                "검색 (품명/이니셜/수주번호)",
-                placeholder="예: 해외, 202601, SEPIA",
-                key=f"order_{code_key}_search",
-            )
-            _ = st.form_submit_button("검색 적용")
+        search_raw = st.text_input(
+            "검색 (품명/이니셜/수주번호)",
+            placeholder="예: 해외, 202601, SEPIA",
+            key=f"order_{code_key}_search",
+        )
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
 
         detail_num = subset.copy()
@@ -5014,21 +5043,37 @@ def main() -> None:
             col_cfg_summary[c] = st.column_config.NumberColumn(format="localized", width="small")
         col_cfg_summary = {k: v for k, v in col_cfg_summary.items() if k in summary_cols}
 
-        enable_xlsx = st.checkbox(
-            "엑셀 다운로드 준비(느림)",
-            value=False,
-            key=f"order_{code_key}_enable_xlsx",
-            help="엑셀 파일 생성은 큰 테이블에서 시간이 걸릴 수 있어 필요할 때만 켜는 것을 권장합니다.",
+        # 엑셀 생성은 비용이 커서(큰 테이블 해시/변환) 기본은 "준비" 버튼을 눌렀을 때만 생성한다.
+        xlsx_cache_key = f"order_{code_key}_xlsx_cache"
+        xlsx_sig = (
+            code_key,
+            str(search_raw or ""),
+            str(st.session_state.get("order_due_quick", "해제")),
+            str(st.session_state.get("order_due_end", "")),
         )
-        if enable_xlsx:
-            xlsx_bytes_sum = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
-            st.download_button(
-                "엑셀 다운로드 (요약)",
-                data=xlsx_bytes_sum,
-                file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"order_{code_key}_download_sum",
-            )
+        cache = st.session_state.get(xlsx_cache_key)
+        if not isinstance(cache, dict) or cache.get("sig") != xlsx_sig:
+            st.session_state[xlsx_cache_key] = {"sig": xlsx_sig, "sum": None, "det": None}
+        cache = st.session_state[xlsx_cache_key]
+
+        with st.expander("엑셀 다운로드 (요약)", expanded=False):
+            if st.button(
+                "요약 엑셀 준비(느림)",
+                key=f"order_{code_key}_prep_sum",
+                help="요약 엑셀 파일을 미리 생성합니다. 큰 테이블은 시간이 걸릴 수 있어요.",
+            ):
+                cache["sum"] = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
+
+            if isinstance(cache.get("sum"), (bytes, bytearray)) and cache.get("sum"):
+                st.download_button(
+                    "엑셀 다운로드 (요약)",
+                    data=cache["sum"],
+                    file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"order_{code_key}_download_sum",
+                )
+            else:
+                st.caption("요약 엑셀은 '요약 엑셀 준비(느림)'을 누르면 다운로드 버튼이 활성화됩니다.")
 
         order_show = order_view[summary_cols].copy()
         order_show.columns = summary_cols
@@ -5081,15 +5126,28 @@ def main() -> None:
             column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        if enable_xlsx:
-            xlsx_bytes_det = _to_excel_bytes(view[cols], sheet_name="수주상세")
-            st.download_button(
-                "엑셀 다운로드 (상세)",
-                data=xlsx_bytes_det,
-                file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"order_{code_key}_download_det",
-            )
+        with st.expander("엑셀 다운로드 (상세)", expanded=False):
+            if st.button(
+                "상세 엑셀 준비(느림)",
+                key=f"order_{code_key}_prep_det",
+                help="상세 엑셀 파일을 미리 생성합니다. 큰 테이블은 시간이 걸릴 수 있어요.",
+            ):
+                cache = st.session_state.get(xlsx_cache_key)
+                if isinstance(cache, dict):
+                    cache["det"] = _to_excel_bytes(view[cols], sheet_name="수주상세")
+
+            cache = st.session_state.get(xlsx_cache_key)
+            det_bytes = cache.get("det") if isinstance(cache, dict) else None
+            if isinstance(det_bytes, (bytes, bytearray)) and det_bytes:
+                st.download_button(
+                    "엑셀 다운로드 (상세)",
+                    data=det_bytes,
+                    file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"order_{code_key}_download_det",
+                )
+            else:
+                st.caption("상세 엑셀은 '상세 엑셀 준비(느림)'을 누르면 다운로드 버튼이 활성화됩니다.")
 
         view2, det_capped = _cap_df_for_display(view[cols], max_rows=MAX_DF_ROWS_DISPLAY)
         if det_capped:
@@ -5362,6 +5420,11 @@ def main() -> None:
         # Injection schedule must always be generated from the full dataset (전체),
         # otherwise users change the plan by just clicking a pill.
         demand_for_sched = base_df.copy()
+        # Keep behavior consistent with other tabs: respect the selected product-group code(s) when not "전체".
+        if (not _is_all_codes(codes_selected)) and new_code_col in demand_for_sched.columns:
+            demand_for_sched = demand_for_sched.loc[
+                demand_for_sched[new_code_col].astype("string").isin(list(codes_selected))
+            ].copy()
         demand_for_sched = _attach_item_codes(demand_for_sched, detail_for_map, allowed_prefixes=["R"])
         if "제품코드" not in demand_for_sched.columns:
             demand_for_sched["제품코드"] = ""
@@ -5406,6 +5469,64 @@ def main() -> None:
         if sched is None or sched.empty:
             st.caption("생성된 스케줄이 없습니다.")
             return
+
+        # Diagnostics: demand vs assigned (helps check "too much schedule" cases like A1~A6)
+        def _pick_col(df0: pd.DataFrame, names: list[str]) -> str | None:
+            for n in names:
+                if n in df0.columns:
+                    return n
+            return None
+
+        with st.expander("스케줄 검증(배정 vs 수요)", expanded=False):
+            try:
+                c_code = _pick_col(demand_for_sched, ["제품코드", "?쒗뭹肄붾뱶"])
+                c_qty = _pick_col(demand_for_sched, ["사출", "?ъ텧"])
+                if c_code and c_qty:
+                    dem = demand_for_sched[[c_code, c_qty]].copy()
+                    dem[c_qty] = pd.to_numeric(dem[c_qty], errors="coerce").fillna(0).astype(int)
+                    dem = dem.loc[dem[c_qty].gt(0)].copy()
+                    dem["base_r"] = dem[c_code].map(lambda x: str(_extract_base_r(x) or "").strip().upper())
+                    dem = dem.loc[dem["base_r"].ne("")].copy()
+                    dem_sum = dem.groupby("base_r", as_index=False)[c_qty].sum().rename(columns={c_qty: "수요(사출)"})
+                else:
+                    dem_sum = pd.DataFrame(columns=["base_r", "수요(사출)"])
+
+                c_equip = _pick_col(sched, ["설비명", "?ㅻ퉬紐?"])
+                c_prod = _pick_col(sched, ["제품명코드", "?쒗뭹紐낆퐫??"])
+                c_assigned = _pick_col(sched, ["배정수량", "諛곗젙?섎웾"])
+                if c_prod and c_assigned:
+                    asg = sched[[c_prod, c_assigned] + ([c_equip] if c_equip else [])].copy()
+                    asg[c_assigned] = pd.to_numeric(asg[c_assigned], errors="coerce").fillna(0).astype(int)
+                    asg["base_r"] = asg[c_prod].map(lambda x: str(x or "").strip().upper())
+                    asg_sum = asg.groupby("base_r", as_index=False)[c_assigned].sum().rename(columns={c_assigned: "배정(스케줄)"})
+                else:
+                    asg = pd.DataFrame()
+                    asg_sum = pd.DataFrame(columns=["base_r", "배정(스케줄)"])
+
+                chk = dem_sum.merge(asg_sum, on="base_r", how="outer").fillna(0)
+                if not chk.empty:
+                    chk["수요(사출)"] = chk["수요(사출)"].astype(int)
+                    chk["배정(스케줄)"] = chk["배정(스케줄)"].astype(int)
+                    chk["차이(배정-수요)"] = (chk["배정(스케줄)"] - chk["수요(사출)"]).astype(int)
+                    chk = chk.sort_values(["배정(스케줄)", "수요(사출)"], ascending=[False, False]).head(30)
+                    st.caption("상위 30개(R코드) 기준 수요/배정 비교")
+                    st.dataframe(chk, use_container_width=True, hide_index=True)
+
+                if (not asg.empty) and c_equip and c_assigned:
+                    a_mask = asg[c_equip].astype("string").fillna("").str.match(r"^A[1-6]$", case=False)
+                    a_asg = asg.loc[a_mask].copy()
+                    if not a_asg.empty:
+                        a_sum = (
+                            a_asg.groupby("base_r", as_index=False)[c_assigned]
+                            .sum()
+                            .rename(columns={c_assigned: "A1~A6 배정"})
+                            .sort_values("A1~A6 배정", ascending=False)
+                            .head(30)
+                        )
+                        st.caption("A1~A6 호기 배정 합계(상위 30개 R코드)")
+                        st.dataframe(a_sum, use_container_width=True, hide_index=True)
+            except Exception:
+                st.caption("검증 표 생성 중 오류가 발생했습니다. (업로드 양식/컬럼명이 다를 수 있습니다.)")
 
         xlsx_ops = _to_injection_operation_xlsx_cached(
             sched,
