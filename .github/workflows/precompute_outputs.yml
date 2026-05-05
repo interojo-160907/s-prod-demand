@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: precompute-snapshots-${{ github.ref }}
@@ -39,16 +40,16 @@ jobs:
         run: |
           python excel_analysis.py --file "s관 부족수량.xlsx" --out out --due-process --prod-daily
 
-      - name: Commit snapshots (if changed)
-        run: |
-          git status --porcelain
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add out/*.csv out/*.json || true
-          if git diff --cached --quiet; then
-            echo "No snapshot changes."
-            exit 0
-          fi
-          git commit -m "chore: update dashboard snapshots"
-          git push
-
+      - name: Create pull request (if changed)
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: |
+            out/*.csv
+            out/*.json
+          commit-message: "chore: update dashboard snapshots"
+          title: "chore: update dashboard snapshots"
+          body: |
+            Automated update of precomputed dashboard snapshots under `out/`.
+            Merge this PR to update `main`.
+          branch: "chore/update-dashboard-snapshots"
+          delete-branch: true
