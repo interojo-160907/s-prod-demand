@@ -609,30 +609,35 @@ def _render_dataframe_with_copy(
     except Exception:
         val_text = ""
 
-    # Best-effort: intercept Ctrl+C and copy the selected value to clipboard.
-    # This prevents Streamlit's global shortcuts (e.g. "Clear caches") from triggering on Ctrl+C.
+    # Best-effort: intercept Ctrl+C at the *top window* and copy the selected value.
+    # Streamlit Cloud can capture keyboard shortcuts at the app root; components run in an iframe,
+    # so we install the handler on window.parent when possible.
     try:
         js_val = json.dumps(val_text)
         components.html(
             f"""
 <script>
-  window.__st_clipboard_value = {js_val};
-  if (!window.__st_clipboard_listener_installed) {{
-    window.addEventListener('keydown', async (e) => {{
-      try {{
-        const isCopy = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C');
-        if (!isCopy) return;
-        const v = window.__st_clipboard_value;
-        if (typeof v !== 'string') return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {{
-          await navigator.clipboard.writeText(v);
-        }}
-      }} catch (_) {{}}
-    }}, true);
-    window.__st_clipboard_listener_installed = true;
-  }}
+  (function() {{
+    try {{
+      const root = window.parent || window;
+      root.__st_clipboard_value = {js_val};
+      if (root.__st_clipboard_listener_installed) return;
+      root.addEventListener('keydown', async (e) => {{
+        try {{
+          const isCopy = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C');
+          if (!isCopy) return;
+          const v = root.__st_clipboard_value;
+          if (typeof v !== 'string') return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {{
+            await navigator.clipboard.writeText(v);
+          }}
+        }} catch (_) {{}}
+      }}, true);
+      root.__st_clipboard_listener_installed = true;
+    }} catch (_) {{}}
+  }})();
 </script>
 """,
             height=0,
