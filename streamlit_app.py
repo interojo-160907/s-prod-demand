@@ -5135,7 +5135,7 @@ def main() -> None:
         if not isinstance(cache.get("sum"), (bytes, bytearray)) or not cache.get("sum"):
             cache["sum"] = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
         st.download_button(
-            "엑셀 다운로드",
+            "엑셀 다운로드(요약)",
             data=cache["sum"],
             file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -5201,7 +5201,7 @@ def main() -> None:
             det_bytes = cache.get("det") if isinstance(cache, dict) else None
         if isinstance(det_bytes, (bytes, bytearray)) and det_bytes:
             st.download_button(
-                "엑셀 다운로드",
+                "엑셀 다운로드(상세)",
                 data=det_bytes,
                 file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
