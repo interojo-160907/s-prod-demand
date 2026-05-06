@@ -5591,22 +5591,44 @@ def main() -> None:
             except Exception:
                 st.caption("검증 표 생성 중 오류가 발생했습니다. (업로드 양식/컬럼명이 다를 수 있습니다.)")
 
-        xlsx_ops = _to_injection_operation_xlsx_cached(
-            sched,
-            start_date=start_date,
-            horizon_days=horizon_days,
-            sheet_name="운영양식",
-            equip_all=inj_equip,
-            excel_mtime=excel_mtime,
-            now_block=now_block,
-        )
-        st.download_button(
-            "엑셀 다운로드 (상세표)",
-            data=xlsx_ops,
-            file_name=f"사출상세표_{code_label}_{_today_kst().isoformat()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"inj_{code_key}_download_ops",
-        )
+        # Keep the Excel download compact (and avoid generating bytes on every rerun).
+        inj_xlsx_key = f"inj_{code_key}_ops_xlsx_cache"
+        inj_xlsx_sig = (float(excel_mtime or 0.0), str(code_key), str(start_date), int(horizon_days), int(now_block))
+        cache = st.session_state.get(inj_xlsx_key)
+        if (not isinstance(cache, dict)) or cache.get("sig") != inj_xlsx_sig:
+            st.session_state[inj_xlsx_key] = {"sig": inj_xlsx_sig, "bytes": None}
+        cache = st.session_state[inj_xlsx_key]
+
+        dl_col, _spacer = st.columns([1, 9], vertical_alignment="bottom")
+        with dl_col:
+            if st.button(
+                "엑셀 준비",
+                key=f"inj_{code_key}_prep_ops",
+                help="상세표 엑셀을 생성합니다. (큰 스케줄은 시간이 걸릴 수 있어요)",
+                type="secondary",
+                use_container_width=False,
+            ):
+                cache["bytes"] = _to_injection_operation_xlsx_cached(
+                    sched,
+                    start_date=start_date,
+                    horizon_days=horizon_days,
+                    sheet_name="운영양식",
+                    equip_all=inj_equip,
+                    excel_mtime=excel_mtime,
+                    now_block=now_block,
+                )
+            data_bytes = cache.get("bytes") if isinstance(cache, dict) else None
+            if isinstance(data_bytes, (bytes, bytearray)) and data_bytes:
+                st.download_button(
+                    "엑셀",
+                    data=data_bytes,
+                    file_name=f"사출상세표_{code_label}_{_today_kst().isoformat()}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"inj_{code_key}_download_ops",
+                    help="준비된 상세표 엑셀을 다운로드합니다.",
+                    type="secondary",
+                    width="content",
+                )
 
         blocks = _injection_schedule_to_blocks(sched)
         has_assigned = bool(blocks.get("제품명코드", pd.Series(dtype=str)).astype("string").fillna("").str.strip().ne("").any())
