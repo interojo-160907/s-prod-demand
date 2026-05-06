@@ -817,7 +817,6 @@ div[data-testid="stSegmentedControl"] > div {{
 .sb-dot.warn {{ background: #b06000; }}
 
 div[data-testid="stDownloadButton"] button {{
-  width: 100%;
   border-radius: 10px !important;
   border: 1px solid rgba(0, 0, 0, 0.12) !important;
   background: rgba(255, 255, 255, 0.75) !important;
@@ -827,6 +826,20 @@ div[data-testid="stDownloadButton"] button {{
 }}
 div[data-testid="stDownloadButton"] button:hover {{
   border-color: rgba(0, 0, 0, 0.20) !important;
+}}
+/* Download buttons:
+   - Sidebar: full width (nice for navigation/download area)
+   - Main content: compact, left-aligned (avoid overly long buttons) */
+section[data-testid="stSidebar"] div[data-testid="stDownloadButton"] button {{
+  width: 100%;
+}}
+div[data-testid="stAppViewContainer"] div[data-testid="stDownloadButton"] {{
+  width: fit-content;
+  max-width: 100%;
+}}
+div[data-testid="stAppViewContainer"] div[data-testid="stDownloadButton"] button {{
+  width: auto;
+  min-width: 140px;
 }}
  /* Make title breathe */
  h1 {{
@@ -5119,7 +5132,7 @@ def main() -> None:
             st.session_state[xlsx_cache_key] = {"sig": xlsx_sig, "sum": None, "det": None}
         cache = st.session_state[xlsx_cache_key]
 
-        with st.expander("엑셀 다운로드 (요약)", expanded=False):
+        with st.expander("엑셀 다운로드", expanded=False):
             if st.button(
                 "요약 엑셀 준비(느림)",
                 key=f"order_{code_key}_prep_sum",
@@ -5129,7 +5142,7 @@ def main() -> None:
 
             if isinstance(cache.get("sum"), (bytes, bytearray)) and cache.get("sum"):
                 st.download_button(
-                    "엑셀 다운로드 (요약)",
+                    "엑셀 다운로드",
                     data=cache["sum"],
                     file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -5189,7 +5202,7 @@ def main() -> None:
             column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        with st.expander("엑셀 다운로드 (상세)", expanded=False):
+        with st.expander("엑셀 다운로드", expanded=False):
             if st.button(
                 "상세 엑셀 준비(느림)",
                 key=f"order_{code_key}_prep_det",
@@ -5203,7 +5216,7 @@ def main() -> None:
             det_bytes = cache.get("det") if isinstance(cache, dict) else None
             if isinstance(det_bytes, (bytes, bytearray)) and det_bytes:
                 st.download_button(
-                    "엑셀 다운로드 (상세)",
+                    "엑셀 다운로드",
                     data=det_bytes,
                     file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
