@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
+from streamlit.errors import StreamlitAPIException
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -577,16 +578,42 @@ def _render_dataframe_with_copy(
     its value from a dedicated text box below.
     """
 
-    event = st.dataframe(
-        data,
-        use_container_width=use_container_width,
-        height=height,
-        hide_index=hide_index,
-        column_config=column_config,
-        key=key,
-        on_select="rerun",
-        selection_mode="multi-cell",
-    )
+    # Streamlit's supported `selection_mode` values vary by version.
+    # Prefer cell selection when available; fall back gracefully to avoid crashing the app.
+    try:
+        event = st.dataframe(
+            data,
+            use_container_width=use_container_width,
+            height=height,
+            hide_index=hide_index,
+            column_config=column_config,
+            key=key,
+            on_select="rerun",
+            selection_mode="multi-cell",
+        )
+    except StreamlitAPIException:
+        try:
+            event = st.dataframe(
+                data,
+                use_container_width=use_container_width,
+                height=height,
+                hide_index=hide_index,
+                column_config=column_config,
+                key=key,
+                on_select="rerun",
+                selection_mode="single-cell",
+            )
+        except StreamlitAPIException:
+            # Final fallback: render without selection.
+            st.dataframe(
+                data,
+                use_container_width=use_container_width,
+                height=height,
+                hide_index=hide_index,
+                column_config=column_config,
+                key=key,
+            )
+            return
 
     selected_value = None
     try:
