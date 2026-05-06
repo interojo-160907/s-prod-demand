@@ -5132,24 +5132,15 @@ def main() -> None:
             st.session_state[xlsx_cache_key] = {"sig": xlsx_sig, "sum": None, "det": None}
         cache = st.session_state[xlsx_cache_key]
 
-        with st.expander("엑셀 다운로드", expanded=False):
-            if st.button(
-                "요약 엑셀 준비(느림)",
-                key=f"order_{code_key}_prep_sum",
-                help="요약 엑셀 파일을 미리 생성합니다. 큰 테이블은 시간이 걸릴 수 있어요.",
-            ):
-                cache["sum"] = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
-
-            if isinstance(cache.get("sum"), (bytes, bytearray)) and cache.get("sum"):
-                st.download_button(
-                    "엑셀 다운로드",
-                    data=cache["sum"],
-                    file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"order_{code_key}_download_sum",
-                )
-            else:
-                st.caption("요약 엑셀은 '요약 엑셀 준비(느림)'을 누르면 다운로드 버튼이 활성화됩니다.")
+        if not isinstance(cache.get("sum"), (bytes, bytearray)) or not cache.get("sum"):
+            cache["sum"] = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
+        st.download_button(
+            "엑셀 다운로드",
+            data=cache["sum"],
+            file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"order_{code_key}_download_sum",
+        )
 
         order_show = order_view[summary_cols].copy()
         order_show.columns = summary_cols
@@ -5202,28 +5193,20 @@ def main() -> None:
             column_config[c] = st.column_config.NumberColumn(format="localized", width="small")
         column_config = {k: v for k, v in column_config.items() if k in cols}
 
-        with st.expander("엑셀 다운로드", expanded=False):
-            if st.button(
-                "상세 엑셀 준비(느림)",
-                key=f"order_{code_key}_prep_det",
-                help="상세 엑셀 파일을 미리 생성합니다. 큰 테이블은 시간이 걸릴 수 있어요.",
-            ):
-                cache = st.session_state.get(xlsx_cache_key)
-                if isinstance(cache, dict):
-                    cache["det"] = _to_excel_bytes(view[cols], sheet_name="수주상세")
-
-            cache = st.session_state.get(xlsx_cache_key)
+        cache = st.session_state.get(xlsx_cache_key)
+        det_bytes = cache.get("det") if isinstance(cache, dict) else None
+        if not isinstance(det_bytes, (bytes, bytearray)) or not det_bytes:
+            if isinstance(cache, dict):
+                cache["det"] = _to_excel_bytes(view[cols], sheet_name="수주상세")
             det_bytes = cache.get("det") if isinstance(cache, dict) else None
-            if isinstance(det_bytes, (bytes, bytearray)) and det_bytes:
-                st.download_button(
-                    "엑셀 다운로드",
-                    data=det_bytes,
-                    file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"order_{code_key}_download_det",
-                )
-            else:
-                st.caption("상세 엑셀은 '상세 엑셀 준비(느림)'을 누르면 다운로드 버튼이 활성화됩니다.")
+        if isinstance(det_bytes, (bytes, bytearray)) and det_bytes:
+            st.download_button(
+                "엑셀 다운로드",
+                data=det_bytes,
+                file_name=f"수주상세_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"order_{code_key}_download_det",
+            )
 
         view2, det_capped = _cap_df_for_display(view[cols], max_rows=MAX_DF_ROWS_DISPLAY)
         if det_capped:
