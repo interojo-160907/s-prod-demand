@@ -43,8 +43,13 @@ DASHBOARD_LINKS_PATH = "dashboard_links.json"
 EXPORT_VERSION = int(getattr(excel_analysis, "EXPORT_VERSION", 1))
 
 # Runtime regeneration (reading the whole Excel and rebuilding out/*.csv) is very slow on hosted
-# deployments. Default to snapshot-only mode; enable regen explicitly for local debugging.
-ALLOW_RUNTIME_REGEN = str(os.environ.get("APS_ALLOW_RUNTIME_REGEN") or "").strip().lower() in ("1", "true", "yes", "y")
+# deployments. We enable regen by default so the dashboard doesn't get stuck on stale snapshots
+# when `out/` isn't updated yet. Set `APS_ALLOW_RUNTIME_REGEN=0` to force snapshot-only mode.
+_aps_allow_regen_raw = os.environ.get("APS_ALLOW_RUNTIME_REGEN")
+if _aps_allow_regen_raw is None or (str(_aps_allow_regen_raw).strip() == ""):
+    ALLOW_RUNTIME_REGEN = True
+else:
+    ALLOW_RUNTIME_REGEN = str(_aps_allow_regen_raw).strip().lower() in ("1", "true", "yes", "y")
 
 # Risk tab business defaults (fixed; no user settings)
 RISK_CAPA_RUN_DAYS = 7
@@ -501,6 +506,52 @@ def _outputs_status(*, excel_path: str, out_dir: str) -> dict:
         "equip_code_target_csv": equip_code_target_csv if (has_equip and equip_ok) else None,
         "prod_daily_csv": prod_daily_csv if (has_prod and prod_ok) else None,
     }
+
+
+def _try_regenerate_base_outputs(*, excel_path: str, out_dir: str) -> tuple[bool, str | None]:
+    """
+    Regenerate the core snapshot CSVs at runtime when `out/` is stale.
+
+    Returns (ok, reason). Uses a simple lock file to avoid multiple concurrent regenerations
+    when several users open the app at the same time.
+    """
+    lock_path = os.path.join(out_dir, "._runtime_regen.lock")
+    _safe_mkdir(out_dir)
+    fd: int | None = None
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        try:
+            os.write(fd, f"pid={os.getpid()}\n".encode("utf-8"))
+        except Exception:
+            pass
+    except FileExistsError:
+        return (False, "다른 세션에서 산출물 재생성 중입니다. 잠시 후 새로고침 해주세요.")
+    except Exception as e:
+        return (False, f"락 파일 생성 실패: {e}")
+
+    try:
+        info = excel_analysis.export_due_process_shortage(file_path=excel_path, out_dir=out_dir)
+        if not bool(info.get("enabled")):
+            return (False, str(info.get("reason") or "산출물 재생성 실패"))
+        # Clear caches so subsequent loads pick up the regenerated CSVs.
+        try:
+            st.cache_data.clear()
+        except Exception:
+            pass
+        return (True, None)
+    except Exception as e:
+        return (False, str(e))
+    finally:
+        try:
+            if fd is not None:
+                os.close(fd)
+        except Exception:
+            pass
+        try:
+            if os.path.exists(lock_path):
+                os.remove(lock_path)
+        except Exception:
+            pass
 
 
 def _outputs_generated_label(out_dir: str) -> str:
@@ -4307,6 +4358,17 @@ def main() -> None:
     if not status.get("ok"):
         st.error(f"데이터 로딩 실패: {status.get('reason') or '-'}")
         st.stop()
+
+    # If Excel changed but precomputed snapshots aren't updated yet, optionally regenerate at runtime.
+    if status.get("needs_regen") and ALLOW_RUNTIME_REGEN:
+        attempted_key = "_runtime_regen_attempted"
+        if not bool(st.session_state.get(attempted_key)):
+            st.session_state[attempted_key] = True
+            with st.spinner("엑셀 변경 감지: 산출물(out/*.csv) 재생성 중..."):
+                ok, reason = _try_regenerate_base_outputs(excel_path=excel_path, out_dir=out_dir)
+            status = _outputs_status(excel_path=excel_path, out_dir=out_dir)
+            if (not ok) and status.get("needs_regen"):
+                st.warning(f"런타임 재생성 실패: {reason or '-'}")
 
     ensure = status
 
