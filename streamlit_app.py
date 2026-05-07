@@ -5098,11 +5098,21 @@ def main() -> None:
         stage_cols_raw = DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in subset.columns]
 
-        search_raw = st.text_input(
-            "검색 (품명/이니셜/수주번호)",
-            placeholder="예: 해외, 202601, SEPIA",
-            key=f"order_{code_key}_search",
-        )
+        search_col, leak_col = st.columns([4, 1], gap="small")
+        with search_col:
+            search_raw = st.text_input(
+                "검색 (품명/이니셜/수주번호)",
+                placeholder="예: 해외, 202601, SEPIA",
+                key=f"order_{code_key}_search",
+            )
+        with leak_col:
+            leak_only = st.checkbox(
+                "누수규격 부족만",
+                value=False,
+                key=f"order_{code_key}_leak_only",
+                help="누수규격 필요수량(부족수량)이 있는 수주/항목만 표시합니다. (사출만 있고 후공정 0인 이관 수주는 제외)",
+            )
+
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
 
         detail_num = subset.copy()
@@ -5114,6 +5124,13 @@ def main() -> None:
         for c in numeric_cols:
             stage_sum = stage_sum + detail_num[c].fillna(0)
         detail_num = detail_num.loc[stage_sum.fillna(0).gt(0)].copy()
+
+        if leak_only:
+            if "누수규격" in detail_num.columns:
+                v = pd.to_numeric(detail_num["누수규격"], errors="coerce").fillna(0)
+                detail_num = detail_num.loc[v.gt(0)].copy()
+            else:
+                st.caption("`누수규격` 컬럼이 없어 필터를 적용할 수 없습니다.")
 
         stage_totals = {
             c: _format_int(pd.to_numeric(detail_num[c], errors="coerce").fillna(0).sum()) for c in numeric_cols
