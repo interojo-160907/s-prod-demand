@@ -4503,12 +4503,16 @@ def main() -> None:
         header_ph = st.empty()
         metric_ph = st.empty()
 
+        search_label = "검색 (품명)" if not process_only else "검색 (품명/제품코드)"
         search_raw = st.text_input(
-            "검색 (품명)",
-            placeholder="예: O2O2, SEPIA, ASH",
+            search_label,
+            placeholder="예: O2O2, SEPIA, ASH, R0175",
             key=f"{ui_key_prefix}_name_search",
         )
-        filtered = _filter_by_name_contains(filtered, "품명", search_raw)
+        if process_only:
+            filtered = _filter_by_any_contains(filtered, ["품명", "제품코드", "제품 코드"], search_raw)
+        else:
+            filtered = _filter_by_name_contains(filtered, "품명", search_raw)
 
         if process_only and process_only in filtered.columns:
             proc_v = pd.to_numeric(filtered[process_only], errors="coerce").fillna(0)
@@ -5098,22 +5102,28 @@ def main() -> None:
         stage_cols_raw = DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in subset.columns]
 
-        search_col, leak_col = st.columns([4, 1], gap="small")
-        with search_col:
-            search_raw = st.text_input(
-                "검색 (품명/이니셜/수주번호)",
-                placeholder="예: 해외, 202601, SEPIA",
-                key=f"order_{code_key}_search",
-            )
-        with leak_col:
-            leak_only = st.checkbox(
-                "누수규격 부족만",
-                value=False,
-                key=f"order_{code_key}_leak_only",
-                help="누수규격 필요수량(부족수량)이 있는 수주/항목만 표시합니다. (사출만 있고 후공정 0인 이관 수주는 제외)",
-            )
+        search_raw = st.text_input(
+            "검색 (품명/이니셜/수주번호)",
+            placeholder="예: 해외, 202601, SEPIA",
+            key=f"order_{code_key}_search",
+        )
+
+        leak_key = f"order_{code_key}_leak_only"
+        exclude_init_key = f"order_{code_key}_exclude_dom_safe"
+        st.session_state.setdefault(leak_key, False)
+        st.session_state.setdefault(exclude_init_key, False)
+        leak_only = bool(st.session_state.get(leak_key, False))
+        exclude_dom_safe = bool(st.session_state.get(exclude_init_key, False))
 
         subset = _filter_by_any_contains(subset, ["품명", "이니셜", "수주번호"], search_raw)
+
+        if exclude_dom_safe:
+            if "이니셜" in subset.columns:
+                init_s = subset["이니셜"].astype("string").fillna("").astype(str)
+                mask = ~init_s.str.contains("국내|안전", case=False, regex=True, na=False)
+                subset = subset.loc[mask].copy()
+            else:
+                st.caption("`이니셜` 컬럼이 없어 필터를 적용할 수 없습니다.")
 
         detail_num = subset.copy()
         for c in numeric_cols:
@@ -5213,13 +5223,29 @@ def main() -> None:
 
         if not isinstance(cache.get("sum"), (bytes, bytearray)) or not cache.get("sum"):
             cache["sum"] = _to_excel_bytes(order_view[summary_cols], sheet_name="수주요약")
-        st.download_button(
-            "엑셀 다운로드(요약)",
-            data=cache["sum"],
-            file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"order_{code_key}_download_sum",
-        )
+
+        dl_col, cb_col = st.columns([3, 2], gap="small")
+        with dl_col:
+            st.download_button(
+                "엑셀 다운로드(요약)",
+                data=cache["sum"],
+                file_name=f"수주요약_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"order_{code_key}_download_sum",
+            )
+        with cb_col:
+            st.checkbox(
+                "관별 전용 출고",
+                value=leak_only,
+                key=leak_key,
+                help="누수규격 필요수량(부족수량)이 있는 수주/항목만 표시합니다. (사출만 있고 후공정 0인 이관 수주는 제외)",
+            )
+            st.checkbox(
+                "국내/안전 제외",
+                value=exclude_dom_safe,
+                key=exclude_init_key,
+                help="이니셜에 '국내' 또는 '안전'이 포함된 항목을 제외합니다.",
+            )
 
         order_show = order_view[summary_cols].copy()
         order_show.columns = summary_cols
