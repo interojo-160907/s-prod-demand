@@ -3465,6 +3465,23 @@ def _build_injection_gantt_chart_df_cached(
             cur_run = str(info.get("현재제품") or "").strip()
             cur_run_code = str(info.get("현재제품코드") or "").strip().upper()
             is_now_slot = isinstance(d, date) and (d == start_date) and (int(b) == int(now_block))
+
+            # Explain why the scheduled product can differ from the currently running product.
+            # Only meaningful for the current slot (today/this shift).
+            switch_reason = ""
+            if is_now_slot and cur_run_code and prod and (cur_run_code != prod):
+                due_dt: date | None = None
+                try:
+                    due_dt = datetime.strptime(str(due), "%Y-%m-%d").date() if str(due).strip() else None
+                except Exception:
+                    due_dt = None
+                urgent_cutoff = start_date + timedelta(days=int(INJ_DUE_URGENT_BUFFER_DAYS))
+                if isinstance(due_dt, date) and due_dt <= urgent_cutoff:
+                    switch_reason = f"납기임박(D+{int(INJ_DUE_URGENT_BUFFER_DAYS)})로 전환"
+                else:
+                    switch_reason = "수요/라인조건으로 전환"
+            elif is_now_slot and cur_run_code and prod and (cur_run_code == prod):
+                switch_reason = "연속(현재제품 유지)"
             if prod:
                 state = "배정"
                 idle_reason = ""
@@ -3504,6 +3521,7 @@ def _build_injection_gantt_chart_df_cached(
                     "세팅구분": setting,
                     "POWER": pw,
                     "유휴사유": idle_reason,
+                    "전환사유": switch_reason,
                 }
             )
 
@@ -5813,6 +5831,7 @@ def main() -> None:
                             {"field": "제품명코드", "type": "nominal", "title": "R코드"},
                             {"field": "제품명", "type": "nominal", "title": "품명(사출시트)"},
                             {"field": "운영중제품", "type": "nominal", "title": "현재제품(설비)"},
+                            {"field": "전환사유", "type": "nominal", "title": "전환사유"},
                             {"field": "배정수량", "type": "quantitative", "title": "배정수량"},
                             {"field": "세팅구분", "type": "nominal", "title": "세팅"},
                             {"field": "유휴사유", "type": "nominal", "title": "유휴/사유"},
