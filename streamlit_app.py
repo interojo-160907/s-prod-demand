@@ -3056,25 +3056,26 @@ def _build_injection_schedule(
                 best = candidates[0]
                 best_due = _product_due(best)
 
-                # Operational reality: for the *first planning day* (today),
-                # keep the currently running product as-is when there is no "urgent" (due <= today+buffer) demand.
-                # This avoids unnecessary back-and-forth assignments like "today A -> tomorrow B"
-                # when the shop floor is already running B.
                 prefer_u = str(prefer or "").strip().upper()
-                if (
-                    prefer_u
-                    and (day == start_date)
-                    and (best_due > urgent_cutoff)
-                    and (prefer_u in candidates)
-                    and (_product_remaining(prefer_u) > 0)
-                ):
-                    return prefer_u
+                prefer_due = _product_due(prefer_u) if prefer_u else date.max
+
+                # Shop-floor-first policy:
+                # - If a machine is already running something that still has demand, keep it running by default.
+                # - Only force a switch when there is a real due-date risk within the urgent window (today+buffer)
+                #   and the urgent item cannot be covered by other capacity.
+                if prefer_u and (prefer_u in candidates) and (_product_remaining(prefer_u) > 0):
+                    # If the currently running product itself is urgent, never switch it away first.
+                    if isinstance(prefer_due, date) and prefer_due <= urgent_cutoff:
+                        return prefer_u
+                    # If nothing urgent is waiting, keep continuity (reduce setup/color matching churn).
+                    if best_due > urgent_cutoff:
+                        return prefer_u
 
                 # If the best (hard-urgent: due <= today) product can be fully handled by machines already running it,
                 # don't switch other machines away from their current product just because it's overdue.
                 if (
                     prefer_u
-                    and (best_due <= day)
+                    and (best_due <= urgent_cutoff)
                     and (best in urgent_done_by_running)
                     and (prefer_u in candidates)
                     and (_product_remaining(prefer_u) > 0)
@@ -3086,7 +3087,7 @@ def _build_injection_schedule(
                 # even though due-date priority would normally switch it.
                 if (
                     prefer_u
-                    and (best_due <= day)
+                    and (best_due <= urgent_cutoff)
                     and (prefer_u in candidates)
                     and (_product_remaining(prefer_u) > 0)
                     and str(best).strip().upper() != prefer_u
@@ -3105,10 +3106,19 @@ def _build_injection_schedule(
                                 return prefer_u
                     except Exception:
                         pass
-                # Due date is the top priority. Keep previous/affinity only when they are within the same earliest due group.
-                if prefer and prefer in candidates and _product_remaining(prefer) > 0 and _product_due(prefer) == best_due:
-                    return prefer
-                if affinity and affinity in candidates and _product_remaining(affinity) > 0 and _product_due(affinity) == best_due:
+
+                # If the earliest-due item is not urgent, prioritize continuity (previous product / affinity).
+                if best_due > urgent_cutoff:
+                    if prefer_u and (prefer_u in candidates) and (_product_remaining(prefer_u) > 0):
+                        return prefer_u
+                    if affinity and (affinity in candidates) and (_product_remaining(affinity) > 0):
+                        return affinity
+
+                # Urgent window: due date is the top priority.
+                # Keep previous/affinity only when they are within the same earliest due group.
+                if prefer_u and (prefer_u in candidates) and (_product_remaining(prefer_u) > 0) and _product_due(prefer_u) == best_due:
+                    return prefer_u
+                if affinity and (affinity in candidates) and (_product_remaining(affinity) > 0) and _product_due(affinity) == best_due:
                     return affinity
 
                 # Within earliest due group, *prefer* avoiding product switching for tiny remainder (unless urgent),
@@ -5564,6 +5574,10 @@ def main() -> None:
         horizon_days = 5
         start_date = _today_kst()
         now_block = 2 if datetime.now(KST).hour >= 20 else 1
+        st.caption(
+            f"기본은 설비의 이전/현재 제품을 그대로 이어갑니다(연속 우선). "
+            f"다만 납기 임박(D+{int(INJ_DUE_URGENT_BUFFER_DAYS)}) 제품이 다른 설비 용량으로 커버가 안 되는 경우에만 전환합니다."
+        )
 
         # Keep "간트" as default; guard old persisted selection values (e.g. "그리드").
         inj_view_options = ["간트", "상세표"]
