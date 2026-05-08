@@ -61,7 +61,9 @@ RISK_SCHED_START_OFFSET_DAYS = 0.0
 
 # Injection plan policy: treat near-due items as urgent and allow them to override
 # "keep current product" continuity rules.
-INJ_DUE_URGENT_BUFFER_DAYS = 1  # e.g. due today/tomorrow should be prioritized
+# Urgent window (days from today) for forcing product switches.
+# Set to 0 to switch only when due is today/overdue (minimize setup churn / "계단" allocations).
+INJ_DUE_URGENT_BUFFER_DAYS = 0
 
 
 @st.cache_data(show_spinner=False)
