@@ -2988,6 +2988,7 @@ def _build_injection_schedule(
         # For each day, keep a "line/block preferred product" so later machines on the same line
         # tend to follow the first chosen product (reduces staircase allocations across A1~A6 etc.).
         line_block_prefer: dict[tuple[str, str, int], str] = {}
+        line_block_products: dict[tuple[str, str, int], set[str]] = {}
 
         # For "urgent" (due <= today/overdue) products, avoid pulling in additional machines unnecessarily.
         # Heuristic: if the remaining qty of an urgent product can be covered by machines that are *already*
@@ -3003,10 +3004,11 @@ def _build_injection_schedule(
                 equip0 = str(er0.get("설비명") or "").strip().upper()
                 if not equip0:
                     continue
-                line0 = _norm_space(er0.get("라인구분"))
+                # Injection sheet uses "구분/구분2" as line identifiers for equipment rows.
+                line0 = _norm_space(er0.get("구분"))
                 if not line0:
                     continue
-                line02 = _norm_space(er0.get("라인구분2"))
+                line02 = _norm_space(er0.get("구분2"))
                 key = (line0, line02)
                 line_total_capa[key] = int(line_total_capa.get(key, 0)) + int(_equip_day_capa(equip0))
                 line_total_capa_any[line0] = int(line_total_capa_any.get(line0, 0)) + int(_equip_day_capa(equip0))
@@ -3058,8 +3060,15 @@ def _build_injection_schedule(
             # Injection sheet uses "구분/구분2" as line identifiers.
             line_key = _norm_space(er.get("구분"))
             line_key2 = _norm_space(er.get("구분2"))
+            lb_key_b1 = (line_key, line_key2, 1)
+            lb_key_b2 = (line_key, line_key2, 2)
 
-            def _pick_product(prefer: str | None, *, line_prefer: str | None = None) -> str:
+            def _pick_product(
+                prefer: str | None,
+                *,
+                line_prefer: str | None = None,
+                block_no: int = 1,
+            ) -> str:
                 if not candidates:
                     return ""
                 best = candidates[0]
@@ -3068,6 +3077,20 @@ def _build_injection_schedule(
                 prefer_u = str(prefer or "").strip().upper()
                 prefer_due = _product_due(prefer_u) if prefer_u else date.max
                 line_prefer_u = str(line_prefer or "").strip().upper()
+
+                # Avoid introducing too many product types within the same (line, block) to reduce staircase.
+                # Allow at most 2 distinct products per line/block by default; otherwise fall back to continuity.
+                lb_key = (line_key, line_key2, int(block_no))
+                used = line_block_products.get(lb_key) or set()
+                max_types_in_line_block = 2
+
+                def _would_exceed_types(p: str) -> bool:
+                    pu = str(p or "").strip().upper()
+                    if (not line_key) or (not pu):
+                        return False
+                    if pu in used:
+                        return False
+                    return len(used) >= int(max_types_in_line_block)
 
                 # Shop-floor-first policy:
                 # - If a machine is already running something that still has demand, keep it running by default.
@@ -3079,6 +3102,9 @@ def _build_injection_schedule(
                         return prefer_u
                     # If nothing urgent is waiting, keep continuity (reduce setup/color matching churn).
                     if best_due > urgent_cutoff:
+                        return prefer_u
+                    # Even in urgent window, don't switch if it would exceed line/block product types.
+                    if _would_exceed_types(best):
                         return prefer_u
 
                 # If the best (hard-urgent: due <= today) product can be fully handled by machines already running it,
@@ -3142,6 +3168,15 @@ def _build_injection_schedule(
                 ):
                     return line_prefer_u
 
+                # Still urgent: if switching would exceed line/block product types, prefer continuity/affinity/line_prefer.
+                if _would_exceed_types(best):
+                    if prefer_u and (prefer_u in candidates) and (_product_remaining(prefer_u) > 0):
+                        return prefer_u
+                    if affinity and (affinity in candidates) and (_product_remaining(affinity) > 0):
+                        return affinity
+                    if line_prefer_u and (line_prefer_u in candidates) and (_product_remaining(line_prefer_u) > 0):
+                        return line_prefer_u
+
                 # Within earliest due group, *prefer* avoiding product switching for tiny remainder (unless urgent),
                 # but do not block scheduling entirely: if any demand exists and the block would otherwise be idle,
                 # we still need to assign the remaining qty somewhere.
@@ -3171,12 +3206,13 @@ def _build_injection_schedule(
 
             # Day/block1: pick with line preference (if already established earlier today).
             line_pref_b1 = line_block_prefer.get((line_key, line_key2, 1)) or ""
-            prod1 = _pick_product(prev_prod, line_prefer=line_pref_b1)
+            prod1 = _pick_product(prev_prod, line_prefer=line_pref_b1, block_no=1)
             if prod1:
                 equip_affinity.setdefault(equip_name, prod1)
                 # Establish the line/block preferred product if not set yet.
                 if line_key:
                     line_block_prefer.setdefault((line_key, line_key2, 1), str(prod1).strip().upper())
+                    line_block_products.setdefault((line_key, line_key2, 1), set()).add(str(prod1).strip().upper())
 
             def _setting_label(*, block: int, cur: str, prev_day: str, prev_block: str) -> str:
                 cur = str(cur or "").strip().upper()
@@ -3209,7 +3245,7 @@ def _build_injection_schedule(
                         # Even when block1 product is exhausted, keep previous-day product as the "prefer" reference
                         # so we can avoid switching for tiny remainder (color matching churn).
                         line_pref = line_block_prefer.get((line_key, line_key2, int(block))) or ""
-                        cur_prod = _pick_product(prev_prod, line_prefer=line_pref)
+                        cur_prod = _pick_product(prev_prod, line_prefer=line_pref, block_no=int(block))
                         if cur_prod:
                             equip_affinity.setdefault(equip_name, cur_prod)
                             if line_key:
@@ -3218,6 +3254,7 @@ def _build_injection_schedule(
                 # Establish preference for this line/block even when we simply continued block1 product.
                 if cur_prod and line_key:
                     line_block_prefer.setdefault((line_key, line_key2, int(block)), str(cur_prod).strip().upper())
+                    line_block_products.setdefault((line_key, line_key2, int(block)), set()).add(str(cur_prod).strip().upper())
 
                 powers_list: list[str] = []
                 assign_qty = 0
