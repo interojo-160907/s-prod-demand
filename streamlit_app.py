@@ -2985,6 +2985,10 @@ def _build_injection_schedule(
     rows: list[dict[str, object]] = []
 
     for day in days:
+        # For each day, keep a "line/block preferred product" so later machines on the same line
+        # tend to follow the first chosen product (reduces staircase allocations across A1~A6 etc.).
+        line_block_prefer: dict[tuple[str, str, int], str] = {}
+
         # For "urgent" (due <= today/overdue) products, avoid pulling in additional machines unnecessarily.
         # Heuristic: if the remaining qty of an urgent product can be covered by machines that are *already*
         # running that product (yesterday/current), keep other machines on their current product to reduce churn.
@@ -3051,8 +3055,11 @@ def _build_injection_schedule(
             affinity = str(equip_affinity.get(equip_name, "") or "").strip().upper()
             candidates = _eligible_products_for_equipment(er)
             prev_day_power = equip_last_power.get(equip_name, None)
+            # Injection sheet uses "구분/구분2" as line identifiers.
+            line_key = _norm_space(er.get("구분"))
+            line_key2 = _norm_space(er.get("구분2"))
 
-            def _pick_product(prefer: str | None) -> str:
+            def _pick_product(prefer: str | None, *, line_prefer: str | None = None) -> str:
                 if not candidates:
                     return ""
                 best = candidates[0]
@@ -3060,6 +3067,7 @@ def _build_injection_schedule(
 
                 prefer_u = str(prefer or "").strip().upper()
                 prefer_due = _product_due(prefer_u) if prefer_u else date.max
+                line_prefer_u = str(line_prefer or "").strip().upper()
 
                 # Shop-floor-first policy:
                 # - If a machine is already running something that still has demand, keep it running by default.
@@ -3115,6 +3123,10 @@ def _build_injection_schedule(
                         return prefer_u
                     if affinity and (affinity in candidates) and (_product_remaining(affinity) > 0):
                         return affinity
+                    # If this machine has to pick something new, follow the line/block preferred product
+                    # to reduce "staircase" product spread across the line.
+                    if line_prefer_u and (line_prefer_u in candidates) and (_product_remaining(line_prefer_u) > 0):
+                        return line_prefer_u
 
                 # Urgent window: due date is the top priority.
                 # Keep previous/affinity only when they are within the same earliest due group.
@@ -3122,6 +3134,13 @@ def _build_injection_schedule(
                     return prefer_u
                 if affinity and (affinity in candidates) and (_product_remaining(affinity) > 0) and _product_due(affinity) == best_due:
                     return affinity
+                if (
+                    line_prefer_u
+                    and (line_prefer_u in candidates)
+                    and (_product_remaining(line_prefer_u) > 0)
+                    and _product_due(line_prefer_u) == best_due
+                ):
+                    return line_prefer_u
 
                 # Within earliest due group, *prefer* avoiding product switching for tiny remainder (unless urgent),
                 # but do not block scheduling entirely: if any demand exists and the block would otherwise be idle,
@@ -3140,12 +3159,24 @@ def _build_injection_schedule(
                     return 0
 
                 # Sort by: (avoid tiny switch if possible) -> (larger remaining first)
-                earliest.sort(key=lambda k: (_switch_penalty(k), -_product_remaining(k), k))
+                earliest.sort(
+                    key=lambda k: (
+                        _switch_penalty(k),
+                        0 if (line_prefer_u and str(k).strip().upper() == line_prefer_u) else 1,
+                        -_product_remaining(k),
+                        k,
+                    )
+                )
                 return earliest[0]
 
-            prod1 = _pick_product(prev_prod)
+            # Day/block1: pick with line preference (if already established earlier today).
+            line_pref_b1 = line_block_prefer.get((line_key, line_key2, 1)) or ""
+            prod1 = _pick_product(prev_prod, line_prefer=line_pref_b1)
             if prod1:
                 equip_affinity.setdefault(equip_name, prod1)
+                # Establish the line/block preferred product if not set yet.
+                if line_key:
+                    line_block_prefer.setdefault((line_key, line_key2, 1), str(prod1).strip().upper())
 
             def _setting_label(*, block: int, cur: str, prev_day: str, prev_block: str) -> str:
                 cur = str(cur or "").strip().upper()
@@ -3177,9 +3208,16 @@ def _build_injection_schedule(
                         candidates = _eligible_products_for_equipment(er)
                         # Even when block1 product is exhausted, keep previous-day product as the "prefer" reference
                         # so we can avoid switching for tiny remainder (color matching churn).
-                        cur_prod = _pick_product(prev_prod)
+                        line_pref = line_block_prefer.get((line_key, line_key2, int(block))) or ""
+                        cur_prod = _pick_product(prev_prod, line_prefer=line_pref)
                         if cur_prod:
                             equip_affinity.setdefault(equip_name, cur_prod)
+                            if line_key:
+                                line_block_prefer.setdefault((line_key, line_key2, int(block)), str(cur_prod).strip().upper())
+
+                # Establish preference for this line/block even when we simply continued block1 product.
+                if cur_prod and line_key:
+                    line_block_prefer.setdefault((line_key, line_key2, int(block)), str(cur_prod).strip().upper())
 
                 powers_list: list[str] = []
                 assign_qty = 0
@@ -3481,7 +3519,7 @@ def _build_injection_gantt_chart_df_cached(
                 if isinstance(due_dt, date) and due_dt <= urgent_cutoff:
                     switch_reason = f"납기임박(D+{int(INJ_DUE_URGENT_BUFFER_DAYS)})로 전환"
                 else:
-                    switch_reason = "수요/라인조건으로 전환"
+                    switch_reason = "수요/라인동기화로 전환"
             elif is_now_slot and cur_run_code and prod and (cur_run_code == prod):
                 switch_reason = "연속(현재제품 유지)"
             if prod:
