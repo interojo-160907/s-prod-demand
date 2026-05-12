@@ -4649,32 +4649,7 @@ def main() -> None:
             placeholder="예: O2O2, SEPIA, P0365A-01.00, P0365A, -01.00",
             key=f"{ui_key_prefix}_name_search",
         )
-        if process_only:
-            filtered = _filter_by_any_contains(filtered, ["품명", "제품코드", "제품 코드"], search_raw)
-        else:
-            filtered = _filter_by_name_contains(filtered, "품명", search_raw)
-
-        if process_only and process_only in filtered.columns:
-            proc_v = pd.to_numeric(filtered[process_only], errors="coerce").fillna(0)
-            filtered = filtered.loc[proc_v.ne(0)].copy()
-
-        df_num = filtered.copy()
-        for c in numeric_cols:
-            df_num[c] = pd.to_numeric(df_num[c], errors="coerce").fillna(0)
-
-        # Due-detail view: hide rows that have no demand on any process column.
-        if (not process_only) and numeric_cols:
-            stage_sum = df_num[numeric_cols].sum(axis=1)
-            keep_mask = stage_sum.ne(0)
-            filtered = filtered.loc[keep_mask].copy()
-            df_num = df_num.loc[keep_mask].copy()
-
-        total_col = process_only if process_only in df_num.columns else ("누수규격" if "누수규격" in df_num.columns else None)
-        header_ph.subheader(total_label)
-        metric_ph.metric(label="", value=_format_int(df_num[total_col].sum()) if total_col else "0")
-
-        st.subheader("납기별 상세")
-
+        # Build view first (so product code mapping exists), then apply search.
         view = filtered.copy()
         sort_cols: list[str] = []
         for c in [
@@ -4745,6 +4720,35 @@ def main() -> None:
                     view = view.merge(tgt, on=key_cols, how="left")
             if "최소목표일" not in view.columns:
                 view["최소목표일"] = pd.NaT
+
+        # Apply search AFTER code mapping so partial product-code terms (e.g. "-08.00") work.
+        if process_only:
+            view = _filter_by_any_contains(view, ["품명", "제품코드", "제품 코드"], search_raw)
+        else:
+            view = _filter_by_name_contains(view, "품명", search_raw)
+
+        # Process-only view: hide rows with 0 demand for that process.
+        if process_only and process_only in view.columns:
+            proc_v = pd.to_numeric(view[process_only], errors="coerce").fillna(0)
+            view = view.loc[proc_v.ne(0)].copy()
+
+        df_num = view.copy()
+        for c in numeric_cols:
+            if c in df_num.columns:
+                df_num[c] = pd.to_numeric(df_num[c], errors="coerce").fillna(0)
+
+        # Due-detail view: hide rows that have no demand on any process column.
+        if (not process_only) and numeric_cols:
+            stage_sum = df_num[numeric_cols].sum(axis=1)
+            keep_mask = stage_sum.ne(0)
+            view = view.loc[keep_mask].copy()
+            df_num = df_num.loc[keep_mask].copy()
+
+        total_col = process_only if process_only in df_num.columns else ("누수규격" if "누수규격" in df_num.columns else None)
+        header_ph.subheader(total_label)
+        metric_ph.metric(label="", value=_format_int(df_num[total_col].sum()) if total_col else "0")
+
+        st.subheader("납기별 상세")
 
         # Export dataframe (keep numeric) BEFORE display formatting.
         export_df = view.copy()
