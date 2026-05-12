@@ -997,8 +997,27 @@ def _normalize_signed_2dp(v, *, zero_sign: str = "+") -> str:
 def _parse_search_terms(raw: str) -> list[str]:
     if raw is None:
         return []
+    # Use comma as the only term separator.
+    # (Names can contain spaces, so whitespace splitting is intentionally avoided.)
     terms = [t.strip() for t in str(raw).split(",")]
     return [t for t in terms if t]
+
+
+def _norm_prod_code_for_search(v: object) -> str:
+    """
+    Normalize product codes and query terms to make search tolerant to separators.
+    Examples:
+      - "P0365A-01.00" -> "P0365A0100"
+      - "-01.00" -> "0100"
+      - " p0365a " -> "P0365A"
+    """
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return ""
+    s = str(v).strip().upper()
+    if not s or s.lower() == "nan" or s == "<NA>":
+        return ""
+    # Keep only A-Z / 0-9 for robust matching across '-', '.', '_', spaces, etc.
+    return re.sub(r"[^A-Z0-9]+", "", s)
 
 
 def _filter_by_name_contains(df: pd.DataFrame, name_col: str, raw_terms: str) -> pd.DataFrame:
@@ -1016,10 +1035,26 @@ def _filter_by_any_contains(df: pd.DataFrame, cols: list[str], raw_terms: str) -
     cols = [c for c in cols if c in df.columns]
     if not terms or not cols:
         return df
+
+    # For product-code-like columns, make the match tolerant to separators.
+    code_cols = [c for c in cols if "제품코드" in c.replace(" ", "")]
+    text_cols = [c for c in cols if c not in code_cols]
+
     pattern = "|".join(re.escape(t) for t in terms)
+    code_terms = [_norm_prod_code_for_search(t) for t in terms]
+    code_terms = [t for t in code_terms if t]
+    code_pattern = "|".join(re.escape(t) for t in code_terms) if code_terms else ""
+
     mask = pd.Series(False, index=df.index)
-    for c in cols:
+
+    for c in text_cols:
         mask = mask | df[c].astype("string").fillna("").str.contains(pattern, case=False, regex=True, na=False)
+
+    if code_cols and code_pattern:
+        for c in code_cols:
+            s_norm = df[c].map(_norm_prod_code_for_search).astype("string").fillna("")
+            # case-insensitive is unnecessary since we already uppercased.
+            mask = mask | s_norm.str.contains(code_pattern, case=True, regex=True, na=False)
     return df.loc[mask].copy()
 
 
@@ -4611,7 +4646,7 @@ def main() -> None:
         search_label = "검색 (품명)" if not process_only else "검색 (품명/제품코드)"
         search_raw = st.text_input(
             search_label,
-            placeholder="예: O2O2, SEPIA, ASH, R0175",
+            placeholder="예: O2O2, SEPIA, P0365A-01.00, P0365A, -01.00",
             key=f"{ui_key_prefix}_name_search",
         )
         if process_only:
