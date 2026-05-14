@@ -4844,19 +4844,43 @@ def main() -> None:
         pred_stage = pred_map.get(str(process_only or ""))
         applicable = bool(process_only) and bool(pred_stage) and (pred_stage in export_df2.columns) and (str(process_only) in export_df2.columns)
 
-        if applicable:
+        if process_only:
             # Download button should not push the totals row away from the table header,
-            # so render it BEFORE totals grid. Place the filter checkbox next to it.
+            # so render it BEFORE totals grid. Place filter checkboxes next to it.
             dl_col, cb_col = st.columns([3, 2], gap="small")
-            with cb_col:
-                workable_only = st.checkbox(
-                    "작업가능만",
-                    value=False,
-                    key=f"{ui_key_prefix}_workable_only",
-                    help="선행공정 필요수량=0 이고 현재 공정 필요수량>0 인 항목만 표시합니다.",
-                )
 
-            if workable_only:
+            exclude_key = f"{ui_key_prefix}_exclude_dom_safe"
+            st.session_state.setdefault(exclude_key, False)
+            has_initials = ("이니셜" in export_df2.columns) and ("이니셜" in view.columns)
+
+            with cb_col:
+                exclude_dom_safe = st.checkbox(
+                    "국내/안전 제외",
+                    value=bool(st.session_state.get(exclude_key, False)),
+                    key=exclude_key,
+                    disabled=(not has_initials),
+                    help="이니셜에 '국내' 또는 '안전'이 포함된 항목을 제외합니다.",
+                )
+                workable_only = False
+                if applicable:
+                    workable_only = st.checkbox(
+                        "작업가능만",
+                        value=False,
+                        key=f"{ui_key_prefix}_workable_only",
+                        help="선행공정 필요수량=0 이고 현재 공정 필요수량>0 인 항목만 표시합니다.",
+                    )
+
+            if exclude_dom_safe:
+                if has_initials:
+                    init_s = export_df2["이니셜"].astype("string").fillna("").astype(str)
+                    keep_idx = export_df2.index[~init_s.str.contains("국내|안전", case=False, regex=True, na=False)]
+                    export_df2 = export_df2.loc[keep_idx].copy()
+                    # Keep index-based filtering to avoid unalignable boolean index errors.
+                    view = view.loc[view.index.intersection(keep_idx)].copy()
+                else:
+                    st.caption("`이니셜` 컬럼이 없어 필터를 적용할 수 없습니다.")
+
+            if workable_only and applicable:
                 pred_v = pd.to_numeric(export_df2[pred_stage], errors="coerce").fillna(0)
                 cur_v = pd.to_numeric(export_df2[str(process_only)], errors="coerce").fillna(0)
                 workable_mask = pred_v.eq(0) & cur_v.gt(0)
@@ -5281,21 +5305,8 @@ def main() -> None:
 
         if leak_only:
             if "누수규격" in detail_num.columns:
-                s10 = pd.to_numeric(detail_num.get("사출", 0), errors="coerce").fillna(0)
-                s20 = pd.to_numeric(detail_num.get("분리", 0), errors="coerce").fillna(0)
-                s45 = pd.to_numeric(detail_num.get("하이드레이션", 0), errors="coerce").fillna(0)
-                s55 = pd.to_numeric(detail_num.get("접착", 0), errors="coerce").fillna(0)
-                s80 = pd.to_numeric(detail_num["누수규격"], errors="coerce").fillna(0)
-
-                # Exclude transfer-only rows (사출/분리만 있고 후공정 0) from "관별 전용 출고".
-                # Some datasets map transfer demand into `누수규격` for display; treat those as transfer-only
-                # when 누수규격이 사출/분리 값과 동일하고(후공정 0), 실제 누수 부족이 아닌 경우로 간주.
-                transfer_base = ((s10 > 0) | (s20 > 0)) & (s45 <= 0) & (s55 <= 0)
-                is_transfer_only = transfer_base & s80.gt(0) & (
-                    ((s20 <= 0) & s80.eq(s10)) | ((s20 > 0) & s80.eq(s20))
-                )
-
-                detail_num = detail_num.loc[s80.gt(0) & (~is_transfer_only)].copy()
+                v = pd.to_numeric(detail_num["누수규격"], errors="coerce").fillna(0)
+                detail_num = detail_num.loc[v.gt(0)].copy()
             else:
                 st.caption("`누수규격` 컬럼이 없어 필터를 적용할 수 없습니다.")
 
@@ -5655,32 +5666,8 @@ def main() -> None:
             key=f"risk_{code_key}_search",
         )
 
-        leak_key = f"risk_{code_key}_leak_only"
-        st.session_state.setdefault(leak_key, False)
-        leak_only = bool(st.session_state.get(leak_key, False))
-
         risk_df = _filter_by_any_contains(risk_base, ["품명", "이니셜", "수주번호"], search_raw)
         risk_df = risk_df.loc[risk_df["리스크등급"].isin(selected_grades)].copy()
-        if leak_only:
-            if "누수규격" in risk_df.columns:
-                v80 = pd.to_numeric(risk_df["누수규격"], errors="coerce").fillna(0)
-                mask = v80.gt(0)
-                if "후공정_타관" in risk_df.columns:
-                    mask = mask & (~risk_df["후공정_타관"].fillna(False).astype(bool))
-                else:
-                    # Fallback heuristic when `후공정_타관` is missing.
-                    s10 = pd.to_numeric(risk_df.get("사출", 0), errors="coerce").fillna(0)
-                    s20 = pd.to_numeric(risk_df.get("분리", 0), errors="coerce").fillna(0)
-                    s45 = pd.to_numeric(risk_df.get("하이드레이션", 0), errors="coerce").fillna(0)
-                    s55 = pd.to_numeric(risk_df.get("접착", 0), errors="coerce").fillna(0)
-                    transfer_base = ((s10 > 0) | (s20 > 0)) & (s45 <= 0) & (s55 <= 0)
-                    is_transfer_only = transfer_base & v80.gt(0) & (
-                        ((s20 <= 0) & v80.eq(s10)) | ((s20 > 0) & v80.eq(s20))
-                    )
-                    mask = mask & (~is_transfer_only)
-                risk_df = risk_df.loc[mask].copy()
-            else:
-                st.caption("`누수규격` 컬럼이 없어 필터를 적용할 수 없습니다.")
 
         if risk_df.empty:
             st.caption("필터 조건에 해당하는 항목이 없습니다.")
@@ -5701,23 +5688,14 @@ def main() -> None:
         ]
         show_cols = [c for c in show_cols if c in risk_df.columns]
 
-        dl_col, cb_col = st.columns([3, 2], gap="small")
-        with dl_col:
-            xlsx_bytes_risk = _to_excel_bytes(risk_df[show_cols], sheet_name="리스크")
-            st.download_button(
-                "엑셀 다운로드",
-                data=xlsx_bytes_risk,
-                file_name=f"리스크_{code_label}_{_today_kst().isoformat()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"risk_{code_key}_download",
-            )
-        with cb_col:
-            st.checkbox(
-                "관별 전용 출고",
-                value=leak_only,
-                key=leak_key,
-                help="누수규격 필요수량(부족수량)이 있는 수주만 표시합니다. (사출/분리만 있고 후공정 0인 이관 수주는 제외)",
-            )
+        xlsx_bytes_risk = _to_excel_bytes(risk_df[show_cols], sheet_name="리스크")
+        st.download_button(
+            "엑셀 다운로드",
+            data=xlsx_bytes_risk,
+            file_name=f"리스크_{code_label}_{_today_kst().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"risk_{code_key}_download",
+        )
 
         column_config = {
             "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
