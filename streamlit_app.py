@@ -3715,6 +3715,37 @@ def _load_order_detail_grouped(path: str, mtime: float) -> pd.DataFrame:
     return work
 
 
+@st.cache_data(show_spinner=False)
+def _load_dom_safe_flag_map(detail_csv: str, detail_mtime: float, plant: str) -> pd.DataFrame:
+    """
+    Build a small key->flag table to filter out '국내/안전' without showing order-level fields.
+    The flag is computed from `이니셜` in order-detail, then aggregated to the process/due table keys.
+    """
+    try:
+        src = _load_order_detail_prepared(detail_csv, detail_mtime)
+    except Exception:
+        return pd.DataFrame()
+
+    src = _filter_by_plant(src, plant)
+    if src is None or src.empty:
+        return pd.DataFrame()
+    if "이니셜" not in src.columns:
+        return pd.DataFrame()
+
+    key_candidates = ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+    key_cols = [c for c in key_candidates if c in src.columns]
+    if not key_cols:
+        return pd.DataFrame()
+
+    work = src[key_cols + ["이니셜"]].copy()
+    if "납기일" in work.columns:
+        work["납기일"] = pd.to_datetime(work["납기일"], errors="coerce")
+    init_s = work["이니셜"].astype("string").fillna("").astype(str)
+    work["_is_dom_safe"] = init_s.str.contains("국내|안전", case=False, regex=True, na=False)
+    out = work.groupby(key_cols, dropna=False, as_index=False).agg(_is_dom_safe=("_is_dom_safe", "any"))
+    return out
+
+
 def _prepare_lens_df(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     if "제품군" in out.columns:
@@ -4851,14 +4882,17 @@ def main() -> None:
 
             exclude_key = f"{ui_key_prefix}_exclude_dom_safe"
             st.session_state.setdefault(exclude_key, False)
-            has_initials = ("이니셜" in export_df2.columns) and ("이니셜" in view.columns)
+            dom_safe_map = _load_dom_safe_flag_map(detail_csv, float(os.path.getmtime(detail_csv)), selected_plant)
+            join_key_candidates = ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+            join_cols = [c for c in join_key_candidates if c in export_df2.columns and (dom_safe_map is not None) and (c in dom_safe_map.columns)]
+            can_exclude = bool(join_cols) and (dom_safe_map is not None) and (not dom_safe_map.empty)
 
             with cb_col:
                 exclude_dom_safe = st.checkbox(
                     "국내/안전 제외",
                     value=bool(st.session_state.get(exclude_key, False)),
                     key=exclude_key,
-                    disabled=(not has_initials),
+                    disabled=(not can_exclude),
                     help="이니셜에 '국내' 또는 '안전'이 포함된 항목을 제외합니다.",
                 )
                 workable_only = False
@@ -4871,14 +4905,13 @@ def main() -> None:
                     )
 
             if exclude_dom_safe:
-                if has_initials:
-                    init_s = export_df2["이니셜"].astype("string").fillna("").astype(str)
-                    keep_idx = export_df2.index[~init_s.str.contains("국내|안전", case=False, regex=True, na=False)]
+                if can_exclude:
+                    tmp = export_df2.merge(dom_safe_map[join_cols + ["_is_dom_safe"]], on=join_cols, how="left")
+                    keep_idx = tmp.index[~tmp["_is_dom_safe"].fillna(False).astype(bool)]
                     export_df2 = export_df2.loc[keep_idx].copy()
-                    # Keep index-based filtering to avoid unalignable boolean index errors.
                     view = view.loc[view.index.intersection(keep_idx)].copy()
                 else:
-                    st.caption("`이니셜` 컬럼이 없어 필터를 적용할 수 없습니다.")
+                    st.caption("국내/안전 제외용 매핑(수주상세/키 컬럼)이 없어 필터를 적용할 수 없습니다.")
 
             if workable_only and applicable:
                 pred_v = pd.to_numeric(export_df2[pred_stage], errors="coerce").fillna(0)
