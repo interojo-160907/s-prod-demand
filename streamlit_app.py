@@ -5702,6 +5702,19 @@ def main() -> None:
         risk_df = _filter_by_any_contains(risk_base, ["품명", "이니셜", "수주번호"], search_raw)
         risk_df = risk_df.loc[risk_df["리스크등급"].isin(selected_grades)].copy()
 
+        leak_key = f"risk_{code_key}_leak_only"
+        st.session_state.setdefault(leak_key, False)
+        leak_only = bool(st.session_state.get(leak_key, False))
+        if leak_only:
+            if "누수규격" in risk_df.columns:
+                v80 = pd.to_numeric(risk_df["누수규격"], errors="coerce").fillna(0)
+                mask = v80.gt(0)
+                if "후공정_타관" in risk_df.columns:
+                    mask = mask & (~risk_df["후공정_타관"].fillna(False).astype(bool))
+                risk_df = risk_df.loc[mask].copy()
+            else:
+                st.caption("`누수규격` 컬럼이 없어 필터를 적용할 수 없습니다.")
+
         if risk_df.empty:
             st.caption("필터 조건에 해당하는 항목이 없습니다.")
             st.stop()
@@ -5721,14 +5734,23 @@ def main() -> None:
         ]
         show_cols = [c for c in show_cols if c in risk_df.columns]
 
-        xlsx_bytes_risk = _to_excel_bytes(risk_df[show_cols], sheet_name="리스크")
-        st.download_button(
-            "엑셀 다운로드",
-            data=xlsx_bytes_risk,
-            file_name=f"리스크_{code_label}_{_today_kst().isoformat()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"risk_{code_key}_download",
-        )
+        dl_col, cb_col = st.columns([3, 2], gap="small")
+        with dl_col:
+            xlsx_bytes_risk = _to_excel_bytes(risk_df[show_cols], sheet_name="리스크")
+            st.download_button(
+                "엑셀 다운로드",
+                data=xlsx_bytes_risk,
+                file_name=f"리스크_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"risk_{code_key}_download",
+            )
+        with cb_col:
+            st.checkbox(
+                "관별 전용 출고",
+                value=leak_only,
+                key=leak_key,
+                help="누수규격 필요수량(부족수량)이 있는 수주만 표시합니다. (사출/분리만 있고 후공정 0인 이관 수주는 제외)",
+            )
 
         column_config = {
             "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
