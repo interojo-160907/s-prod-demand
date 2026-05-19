@@ -6280,8 +6280,31 @@ def main() -> None:
         # Free-text search (comma-separated AND; term matches any of the fields).
         # This matches typical usage like "HW0327, SEPIA, P1000A-03.50".
         view_show = _filter_by_any_contains_all_terms(view_show, ["이니셜", "품명", "제품코드"], search_raw)
+        # Re-sort like "납기별 상세" and re-number priority so it is always 1..N from the top.
+        try:
+            if "납기일" in view_show.columns:
+                view_show["납기일"] = pd.to_datetime(view_show["납기일"], errors="coerce")
+            sort_cols = [c for c in ["납기일", "이니셜", "수주번호", "제품코드"] if c in view_show.columns]
+            if sort_cols:
+                view_show = view_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last").reset_index(
+                    drop=True
+                )
+            else:
+                view_show = view_show.reset_index(drop=True)
+            view_show["우선순위"] = range(1, len(view_show) + 1)
+        except Exception:
+            pass
         show_cols = [c for c in show_cols if c in view_show.columns]
         view_show = view_show[show_cols].copy()
+
+        # KPI: sum of rework-allocatable quantity (post filters).
+        try:
+            rework_sum = int(pd.to_numeric(view_show.get("재작업 가능수량"), errors="coerce").fillna(0).sum())
+        except Exception:
+            rework_sum = 0
+        st.subheader("재작업 가능수량")
+        st.metric(label="", value=_format_int(rework_sum))
+
         # Display formatting
         try:
             if "납기일" in view_show.columns:
@@ -6295,7 +6318,6 @@ def main() -> None:
                 except Exception:
                     pass
 
-        st.caption(f"표시 건수: {len(view_show):,} (S관 접착 부족 라인 중 재작업 가능 라인)")
         table_h = _table_height_for_rows(len(view_show), min_height=320, max_height=780)
         _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(view_show),
@@ -6328,6 +6350,19 @@ def main() -> None:
                         detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
                     except Exception:
                         pass
+                # Align priority numbering with the top table (1..N after filters).
+                try:
+                    if "우선순위" in view_show.columns and "우선순위" in detail_show.columns:
+                        pr_map = (
+                            view_show[["제품코드", "납기일", "이니셜", "수주번호", "우선순위"]]
+                            .drop_duplicates()
+                            .copy()
+                        )
+                        join_cols = [c for c in ["제품코드", "납기일", "이니셜", "수주번호"] if c in pr_map.columns and c in detail_show.columns]
+                        if join_cols:
+                            detail_show = detail_show.drop(columns=["우선순위"]).merge(pr_map, on=join_cols, how="left")
+                except Exception:
+                    pass
                 try:
                     if "납기일" in detail_show.columns:
                         detail_show["납기일"] = pd.to_datetime(detail_show["납기일"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
