@@ -6328,35 +6328,9 @@ def main() -> None:
 
         kpi_col, dl_col = st.columns([3, 2], gap="small")
         with kpi_col:
-            st.markdown(
-                f"""
-<style>
-.rework-kpi-card {{
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  padding: 1.05rem 1.1rem;
-  background: rgba(255, 255, 255, 0.55);
-}}
-.rework-kpi-title {{
-  font-size: 30px;
-  font-weight: 900;
-  margin: 0 0 0.35rem 0;
-  letter-spacing: -0.2px;
-}}
-.rework-kpi-value {{
-  font-size: 44px;
-  font-weight: 900;
-  margin: 0;
-  line-height: 1.1;
-}}
-</style>
-<div class="rework-kpi-card">
-  <div class="rework-kpi-title">재작업 가능수량</div>
-  <div class="rework-kpi-value">{_format_int(rework_sum)}</div>
-</div>
-                """,
-                unsafe_allow_html=True,
-            )
+            # Match other tabs: title + Streamlit metric (no custom KPI card).
+            st.subheader("재작업 가능수량")
+            st.metric(label="", value=_format_int(rework_sum))
         with dl_col:
             st.download_button(
                 "다운로드(재작업)",
