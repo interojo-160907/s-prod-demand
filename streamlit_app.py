@@ -6214,6 +6214,42 @@ def main() -> None:
             key=f"rework_{code_key}_search",
         )
 
+        # Spec columns: show only what matches the selected code(s).
+        # - Spherical: POWER only
+        # - Toric: POWER + CP + AXIS
+        # - Multifocal: POWER + ADD
+        has_toric = False
+        has_multi = False
+        try:
+            selected_non_all = [str(x) for x in codes_selected if str(x) != "전체"]
+            if len(selected_non_all) == 1:
+                sl = selected_non_all[0].lower()
+                if "toric" in sl:
+                    has_toric, has_multi = True, False
+                elif ("m/f" in sl) or ("mf" in sl) or ("multi" in sl):
+                    has_toric, has_multi = False, True
+                elif "sph" in sl:
+                    has_toric, has_multi = False, False
+            if (not selected_non_all) or (len(selected_non_all) != 1) or (("전체" in codes_selected) if isinstance(codes_selected, list) else False):
+                # Fallback: infer from data (useful when multiple codes are selected).
+                if "CP" in need_alloc.columns or "AXIS" in need_alloc.columns:
+                    cp_has = (
+                        need_alloc["CP"].astype("string").fillna("").astype(str).str.strip().ne("").any()
+                        if "CP" in need_alloc.columns
+                        else False
+                    )
+                    ax_has = (
+                        need_alloc["AXIS"].astype("string").fillna("").astype(str).str.strip().ne("").any()
+                        if "AXIS" in need_alloc.columns
+                        else False
+                    )
+                    has_toric = bool(cp_has or ax_has)
+                if "ADD" in need_alloc.columns:
+                    has_multi = bool(need_alloc["ADD"].astype("string").fillna("").astype(str).str.strip().ne("").any())
+        except Exception:
+            has_toric = False
+            has_multi = False
+
         show_cols = [
             "우선순위",
             "이니셜",
@@ -6222,13 +6258,18 @@ def main() -> None:
             "품명",
             "제품코드",
             "POWER",
-            "CP",
-            "AXIS",
-            "ADD",
             "납기일",
             "필요수량",
             "재작업 가능수량",
         ]
+        power_idx = show_cols.index("POWER") if "POWER" in show_cols else None
+        if power_idx is not None:
+            if has_toric:
+                show_cols[power_idx + 1 : power_idx + 1] = ["CP", "AXIS"]
+                power_idx += 2
+            if has_multi:
+                insert_at = power_idx + 1
+                show_cols[insert_at:insert_at] = ["ADD"]
         view_show = need_alloc.copy()
         # 재작업리스트 탭은 "재작업 가능" 라인 중심으로 보여준다.
         if "재작업 가능수량" in view_show.columns:
