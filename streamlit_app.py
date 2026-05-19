@@ -2079,6 +2079,156 @@ def _fill_spec_from_item_code(view: pd.DataFrame) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def _load_rework_supply_from_excel(path: str, mtime: float) -> pd.DataFrame:
+    """
+    Load lot-level rework supply from Excel sheet `재작업리스트`.
+
+    Notes:
+    - Uses `제품코드` + `LOT NO` as the supply key
+    - Uses `지시수량` as available quantity per lot (sums duplicates)
+    - Ignores extra/duplicate LOT columns (takes the first `LOT NO` column)
+    """
+    _ = mtime  # cache-buster
+    if not path or not os.path.exists(path):
+        return pd.DataFrame()
+    try:
+        raw = pd.read_excel(path, sheet_name="재작업리스트")
+    except Exception:
+        return pd.DataFrame()
+
+    lot_col = None
+    for c in list(raw.columns):
+        if str(c).strip().upper() == "LOT NO":
+            lot_col = c
+            break
+    if lot_col is None:
+        return pd.DataFrame()
+
+    if ("제품코드" not in raw.columns) or ("지시수량" not in raw.columns):
+        return pd.DataFrame()
+
+    df = raw[["제품코드", "지시수량", lot_col]].copy()
+    df = df.rename(columns={lot_col: "LOT_NO"})
+    df["제품코드"] = df["제품코드"].astype("string").fillna("").astype(str).str.strip()
+    df["LOT_NO"] = df["LOT_NO"].astype("string").fillna("").astype(str).str.strip()
+    df["지시수량"] = pd.to_numeric(df["지시수량"], errors="coerce").fillna(0).astype(int)
+    df = df.loc[df["제품코드"].ne("") & df["LOT_NO"].ne("") & df["지시수량"].gt(0)].copy()
+    if df.empty:
+        return pd.DataFrame()
+
+    df = df.groupby(["제품코드", "LOT_NO"], as_index=False)["지시수량"].sum()
+    df = df.rename(columns={"지시수량": "가용수량"})
+    return df
+
+
+def _allocate_rework_lots(
+    need_df: pd.DataFrame,
+    supply_df: pd.DataFrame,
+    *,
+    need_qty_col: str = "접착공정 부족수량",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Allocate lot-level rework supply to shortage lines.
+
+    Allocation rules:
+    - Group by `제품코드`
+    - Within each `제품코드`, allocate by `납기일` (asc), then `우선순위` (asc)
+    - A later line is allocated only after earlier lines are fully satisfied (greedy)
+    """
+    if need_df is None or need_df.empty:
+        return (pd.DataFrame(), pd.DataFrame())
+
+    need = need_df.copy()
+    need[need_qty_col] = pd.to_numeric(need.get(need_qty_col), errors="coerce").fillna(0).astype(int)
+    need["납기일"] = pd.to_datetime(need.get("납기일"), errors="coerce")
+    if "우선순위" not in need.columns:
+        need["우선순위"] = range(1, len(need) + 1)
+    need["재작업 가능수량"] = 0
+    # Chunk size for "similar" distribution across lots (round-robin style).
+    # Smaller chunks -> more balanced usage; keep at least 1.
+    try:
+        _med = float(pd.to_numeric(need[need_qty_col], errors="coerce").fillna(0).median())
+    except Exception:
+        _med = 0.0
+    chunk_size = max(1, int(round((_med or 0.0) / 5.0)))
+
+    if supply_df is None or supply_df.empty:
+        return (need, pd.DataFrame())
+    supply = supply_df.copy()
+    supply["제품코드"] = supply["제품코드"].astype("string").fillna("").astype(str).str.strip()
+    supply["LOT_NO"] = supply["LOT_NO"].astype("string").fillna("").astype(str).str.strip()
+    supply["가용수량"] = pd.to_numeric(supply.get("가용수량"), errors="coerce").fillna(0).astype(int)
+    supply = supply.loc[supply["제품코드"].ne("") & supply["LOT_NO"].ne("") & supply["가용수량"].gt(0)].copy()
+    if supply.empty:
+        return (need, pd.DataFrame())
+
+    alloc_rows: list[dict[str, object]] = []
+
+    for item_code, grp in need.groupby("제품코드", dropna=False):
+        item = str(item_code or "").strip()
+        if item == "":
+            continue
+        s_item = supply.loc[supply["제품코드"].eq(item)].copy()
+        if s_item.empty:
+            continue
+
+        # Use a round-robin style allocator across lots to keep usage "similar"
+        # (avoid draining a single lot first, unless required by supply/need).
+        s_item = s_item.sort_values(["LOT_NO"], ascending=[True]).reset_index(drop=True)
+        lot_i = 0
+        lot_no = str(s_item.loc[lot_i, "LOT_NO"])
+        lot_remain = int(s_item.loc[lot_i, "가용수량"])
+
+        idxs = grp.sort_values(["납기일", "우선순위"], ascending=[True, True], na_position="last").index.tolist()
+        for ix in idxs:
+            need_qty = int(need.at[ix, need_qty_col] or 0)
+            if need_qty <= 0:
+                continue
+            alloc_sum = 0
+            while need_qty > 0 and lot_i < len(s_item):
+                # Advance to next non-empty lot (wrap around). If all lots are empty, stop.
+                if lot_remain <= 0:
+                    searched = 0
+                    found = False
+                    while searched < len(s_item):
+                        lot_i = (lot_i + 1) % len(s_item)
+                        lot_no = str(s_item.loc[lot_i, "LOT_NO"])
+                        lot_remain = int(s_item.loc[lot_i, "가용수량"])
+                        if lot_remain > 0:
+                            found = True
+                            break
+                        searched += 1
+                    if not found:
+                        break
+                # Take a chunk (cap size helps distribute across lots)
+                take = min(need_qty, lot_remain, chunk_size)
+                if take <= 0:
+                    break
+                alloc_sum += take
+                need_qty -= take
+                lot_remain -= take
+                s_item.loc[lot_i, "가용수량"] = lot_remain
+                alloc_rows.append(
+                    {
+                        "제품코드": item,
+                        "LOT_NO": lot_no,
+                        "납기일": need.at[ix, "납기일"],
+                        "이니셜": need.at[ix, "이니셜"] if "이니셜" in need.columns else "",
+                        "수주번호": need.at[ix, "수주번호"] if "수주번호" in need.columns else "",
+                        "배정수량": take,
+                    }
+                )
+            need.at[ix, "재작업 가능수량"] = int(alloc_sum)
+
+    alloc_detail = pd.DataFrame(alloc_rows)
+    if not alloc_detail.empty:
+        alloc_detail["배정수량"] = pd.to_numeric(alloc_detail["배정수량"], errors="coerce").fillna(0).astype(int)
+        alloc_detail["납기일"] = pd.to_datetime(alloc_detail["납기일"], errors="coerce")
+        alloc_detail = alloc_detail.sort_values(["납기일", "제품코드", "LOT_NO"], ascending=[True, True, True])
+    return (need, alloc_detail)
+
+
+@st.cache_data(show_spinner=False)
 def _sort_due_table_cached(
     *,
     due_csv: str,
@@ -4971,7 +5121,7 @@ def main() -> None:
         render(df, ui_key_prefix="all")
         return
 
-    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크", "사출 계획"]
+    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크", "사출 계획", "재작업리스트"]
     _pre_widget_single_select_fix(key="view_mode", default="납기별 상세", options=view_options)
     view_mode_raw = st.segmented_control(
         "보기",
@@ -5777,6 +5927,99 @@ def main() -> None:
             hide_index=True,
             column_config=column_config,
         )
+        return
+
+    if view_mode == "재작업리스트":
+        st.subheader("재작업 리스트 (S관 전용)")
+        if selected_plant not in ("S관(3공장)", "전체"):
+            st.info(f"재작업 리스트는 현재 `S관(3공장)`만 지원합니다. (현재 선택: `{selected_plant}`)")
+            return
+        if not excel_path:
+            st.caption("엑셀 파일을 찾지 못했습니다.")
+            return
+
+        try:
+            detail_df = _load_order_detail_prepared(detail_csv, os.path.getmtime(detail_csv))
+        except Exception:
+            st.caption("수주상세 데이터를 불러오지 못했습니다.")
+            return
+
+        base_need = _filter_by_plant(detail_df, "S관(3공장)")
+        if base_need is None or base_need.empty:
+            st.caption("S관 데이터가 없습니다.")
+            return
+
+        if "접착" not in base_need.columns:
+            st.caption("`접착` 컬럼이 없어 재작업 리스트를 만들 수 없습니다.")
+            return
+
+        v_need = pd.to_numeric(base_need["접착"], errors="coerce").fillna(0).astype(int)
+        need = base_need.loc[v_need.gt(0)].copy()
+        if need.empty:
+            st.caption("S관 접착 공정 부족수량(수요)이 없습니다.")
+            return
+
+        need = need.rename(columns={"수요 제품 이름": "품명", "제품 코드": "제품코드"})
+        need["접착공정 부족수량"] = pd.to_numeric(need["접착"], errors="coerce").fillna(0).astype(int)
+        need["납기일"] = pd.to_datetime(need.get("납기일"), errors="coerce")
+
+        # 우선순위: 납기일 오름차순
+        need = need.sort_values(["납기일"], ascending=[True], na_position="last").reset_index(drop=True)
+        need["우선순위"] = range(1, len(need) + 1)
+
+        need = _fill_spec_from_item_code(need)
+
+        supply = _load_rework_supply_from_excel(excel_path, _excel_version_mtime(excel_path))
+        need_alloc, alloc_detail = _allocate_rework_lots(need, supply, need_qty_col="접착공정 부족수량")
+
+        with st.expander("재작업 커버리지 요약(제품코드)", expanded=False):
+            try:
+                s_total = supply.groupby("제품코드", as_index=False)["가용수량"].sum().rename(columns={"가용수량": "재작업 총가용"})
+                n_total = (
+                    need_alloc.groupby("제품코드", as_index=False)[["접착공정 부족수량", "재작업 가능수량"]]
+                    .sum()
+                    .rename(columns={"접착공정 부족수량": "부족합", "재작업 가능수량": "배정합"})
+                )
+                summ = n_total.merge(s_total, on="제품코드", how="left").fillna(0)
+                summ["미충족"] = (summ["부족합"] - summ["배정합"]).astype(int)
+                summ = summ.sort_values(["미충족", "부족합"], ascending=[False, False]).head(50)
+                st.dataframe(summ, use_container_width=True, hide_index=True)
+            except Exception:
+                st.caption("요약 표 생성 중 오류가 발생했습니다.")
+
+        show_cols = [
+            "우선순위",
+            "이니셜",
+            "수주번호",
+            "신규분류 요약코드",
+            "품명",
+            "제품코드",
+            "POWER",
+            "CP",
+            "AXIS",
+            "ADD",
+            "납기일",
+            "접착공정 부족수량",
+            "재작업 가능수량",
+        ]
+        show_cols = [c for c in show_cols if c in need_alloc.columns]
+        view_show = need_alloc[show_cols].copy()
+        st.caption(f"표시 건수: {len(view_show):,} (S관 접착 부족 라인 기준)")
+        table_h = _table_height_for_rows(len(view_show), min_height=320, max_height=780)
+        _render_dataframe_with_copy(
+            _style_dataframe_like_dashboard(view_show),
+            view_show,
+            key="rework_list_table",
+            use_container_width=True,
+            height=table_h,
+            hide_index=True,
+        )
+
+        with st.expander("LOT 배정 상세", expanded=False):
+            if alloc_detail is None or alloc_detail.empty:
+                st.caption("배정 상세가 없습니다. (재작업리스트에 해당 제품코드/LOT가 없거나 가용수량이 0일 수 있어요)")
+            else:
+                st.dataframe(alloc_detail, use_container_width=True, hide_index=True)
         return
 
     if view_mode == "사출 계획":
