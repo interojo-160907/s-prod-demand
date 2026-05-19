@@ -1102,6 +1102,42 @@ def _filter_by_any_contains(df: pd.DataFrame, cols: list[str], raw_terms: str) -
     return df.loc[mask].copy()
 
 
+def _filter_by_any_contains_all_terms(df: pd.DataFrame, cols: list[str], raw_terms: str) -> pd.DataFrame:
+    """
+    Multi-term search where *each* comma-separated term must match (AND),
+    but a term may match any of the provided columns (OR across columns).
+
+    This keeps behavior consistent with _filter_by_any_contains (same parsing and
+    product-code normalization) while providing a stricter filter.
+    """
+    terms = _parse_search_terms(raw_terms)
+    cols = [c for c in cols if c in df.columns]
+    if not terms or not cols:
+        return df
+
+    code_cols = [c for c in cols if "제품코드" in c.replace(" ", "")]
+    text_cols = [c for c in cols if c not in code_cols]
+
+    mask_all = pd.Series(True, index=df.index)
+    for t in terms:
+        if not str(t).strip():
+            continue
+        term_mask = pd.Series(False, index=df.index)
+        pattern = re.escape(str(t))
+        for c in text_cols:
+            term_mask = term_mask | df[c].astype("string").fillna("").str.contains(pattern, case=False, regex=True, na=False)
+        if code_cols:
+            t_norm = _norm_prod_code_for_search(t)
+            if t_norm:
+                code_pattern = re.escape(t_norm)
+                for c in code_cols:
+                    s_norm = df[c].map(_norm_prod_code_for_search).astype("string").fillna("")
+                    term_mask = term_mask | s_norm.str.contains(code_pattern, case=True, regex=True, na=False)
+        mask_all = mask_all & term_mask
+
+    return df.loc[mask_all].copy()
+
+
 DEFAULT_STAGE_COLS = ["사출", "분리", "하이드레이션", "접착", "누수규격"]
 
 # UI performance guardrails (large tables are expensive to render in Streamlit).
@@ -6124,6 +6160,12 @@ def main() -> None:
         if base_need is None or base_need.empty:
             st.caption("S관 데이터가 없습니다.")
             return
+        # Apply 신규분류 요약코드 pills filter to the rework tab as well.
+        if (not _is_all_codes(codes_selected)) and (new_code_col in base_need.columns):
+            try:
+                base_need = base_need.loc[base_need[new_code_col].astype("string").isin(list(codes_selected))].copy()
+            except Exception:
+                pass
 
         if "접착" not in base_need.columns:
             st.caption("`접착` 컬럼이 없어 재작업 리스트를 만들 수 없습니다.")
@@ -6194,8 +6236,9 @@ def main() -> None:
                 view_show = view_show.loc[pd.to_numeric(view_show["재작업 가능수량"], errors="coerce").fillna(0).gt(0)].copy()
             except Exception:
                 pass
-        # Free-text search (comma-separated OR) consistent with other tabs.
-        view_show = _filter_by_any_contains(view_show, ["이니셜", "품명", "제품코드"], search_raw)
+        # Free-text search (comma-separated AND; term matches any of the fields).
+        # This matches typical usage like "HW0327, SEPIA, P1000A-03.50".
+        view_show = _filter_by_any_contains_all_terms(view_show, ["이니셜", "품명", "제품코드"], search_raw)
         show_cols = [c for c in show_cols if c in view_show.columns]
         view_show = view_show[show_cols].copy()
         # Display formatting
