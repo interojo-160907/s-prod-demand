@@ -592,6 +592,10 @@ def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
         if isinstance(df, pd.DataFrame):
             if (df.shape[0] > 1500) or (df.shape[1] > 60):
                 return df
+            # Pandas Styler can raise at compute time (Streamlit marshalling) when
+            # indexes/columns are not unique. In that case, fall back to plain df.
+            if (not df.index.is_unique) or (not df.columns.is_unique):
+                return df
     except Exception:
         return df
 
@@ -600,7 +604,7 @@ def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
     sbg = theme.get("secondaryBackgroundColor", "#F2EBDD")
     text = theme.get("textColor", "#1B1B1B")
     try:
-        return (
+        styler = (
             df.style.set_properties(**{"background-color": bg, "color": text})
             .set_table_styles(
                 [
@@ -609,6 +613,12 @@ def _style_dataframe_like_dashboard(df: pd.DataFrame) -> object:
                 ]
             )
         )
+        # Force eager compute to catch edge cases early; Streamlit computes lazily.
+        try:
+            styler._compute()  # pyright: ignore[reportPrivateUsage]
+        except Exception:
+            return df
+        return styler
     except Exception:
         return df
 
