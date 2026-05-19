@@ -5204,6 +5204,11 @@ def main() -> None:
             st.session_state["risk_due_end"] = _today_kst()
             st.session_state["_prev_risk_due_quick"] = "해제"
             st.session_state["risk_grade_pill"] = ["RED", "YELLOW"]
+        if view_mode == "재작업리스트":
+            # Reset due-date filter when entering rework view.
+            st.session_state["rework_due_quick"] = "해제"
+            st.session_state["rework_due_end"] = _today_kst()
+            st.session_state["_prev_rework_due_quick"] = "해제"
         st.session_state["_prev_view_mode"] = view_mode
 
     process_only = None
@@ -5241,6 +5246,43 @@ def main() -> None:
             value=st.session_state.get("due_due_end", due_default_end),
             key="due_due_end",
             disabled=(due_quick == "해제"),
+        )
+
+    rework_end_date = None
+    if view_mode == "재작업리스트":
+        # Due date end quick-picks for rework view (same UX as due/process tabs).
+        rework_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
+        _pre_widget_single_select_fix(key="rework_due_quick", default="해제", options=rework_quick_options)
+        rework_due_quick_raw = st.pills(
+            "납기일 종료 (빠른 선택)",
+            options=rework_quick_options,
+            default="해제",
+            key="rework_due_quick",
+            selection_mode="single",
+            on_change=_on_change_single_select,
+            args=("rework_due_quick", "해제", rework_quick_options),
+            label_visibility="collapsed",
+        )
+        rework_due_quick = _coerce_single_value(rework_due_quick_raw, default="해제", options=rework_quick_options)
+        if rework_due_quick == "당월":
+            rework_default_end = _end_of_month(_today_kst())
+        elif rework_due_quick == "+7일":
+            rework_default_end = _today_kst() + timedelta(days=7)
+        elif rework_due_quick == "+14일":
+            rework_default_end = _today_kst() + timedelta(days=14)
+        else:
+            rework_default_end = _today_kst()
+
+        prev_rework_quick = st.session_state.get("_prev_rework_due_quick")
+        if prev_rework_quick != rework_due_quick:
+            st.session_state["rework_due_end"] = rework_default_end
+            st.session_state["_prev_rework_due_quick"] = rework_due_quick
+
+        rework_end_date = st.date_input(
+            "납기일 종료",
+            value=st.session_state.get("rework_due_end", rework_default_end),
+            key="rework_due_end",
+            disabled=(rework_due_quick == "해제"),
         )
 
     if view_mode == "공정별 보기":
@@ -5396,11 +5438,15 @@ def main() -> None:
                 and (item_col in b.columns)
                 and bool(excel_path)
             ):
-                tmp = b[[new_code_col, item_col, "접착"]].copy()
+                tmp = b[[new_code_col, item_col, "접착", "납기일"]].copy()
                 tmp[new_code_col] = tmp[new_code_col].astype("string").fillna("").astype(str).str.strip()
                 tmp[item_col] = tmp[item_col].astype("string").fillna("").astype(str).str.strip()
                 tmp["접착"] = pd.to_numeric(tmp["접착"], errors="coerce").fillna(0).astype(int)
+                tmp["납기일"] = pd.to_datetime(tmp.get("납기일"), errors="coerce")
                 tmp = tmp.loc[tmp["접착"].gt(0) & tmp[new_code_col].ne("") & tmp[item_col].ne("")].copy()
+                # Apply the same due-date filter as the table (if enabled).
+                if st.session_state.get("rework_due_quick", "해제") != "해제":
+                    tmp = _apply_due_date_end_filter(tmp, st.session_state.get("rework_due_end", _today_kst()))
 
                 supply = _load_rework_supply_from_excel(excel_path, _excel_version_mtime(excel_path))
                 if supply is not None and (not supply.empty) and ("제품코드" in supply.columns) and ("가용수량" in supply.columns):
@@ -5415,21 +5461,57 @@ def main() -> None:
 
                 totals_base = {}
                 total_all = 0.0
+                # Important: quantities must be integers (no decimals). We apportion
+                # each item_code's integer alloc_total_item across codes using
+                # the largest-remainder method so per-item sums are preserved.
+                codes_by_item: dict[object, list[tuple[str, int]]] = {}
                 for (it, code), need_v in need_by_item_code.items():
-                    it_s = str(it or "").strip()
                     code_s = str(code or "").strip()
-                    if (not it_s) or (not code_s):
+                    if not code_s:
                         continue
-                    need_total_item = float(need_by_item.get(it, 0.0) or 0.0)
+                    try:
+                        need_i = int(need_v or 0)
+                    except Exception:
+                        need_i = 0
+                    if need_i <= 0:
+                        continue
+                    codes_by_item.setdefault(it, []).append((code_s, need_i))
+
+                for it, pairs in codes_by_item.items():
+                    it_s = str(it or "").strip()
+                    if not it_s:
+                        continue
+                    need_total_item = int(need_by_item.get(it, 0) or 0)
                     if need_total_item <= 0:
                         continue
-                    alloc_total_item = float(min(int(need_total_item), int(sup.get(it_s, 0) or 0)))
+                    alloc_total_item = int(min(need_total_item, int(sup.get(it_s, 0) or 0)))
                     if alloc_total_item <= 0:
                         continue
-                    share = float(need_v or 0.0) / need_total_item
-                    alloc_share = alloc_total_item * share
-                    totals_base[code_s] = float(totals_base.get(code_s, 0.0)) + alloc_share
-                    total_all += alloc_share
+
+                    # floor allocations + remainders
+                    floors: list[tuple[str, int, float]] = []
+                    floor_sum = 0
+                    for code_s, need_i in pairs:
+                        raw = (alloc_total_item * need_i) / need_total_item
+                        f = int(raw)  # floor
+                        r = float(raw - f)
+                        floors.append((code_s, f, r))
+                        floor_sum += f
+
+                    remain = alloc_total_item - floor_sum
+                    if remain > 0:
+                        floors.sort(key=lambda x: x[2], reverse=True)
+                    # distribute remaining units
+                    alloc_map: dict[str, int] = {}
+                    for idx, (code_s, f, _r) in enumerate(floors):
+                        add1 = 1 if idx < remain else 0
+                        alloc_map[code_s] = alloc_map.get(code_s, 0) + f + add1
+
+                    for code_s, qty in alloc_map.items():
+                        if qty <= 0:
+                            continue
+                        totals_base[code_s] = float(totals_base.get(code_s, 0.0)) + float(qty)
+                        total_all += float(qty)
         else:
             due_end_for_totals: date | None = None
             if view_mode == "수주별 현황" and st.session_state.get("order_due_quick", "해제") != "해제":
@@ -6071,6 +6153,9 @@ def main() -> None:
         need = need.rename(columns={"제품 코드": "제품코드"})
         need["필요수량"] = pd.to_numeric(need["접착"], errors="coerce").fillna(0).astype(int)
         need["납기일"] = pd.to_datetime(need.get("납기일"), errors="coerce")
+        # Apply the same due-date end filter used by the top pills (if enabled).
+        if st.session_state.get("rework_due_quick", "해제") != "해제":
+            need = _apply_due_date_end_filter(need, st.session_state.get("rework_due_end", _today_kst()))
 
         # 우선순위: 납기일 오름차순
         need = need.sort_values(["납기일"], ascending=[True], na_position="last").reset_index(drop=True)
