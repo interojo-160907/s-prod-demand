@@ -6297,13 +6297,74 @@ def main() -> None:
         show_cols = [c for c in show_cols if c in view_show.columns]
         view_show = view_show[show_cols].copy()
 
-        # KPI: sum of rework-allocatable quantity (post filters).
+        # KPI + download (post filters, pre-formatting)
         try:
             rework_sum = int(pd.to_numeric(view_show.get("재작업 가능수량"), errors="coerce").fillna(0).sum())
         except Exception:
             rework_sum = 0
-        st.subheader("재작업 가능수량")
-        st.metric(label="", value=_format_int(rework_sum))
+
+        export_df = view_show.copy()
+        # Ensure export has numeric quantities (not formatted strings).
+        for c in ["필요수량", "재작업 가능수량"]:
+            if c in export_df.columns:
+                export_df[c] = pd.to_numeric(export_df[c], errors="coerce").fillna(0).astype(int)
+        if "납기일" in export_df.columns:
+            export_df["납기일"] = pd.to_datetime(export_df["납기일"], errors="coerce").dt.date
+
+        xlsx_sig = (
+            code_key,
+            str(search_raw or ""),
+            str(st.session_state.get("rework_due_quick", "해제")),
+            str(st.session_state.get("rework_due_end", "")),
+        )
+        xlsx_cache_key = f"rework_{code_key}_xlsx_cache"
+        cache = st.session_state.get(xlsx_cache_key)
+        if not isinstance(cache, dict) or cache.get("sig") != xlsx_sig:
+            st.session_state[xlsx_cache_key] = {"sig": xlsx_sig, "xlsx": None}
+        cache = st.session_state.get(xlsx_cache_key, {})
+        if not isinstance(cache.get("xlsx"), (bytes, bytearray)) or not cache.get("xlsx"):
+            cache["xlsx"] = _to_excel_bytes(export_df, sheet_name="재작업")
+            st.session_state[xlsx_cache_key] = cache
+
+        kpi_col, dl_col = st.columns([3, 2], gap="small")
+        with kpi_col:
+            st.markdown(
+                f"""
+<style>
+.rework-kpi-card {{
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 1.05rem 1.1rem;
+  background: rgba(255, 255, 255, 0.55);
+}}
+.rework-kpi-title {{
+  font-size: 30px;
+  font-weight: 900;
+  margin: 0 0 0.35rem 0;
+  letter-spacing: -0.2px;
+}}
+.rework-kpi-value {{
+  font-size: 44px;
+  font-weight: 900;
+  margin: 0;
+  line-height: 1.1;
+}}
+</style>
+<div class="rework-kpi-card">
+  <div class="rework-kpi-title">재작업 가능수량</div>
+  <div class="rework-kpi-value">{_format_int(rework_sum)}</div>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with dl_col:
+            st.download_button(
+                "다운로드(재작업)",
+                data=cache.get("xlsx", b"") or b"",
+                file_name=f"재작업_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"rework_{code_key}_download",
+            )
 
         # Display formatting
         try:
