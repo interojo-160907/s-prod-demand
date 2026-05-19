@@ -5387,12 +5387,49 @@ def main() -> None:
         if view_mode == "재작업리스트":
             ddf = _load_order_detail_prepared(detail_csv, os.path.getmtime(detail_csv))
             b = _filter_by_plant(ddf, "S관(3공장)")
-            if (b is not None) and (not b.empty) and (new_code_col in b.columns) and ("접착" in b.columns):
-                tmp = b[[new_code_col, "접착"]].copy()
-                tmp["접착"] = pd.to_numeric(tmp["접착"], errors="coerce").fillna(0)
-                tmp = tmp.loc[tmp["접착"].gt(0)].copy()
-                totals_base = tmp.groupby(new_code_col, dropna=False)["접착"].sum(numeric_only=True).to_dict()
-                total_all = float(tmp["접착"].sum())
+            item_col = "제품 코드" if (b is not None and isinstance(b, pd.DataFrame) and "제품 코드" in b.columns) else "제품코드"
+            if (
+                (b is not None)
+                and (not b.empty)
+                and (new_code_col in b.columns)
+                and ("접착" in b.columns)
+                and (item_col in b.columns)
+                and bool(excel_path)
+            ):
+                tmp = b[[new_code_col, item_col, "접착"]].copy()
+                tmp[new_code_col] = tmp[new_code_col].astype("string").fillna("").astype(str).str.strip()
+                tmp[item_col] = tmp[item_col].astype("string").fillna("").astype(str).str.strip()
+                tmp["접착"] = pd.to_numeric(tmp["접착"], errors="coerce").fillna(0).astype(int)
+                tmp = tmp.loc[tmp["접착"].gt(0) & tmp[new_code_col].ne("") & tmp[item_col].ne("")].copy()
+
+                supply = _load_rework_supply_from_excel(excel_path, _excel_version_mtime(excel_path))
+                if supply is not None and (not supply.empty) and ("제품코드" in supply.columns) and ("가용수량" in supply.columns):
+                    sup = supply.groupby("제품코드", dropna=False)["가용수량"].sum(numeric_only=True).to_dict()
+                else:
+                    sup = {}
+
+                # 재작업 가능수량 합계는 제품코드 단위로 `min(필요, 가용)`이고,
+                # 신규분류 요약코드(pills)는 제품코드 내부 필요 비중으로 배분해서 표시한다.
+                need_by_item = tmp.groupby(item_col, dropna=False)["접착"].sum(numeric_only=True).to_dict()
+                need_by_item_code = tmp.groupby([item_col, new_code_col], dropna=False)["접착"].sum(numeric_only=True).to_dict()
+
+                totals_base = {}
+                total_all = 0.0
+                for (it, code), need_v in need_by_item_code.items():
+                    it_s = str(it or "").strip()
+                    code_s = str(code or "").strip()
+                    if (not it_s) or (not code_s):
+                        continue
+                    need_total_item = float(need_by_item.get(it, 0.0) or 0.0)
+                    if need_total_item <= 0:
+                        continue
+                    alloc_total_item = float(min(int(need_total_item), int(sup.get(it_s, 0) or 0)))
+                    if alloc_total_item <= 0:
+                        continue
+                    share = float(need_v or 0.0) / need_total_item
+                    alloc_share = alloc_total_item * share
+                    totals_base[code_s] = float(totals_base.get(code_s, 0.0)) + alloc_share
+                    total_all += alloc_share
         else:
             due_end_for_totals: date | None = None
             if view_mode == "수주별 현황" and st.session_state.get("order_due_quick", "해제") != "해제":
@@ -6032,7 +6069,7 @@ def main() -> None:
         else:
             need = need.rename(columns={"수요 제품 이름": "품명"})
         need = need.rename(columns={"제품 코드": "제품코드"})
-        need["접착공정 부족수량"] = pd.to_numeric(need["접착"], errors="coerce").fillna(0).astype(int)
+        need["필요수량"] = pd.to_numeric(need["접착"], errors="coerce").fillna(0).astype(int)
         need["납기일"] = pd.to_datetime(need.get("납기일"), errors="coerce")
 
         # 우선순위: 납기일 오름차순
@@ -6042,22 +6079,7 @@ def main() -> None:
         need = _fill_spec_from_item_code(need)
 
         supply = _load_rework_supply_from_excel(excel_path, _excel_version_mtime(excel_path))
-        need_alloc, alloc_detail = _allocate_rework_lots(need, supply, need_qty_col="접착공정 부족수량")
-
-        with st.expander("재작업 커버리지 요약(제품코드)", expanded=False):
-            try:
-                s_total = supply.groupby("제품코드", as_index=False)["가용수량"].sum().rename(columns={"가용수량": "재작업 총가용"})
-                n_total = (
-                    need_alloc.groupby("제품코드", as_index=False)[["접착공정 부족수량", "재작업 가능수량"]]
-                    .sum()
-                    .rename(columns={"접착공정 부족수량": "부족합", "재작업 가능수량": "배정합"})
-                )
-                summ = n_total.merge(s_total, on="제품코드", how="left").fillna(0)
-                summ["미충족"] = (summ["부족합"] - summ["배정합"]).astype(int)
-                summ = summ.sort_values(["미충족", "부족합"], ascending=[False, False]).head(50)
-                st.dataframe(summ, use_container_width=True, hide_index=True)
-            except Exception:
-                st.caption("요약 표 생성 중 오류가 발생했습니다.")
+        need_alloc, alloc_detail = _allocate_rework_lots(need, supply, need_qty_col="필요수량")
 
         show_cols = [
             "우선순위",
@@ -6071,19 +6093,10 @@ def main() -> None:
             "AXIS",
             "ADD",
             "납기일",
-            "접착공정 부족수량",
+            "필요수량",
             "재작업 가능수량",
-            "잔여부족",
         ]
         view_show = need_alloc.copy()
-        if ("접착공정 부족수량" in view_show.columns) and ("재작업 가능수량" in view_show.columns):
-            try:
-                view_show["잔여부족"] = (
-                    pd.to_numeric(view_show["접착공정 부족수량"], errors="coerce").fillna(0).astype(int)
-                    - pd.to_numeric(view_show["재작업 가능수량"], errors="coerce").fillna(0).astype(int)
-                ).clip(lower=0)
-            except Exception:
-                view_show["잔여부족"] = 0
         # 재작업리스트 탭은 "재작업 가능" 라인 중심으로 보여준다.
         if "재작업 가능수량" in view_show.columns:
             try:
@@ -6092,6 +6105,19 @@ def main() -> None:
                 pass
         show_cols = [c for c in show_cols if c in view_show.columns]
         view_show = view_show[show_cols].copy()
+        # Display formatting
+        try:
+            if "납기일" in view_show.columns:
+                view_show["납기일"] = pd.to_datetime(view_show["납기일"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+        except Exception:
+            pass
+        for c in ["필요수량", "재작업 가능수량"]:
+            if c in view_show.columns:
+                try:
+                    view_show[c] = view_show[c].map(_format_int)
+                except Exception:
+                    pass
+
         st.caption(f"표시 건수: {len(view_show):,} (S관 접착 부족 라인 중 재작업 가능 라인)")
         table_h = _table_height_for_rows(len(view_show), min_height=320, max_height=780)
         _render_dataframe_with_copy(
@@ -6113,6 +6139,16 @@ def main() -> None:
                 if sort_cols:
                     try:
                         detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+                    except Exception:
+                        pass
+                try:
+                    if "납기일" in detail_show.columns:
+                        detail_show["납기일"] = pd.to_datetime(detail_show["납기일"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+                except Exception:
+                    pass
+                if "배정수량" in detail_show.columns:
+                    try:
+                        detail_show["배정수량"] = detail_show["배정수량"].map(_format_int)
                     except Exception:
                         pass
                 detail_cols = [
