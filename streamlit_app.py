@@ -2188,13 +2188,6 @@ def _allocate_rework_lots(
     if "우선순위" not in need.columns:
         need["우선순위"] = range(1, len(need) + 1)
     need["재작업 가능수량"] = 0
-    # Chunk size for "similar" distribution across lots (round-robin style).
-    # Smaller chunks -> more balanced usage; keep at least 1.
-    try:
-        _med = float(pd.to_numeric(need[need_qty_col], errors="coerce").fillna(0).median())
-    except Exception:
-        _med = 0.0
-    chunk_size = max(1, int(round((_med or 0.0) / 5.0)))
 
     if supply_df is None or supply_df.empty:
         return (need, pd.DataFrame())
@@ -2216,9 +2209,10 @@ def _allocate_rework_lots(
         if s_item.empty:
             continue
 
-        # Use a round-robin style allocator across lots to keep usage "similar"
-        # (avoid draining a single lot first, unless required by supply/need).
-        s_item = s_item.sort_values(["LOT_NO"], ascending=[True]).reset_index(drop=True)
+        # 패킹(packing): 한 LOT를 다 쓰고 다음 LOT로 넘어가서,
+        # 한 부족라인이 최대한 적은 LOT로 채워지도록 한다.
+        # LOT 우선순위는 가용수량 큰 순(동률이면 LOT_NO)으로 둔다.
+        s_item = s_item.sort_values(["가용수량", "LOT_NO"], ascending=[False, True]).reset_index(drop=True)
         lot_i = 0
         lot_no = str(s_item.loc[lot_i, "LOT_NO"])
         lot_remain = int(s_item.loc[lot_i, "가용수량"])
@@ -2229,40 +2223,48 @@ def _allocate_rework_lots(
             if need_qty <= 0:
                 continue
             alloc_sum = 0
+            # Aggregate per lot per shortage line to avoid many duplicated rows in the detail view
+            # when chunking is enabled.
+            line_alloc: dict[str, int] = {}
             while need_qty > 0 and lot_i < len(s_item):
-                # Advance to next non-empty lot (wrap around). If all lots are empty, stop.
+                # 다음 LOT로 이동 (끝까지 가면 종료)
                 if lot_remain <= 0:
-                    searched = 0
-                    found = False
-                    while searched < len(s_item):
-                        lot_i = (lot_i + 1) % len(s_item)
-                        lot_no = str(s_item.loc[lot_i, "LOT_NO"])
-                        lot_remain = int(s_item.loc[lot_i, "가용수량"])
-                        if lot_remain > 0:
-                            found = True
-                            break
-                        searched += 1
-                    if not found:
+                    lot_i += 1
+                    if lot_i >= len(s_item):
                         break
-                # Take a chunk (cap size helps distribute across lots)
-                take = min(need_qty, lot_remain, chunk_size)
+                    lot_no = str(s_item.loc[lot_i, "LOT_NO"])
+                    lot_remain = int(s_item.loc[lot_i, "가용수량"])
+                    continue
+                # 패킹: 현재 LOT에서 가능한 만큼 한 번에 가져간다.
+                take = min(need_qty, lot_remain)
                 if take <= 0:
                     break
                 alloc_sum += take
                 need_qty -= take
                 lot_remain -= take
                 s_item.loc[lot_i, "가용수량"] = lot_remain
-                alloc_rows.append(
-                    {
-                        "제품코드": item,
-                        "LOT_NO": lot_no,
-                        "납기일": need.at[ix, "납기일"],
-                        "이니셜": need.at[ix, "이니셜"] if "이니셜" in need.columns else "",
-                        "수주번호": need.at[ix, "수주번호"] if "수주번호" in need.columns else "",
-                        "배정수량": take,
-                    }
-                )
+                try:
+                    line_alloc[lot_no] = int(line_alloc.get(lot_no, 0)) + int(take)
+                except Exception:
+                    line_alloc[lot_no] = int(take)
             need.at[ix, "재작업 가능수량"] = int(alloc_sum)
+            if line_alloc:
+                due_v = need.at[ix, "납기일"]
+                ini_v = need.at[ix, "이니셜"] if "이니셜" in need.columns else ""
+                ord_v = need.at[ix, "수주번호"] if "수주번호" in need.columns else ""
+                prio_v = need.at[ix, "우선순위"] if "우선순위" in need.columns else None
+                for lno, qty in line_alloc.items():
+                    alloc_rows.append(
+                        {
+                            "제품코드": item,
+                            "LOT_NO": lno,
+                            "납기일": due_v,
+                            "우선순위": prio_v,
+                            "이니셜": ini_v,
+                            "수주번호": ord_v,
+                            "배정수량": int(qty),
+                        }
+                    )
 
     alloc_detail = pd.DataFrame(alloc_rows)
     if not alloc_detail.empty:
@@ -6045,10 +6047,26 @@ def main() -> None:
             "납기일",
             "접착공정 부족수량",
             "재작업 가능수량",
+            "잔여부족",
         ]
-        show_cols = [c for c in show_cols if c in need_alloc.columns]
-        view_show = need_alloc[show_cols].copy()
-        st.caption(f"표시 건수: {len(view_show):,} (S관 접착 부족 라인 기준)")
+        view_show = need_alloc.copy()
+        if ("접착공정 부족수량" in view_show.columns) and ("재작업 가능수량" in view_show.columns):
+            try:
+                view_show["잔여부족"] = (
+                    pd.to_numeric(view_show["접착공정 부족수량"], errors="coerce").fillna(0).astype(int)
+                    - pd.to_numeric(view_show["재작업 가능수량"], errors="coerce").fillna(0).astype(int)
+                ).clip(lower=0)
+            except Exception:
+                view_show["잔여부족"] = 0
+        # 재작업리스트 탭은 "재작업 가능" 라인 중심으로 보여준다.
+        if "재작업 가능수량" in view_show.columns:
+            try:
+                view_show = view_show.loc[pd.to_numeric(view_show["재작업 가능수량"], errors="coerce").fillna(0).gt(0)].copy()
+            except Exception:
+                pass
+        show_cols = [c for c in show_cols if c in view_show.columns]
+        view_show = view_show[show_cols].copy()
+        st.caption(f"표시 건수: {len(view_show):,} (S관 접착 부족 라인 중 재작업 가능 라인)")
         table_h = _table_height_for_rows(len(view_show), min_height=320, max_height=780)
         _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(view_show),
@@ -6063,7 +6081,27 @@ def main() -> None:
             if alloc_detail is None or alloc_detail.empty:
                 st.caption("배정 상세가 없습니다. (재작업리스트에 해당 제품코드/LOT가 없거나 가용수량이 0일 수 있어요)")
             else:
-                st.dataframe(alloc_detail, use_container_width=True, hide_index=True)
+                detail_show = alloc_detail.copy()
+                # Stable ordering for scanability (priority -> item -> lot)
+                sort_cols = [c for c in ["우선순위", "납기일", "제품코드", "LOT_NO"] if c in detail_show.columns]
+                if sort_cols:
+                    try:
+                        detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+                    except Exception:
+                        pass
+                detail_cols = [
+                    "우선순위",
+                    "제품코드",
+                    "LOT_NO",
+                    "배정수량",
+                    "납기일",
+                    "이니셜",
+                    "수주번호",
+                ]
+                detail_cols = [c for c in detail_cols if c in detail_show.columns]
+                if detail_cols:
+                    detail_show = detail_show[detail_cols].copy()
+                st.dataframe(detail_show, use_container_width=True, hide_index=True)
         return
 
     if view_mode == "사출 계획":
