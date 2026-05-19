@@ -643,6 +643,40 @@ def _render_dataframe_with_copy(
 
     # Streamlit's supported `selection_mode` values vary by version.
     # Prefer cell selection when available; fall back gracefully to avoid crashing the app.
+    #
+    # Streamlit uses PyArrow under the hood; PyArrow rejects duplicate column names.
+    # Some upstream merges can accidentally introduce duplicates, so defensively
+    # de-duplicate for display (and keep the copy-source in sync).
+    def _dedupe_columns(df0: pd.DataFrame) -> pd.DataFrame:
+        if df0 is None or (not isinstance(df0, pd.DataFrame)):
+            return df0
+        if df0.columns.is_unique:
+            return df0
+        seen: dict[str, int] = {}
+        new_cols: list[str] = []
+        for c in list(df0.columns):
+            base = "" if c is None else str(c)
+            base = base.strip() if base is not None else ""
+            if base == "":
+                base = "col"
+            n = seen.get(base, 0)
+            if n == 0:
+                new_cols.append(base)
+            else:
+                new_cols.append(f"{base}.{n}")
+            seen[base] = n + 1
+        out = df0.copy()
+        out.columns = new_cols
+        return out
+
+    try:
+        if isinstance(data, pd.DataFrame):
+            data = _dedupe_columns(data)
+        if df_for_copy is not None and isinstance(df_for_copy, pd.DataFrame):
+            df_for_copy = _dedupe_columns(df_for_copy)
+    except Exception:
+        pass
+
     try:
         event = st.dataframe(
             data,
