@@ -6166,6 +6166,12 @@ def main() -> None:
         supply = _load_rework_supply_from_excel(excel_path, _excel_version_mtime(excel_path))
         need_alloc, alloc_detail = _allocate_rework_lots(need, supply, need_qty_col="필요수량")
 
+        search_raw = st.text_input(
+            "검색 (이니셜/품명/제품코드)",
+            placeholder="예: HW0327, SEPIA, P1000A-03.50",
+            key=f"rework_{code_key}_search",
+        )
+
         show_cols = [
             "우선순위",
             "이니셜",
@@ -6188,6 +6194,8 @@ def main() -> None:
                 view_show = view_show.loc[pd.to_numeric(view_show["재작업 가능수량"], errors="coerce").fillna(0).gt(0)].copy()
             except Exception:
                 pass
+        # Free-text search (comma-separated OR) consistent with other tabs.
+        view_show = _filter_by_any_contains(view_show, ["이니셜", "품명", "제품코드"], search_raw)
         show_cols = [c for c in show_cols if c in view_show.columns]
         view_show = view_show[show_cols].copy()
         # Display formatting
@@ -6219,6 +6227,16 @@ def main() -> None:
                 st.caption("배정 상세가 없습니다. (재작업리스트에 해당 제품코드/LOT가 없거나 가용수량이 0일 수 있어요)")
             else:
                 detail_show = alloc_detail.copy()
+                # Keep detail in sync with the filtered top table when possible.
+                try:
+                    key_cols = [c for c in ["우선순위", "제품코드", "납기일", "이니셜", "수주번호"] if c in view_show.columns]
+                    if key_cols and all(c in detail_show.columns for c in key_cols):
+                        keys = set(tuple(row) for row in view_show[key_cols].itertuples(index=False, name=None))
+                        detail_keys = list(detail_show[key_cols].itertuples(index=False, name=None))
+                        keep_mask = [k in keys for k in detail_keys]
+                        detail_show = detail_show.loc[keep_mask].copy()
+                except Exception:
+                    pass
                 # Stable ordering for scanability (priority -> item -> lot)
                 sort_cols = [c for c in ["우선순위", "납기일", "제품코드", "LOT_NO"] if c in detail_show.columns]
                 if sort_cols:
