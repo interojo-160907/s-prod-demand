@@ -6326,19 +6326,21 @@ def main() -> None:
             cache["xlsx"] = _to_excel_bytes(export_df, sheet_name="재작업")
             st.session_state[xlsx_cache_key] = cache
 
-        kpi_col, dl_col = st.columns([3, 2], gap="small")
-        with kpi_col:
-            # Match other tabs: title + Streamlit metric (no custom KPI card).
-            st.subheader("재작업 가능수량")
-            st.metric(label="", value=_format_int(rework_sum))
-        with dl_col:
-            st.download_button(
-                "다운로드(재작업)",
-                data=cache.get("xlsx", b"") or b"",
-                file_name=f"재작업_{code_label}_{_today_kst().isoformat()}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"rework_{code_key}_download",
-            )
+        # Download + totals line (match other tabs' style: black label + blue value, above table).
+        st.download_button(
+            "다운로드(재작업)",
+            data=cache.get("xlsx", b"") or b"",
+            file_name=f"재작업_{code_label}_{_today_kst().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"rework_{code_key}_download",
+        )
+        st.markdown(
+            f"<div style='margin: 8px 0 8px 0; padding: 4px 8px;'>"
+            f"<span style='margin-right: 20px; font-size: 15px;'>재작업 가능수량: "
+            f"<strong style='color: #0066cc;'>{_format_int(rework_sum)}</strong></span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
         # Display formatting
         try:
