@@ -5383,23 +5383,34 @@ def main() -> None:
     totals_base: dict[str, float] = {}
     total_all = 0.0
     try:
-        due_end_for_totals: date | None = None
-        if view_mode == "수주별 현황" and st.session_state.get("order_due_quick", "해제") != "해제":
-            due_end_for_totals = st.session_state.get("order_due_end", _today_kst())
-        if view_mode == "리스크" and st.session_state.get("risk_due_quick", "해제") != "해제":
-            due_end_for_totals = st.session_state.get("risk_due_end", _today_kst())
-        if view_mode == "납기별 상세" and st.session_state.get("due_due_quick", "해제") != "해제":
-            due_end_for_totals = st.session_state.get("due_due_end", _today_kst())
-        if view_mode == "공정별 보기" and st.session_state.get("proc_due_quick", "해제") != "해제":
-            due_end_for_totals = st.session_state.get("proc_due_end", _today_kst())
-        totals_base, total_all = _code_totals_from_due_csv_cached(
-            due_csv=due_csv,
-            due_mtime=float(os.path.getmtime(due_csv)),
-            plant=selected_plant,
-            view_mode=view_mode,
-            due_end=due_end_for_totals,
-            process_only=process_only,
-        )
+        # 재작업리스트 탭은 "S관 접착 부족 라인" 기준으로 분류요약코드 pills를 만든다.
+        if view_mode == "재작업리스트":
+            ddf = _load_order_detail_prepared(detail_csv, os.path.getmtime(detail_csv))
+            b = _filter_by_plant(ddf, "S관(3공장)")
+            if (b is not None) and (not b.empty) and (new_code_col in b.columns) and ("접착" in b.columns):
+                tmp = b[[new_code_col, "접착"]].copy()
+                tmp["접착"] = pd.to_numeric(tmp["접착"], errors="coerce").fillna(0)
+                tmp = tmp.loc[tmp["접착"].gt(0)].copy()
+                totals_base = tmp.groupby(new_code_col, dropna=False)["접착"].sum(numeric_only=True).to_dict()
+                total_all = float(tmp["접착"].sum())
+        else:
+            due_end_for_totals: date | None = None
+            if view_mode == "수주별 현황" and st.session_state.get("order_due_quick", "해제") != "해제":
+                due_end_for_totals = st.session_state.get("order_due_end", _today_kst())
+            if view_mode == "리스크" and st.session_state.get("risk_due_quick", "해제") != "해제":
+                due_end_for_totals = st.session_state.get("risk_due_end", _today_kst())
+            if view_mode == "납기별 상세" and st.session_state.get("due_due_quick", "해제") != "해제":
+                due_end_for_totals = st.session_state.get("due_due_end", _today_kst())
+            if view_mode == "공정별 보기" and st.session_state.get("proc_due_quick", "해제") != "해제":
+                due_end_for_totals = st.session_state.get("proc_due_end", _today_kst())
+            totals_base, total_all = _code_totals_from_due_csv_cached(
+                due_csv=due_csv,
+                due_mtime=float(os.path.getmtime(due_csv)),
+                plant=selected_plant,
+                view_mode=view_mode,
+                due_end=due_end_for_totals,
+                process_only=process_only,
+            )
     except Exception:
         # Fallback (should be rare)
         if value_col in codes_src.columns:
@@ -6005,7 +6016,22 @@ def main() -> None:
             st.caption("S관 접착 공정 부족수량(수요)이 없습니다.")
             return
 
-        need = need.rename(columns={"수요 제품 이름": "품명", "제품 코드": "제품코드"})
+        # NOTE: 수주상세에 이미 "품명"이 존재하는데 "수요 제품 이름"도 함께 존재함.
+        # 그대로 rename하면 "품명" 중복 컬럼이 생겨서 UI에 "품명2/3"처럼 보일 수 있다.
+        if ("품명" in need.columns) and ("수요 제품 이름" in need.columns):
+            try:
+                n1 = need["품명"].astype("string").fillna("").astype(str).str.strip()
+                n2 = need["수요 제품 이름"].astype("string").fillna("").astype(str).str.strip()
+                need["품명"] = n1.mask(n1.eq(""), n2)
+            except Exception:
+                pass
+            try:
+                need = need.drop(columns=["수요 제품 이름"])
+            except Exception:
+                pass
+        else:
+            need = need.rename(columns={"수요 제품 이름": "품명"})
+        need = need.rename(columns={"제품 코드": "제품코드"})
         need["접착공정 부족수량"] = pd.to_numeric(need["접착"], errors="coerce").fillna(0).astype(int)
         need["납기일"] = pd.to_datetime(need.get("납기일"), errors="coerce")
 
