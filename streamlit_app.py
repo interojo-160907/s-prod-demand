@@ -2310,6 +2310,105 @@ def _allocate_rework_lots(
     return (need, alloc_detail)
 
 
+def _pick_lots_min_count_min_overage(
+    lots: pd.DataFrame,
+    *,
+    need_qty: int,
+    lot_no_col: str = "LOT_NO",
+    lot_qty_col: str = "가용수량",
+    allow_partial_last: bool = True,
+) -> list[dict[str, object]]:
+    """
+    Pick lots to cover `need_qty` with:
+    1) minimal lot count, then
+    2) minimal overage (sum-picked - need_qty).
+
+    Returns rows: {LOT_NO, LOT수량, 작업수량}
+    """
+    try:
+        need = int(need_qty or 0)
+    except Exception:
+        need = 0
+    if need <= 0 or lots is None or lots.empty:
+        return []
+
+    df = lots.copy()
+    if lot_no_col not in df.columns or lot_qty_col not in df.columns:
+        return []
+    df[lot_no_col] = df[lot_no_col].astype("string").fillna("").astype(str).str.strip()
+    df[lot_qty_col] = pd.to_numeric(df[lot_qty_col], errors="coerce").fillna(0).astype(int)
+    df = df.loc[df[lot_no_col].ne("") & df[lot_qty_col].gt(0)].copy()
+    if df.empty:
+        return []
+
+    # 1 lot: choose the one with minimal overage.
+    one = df.loc[df[lot_qty_col].ge(need)].copy()
+    if not one.empty:
+        one["over"] = one[lot_qty_col] - need
+        one = one.sort_values(["over", lot_qty_col, lot_no_col], ascending=[True, True, True]).head(1)
+        lot_no = str(one.iloc[0][lot_no_col])
+        lot_qty = int(one.iloc[0][lot_qty_col])
+        use_qty = need if allow_partial_last else lot_qty
+        return [{"LOT_NO": lot_no, "LOT수량": lot_qty, "작업수량": int(use_qty)}]
+
+    # 2 lots: best pair with minimal overage.
+    # Keep list small and deterministic: sort by qty desc then lot no.
+    df2 = df.sort_values([lot_qty_col, lot_no_col], ascending=[False, True]).reset_index(drop=True)
+    qtys = df2[lot_qty_col].tolist()
+    n = len(qtys)
+    best = None  # (overage, i, j, sum)
+    for i in range(n):
+        qi = qtys[i]
+        # If even qi + largest < need, continue quickly (but largest is qtys[0], qi<=largest always).
+        for j in range(i + 1, n):
+            s = qi + qtys[j]
+            if s < need:
+                continue
+            over = s - need
+            if best is None or over < best[0] or (over == best[0] and s < best[3]):
+                best = (over, i, j, s)
+                if over == 0:
+                    break
+        if best is not None and best[0] == 0:
+            break
+
+    if best is not None:
+        _, i, j, _ = best
+        row_i = df2.iloc[i]
+        row_j = df2.iloc[j]
+        lot_i_no = str(row_i[lot_no_col])
+        lot_j_no = str(row_j[lot_no_col])
+        lot_i_qty = int(row_i[lot_qty_col])
+        lot_j_qty = int(row_j[lot_qty_col])
+        if allow_partial_last:
+            use_i = lot_i_qty
+            use_j = max(0, need - use_i)
+            use_j = min(use_j, lot_j_qty)
+        else:
+            use_i = lot_i_qty
+            use_j = lot_j_qty
+        return [
+            {"LOT_NO": lot_i_no, "LOT수량": lot_i_qty, "작업수량": int(use_i)},
+            {"LOT_NO": lot_j_no, "LOT수량": lot_j_qty, "작업수량": int(use_j)},
+        ]
+
+    # 3+ lots: greedy by qty desc (min count), partial on last if allowed.
+    picked: list[dict[str, object]] = []
+    remain = need
+    for _, r in df2.iterrows():
+        if remain <= 0:
+            break
+        lot_no = str(r[lot_no_col])
+        lot_qty = int(r[lot_qty_col])
+        if allow_partial_last:
+            use = min(remain, lot_qty)
+        else:
+            use = lot_qty
+        picked.append({"LOT_NO": lot_no, "LOT수량": lot_qty, "작업수량": int(use)})
+        remain -= use
+    return picked
+
+
 @st.cache_data(show_spinner=False)
 def _sort_due_table_cached(
     *,
@@ -6366,78 +6465,87 @@ def main() -> None:
         )
 
         with st.expander("LOT 배정 상세", expanded=False):
-            # `재작업 리스트` 상단 표(view_show)에 보이는 제품코드들에 대해,
-            # `재작업리스트` 시트의 LOT별 수량(= G열 `지시수량`)을 그대로 보여준다.
+            # `재작업 리스트`의 각 부족라인(필요수량)에 대해,
+            # `재작업리스트` 시트 LOT 수량(지시수량)을 이용해 "작업해야 하는 LOT만" 최소 개수로 추천한다.
+            # - 1개 LOT로 커버 가능하면 1개
+            # - 아니면 2개 조합 중 초과 최소
+            # - 그래도 안 되면 큰 LOT부터 greedy로 최소 개수
             if supply is None or supply.empty:
                 st.caption("배정 상세가 없습니다. (재작업리스트 시트에서 LOT 데이터를 찾지 못했습니다)")
-            elif view_show is None or view_show.empty or ("제품코드" not in view_show.columns):
-                st.caption("배정 상세가 없습니다. (상단 표에서 제품코드를 찾지 못했습니다)")
+            elif export_df is None or export_df.empty or ("제품코드" not in export_df.columns) or ("필요수량" not in export_df.columns):
+                st.caption("배정 상세가 없습니다. (상단 표에서 제품코드/필요수량을 찾지 못했습니다)")
             else:
-                base_meta_cols = ["우선순위", "이니셜", "수주번호"]
-                if new_code_col and (new_code_col in view_show.columns):
-                    base_meta_cols.append(new_code_col)
-                if "품명" in view_show.columns:
-                    base_meta_cols.append("품명")
-                base_meta_cols.append("제품코드")
-                base_meta_cols = [c for c in base_meta_cols if c in view_show.columns]
-
+                base_cols = ["우선순위", "이니셜", "수주번호", "제품코드", "필요수량"]
+                if new_code_col and (new_code_col in export_df.columns):
+                    base_cols.append(new_code_col)
+                if "품명" in export_df.columns:
+                    base_cols.append("품명")
+                base_cols = [c for c in base_cols if c in export_df.columns]
+                base = export_df[base_cols].copy()
                 try:
-                    base_meta = view_show[base_meta_cols].copy()
+                    base["제품코드"] = base["제품코드"].astype("string").fillna("").astype(str).str.strip()
                 except Exception:
-                    base_meta = pd.DataFrame()
-
-                if base_meta is None or base_meta.empty or ("제품코드" not in base_meta.columns):
-                    st.caption("배정 상세가 없습니다. (상단 표에 제품코드가 없습니다)")
+                    pass
+                try:
+                    base["필요수량"] = pd.to_numeric(base["필요수량"], errors="coerce").fillna(0).astype(int)
+                except Exception:
+                    base["필요수량"] = 0
+                base = base.loc[base["제품코드"].ne("") & base["필요수량"].gt(0)].copy()
+                if base.empty:
+                    st.caption("배정 상세가 없습니다. (표시할 부족라인이 없습니다)")
                 else:
-                    try:
-                        base_meta["제품코드"] = base_meta["제품코드"].astype("string").fillna("").astype(str).str.strip()
-                    except Exception:
-                        pass
-                    base_meta = base_meta.loc[base_meta["제품코드"].ne("")].copy()
-                    if base_meta.empty:
-                        st.caption("배정 상세가 없습니다. (상단 표에 제품코드가 없습니다)")
+                    rows: list[dict[str, object]] = []
+                    for _, r in base.iterrows():
+                        item = str(r.get("제품코드") or "").strip()
+                        need_qty = int(r.get("필요수량") or 0)
+                        s_item = supply.loc[supply["제품코드"].astype("string").eq(item)].copy()
+                        picked = _pick_lots_min_count_min_overage(s_item, need_qty=need_qty, allow_partial_last=True)
+                        if not picked:
+                            continue
+                        for p in picked:
+                            row = dict(r)
+                            row["LOT_NO"] = p.get("LOT_NO")
+                            row["LOT수량"] = p.get("LOT수량")
+                            row["수량"] = p.get("작업수량")
+                            rows.append(row)
+
+                    detail_show = pd.DataFrame(rows)
+                    if detail_show.empty:
+                        st.caption("배정 상세가 없습니다. (해당 제품코드에 매칭되는 LOT가 없습니다)")
                     else:
-                        # LOT 목록 붙이기: 제품코드 기준으로 (부족라인 x LOT) 형태로 펼친다.
-                        detail_show = base_meta.merge(supply, on="제품코드", how="left")
-                        detail_show = detail_show.loc[detail_show["LOT_NO"].notna()].copy() if "LOT_NO" in detail_show.columns else detail_show
-                        if detail_show is None or detail_show.empty:
-                            st.caption("배정 상세가 없습니다. (해당 제품코드에 매칭되는 LOT가 없습니다)")
-                        else:
-                            # 표 컬럼 이름을 UI와 맞춘다: 수량 = LOT별 지시수량(G열)
-                            if "가용수량" in detail_show.columns:
-                                detail_show = detail_show.rename(columns={"가용수량": "수량"})
-                            if new_code_col and (new_code_col in detail_show.columns):
-                                detail_show = detail_show.rename(columns={new_code_col: "신규분류요약"})
-                            if "품명" in detail_show.columns:
-                                detail_show = detail_show.rename(columns={"품명": "제품명"})
-
-                            sort_cols = [c for c in ["우선순위", "제품코드", "LOT_NO"] if c in detail_show.columns]
-                            if sort_cols:
+                        if new_code_col and (new_code_col in detail_show.columns):
+                            detail_show = detail_show.rename(columns={new_code_col: "신규분류요약"})
+                        if "품명" in detail_show.columns:
+                            detail_show = detail_show.rename(columns={"품명": "제품명"})
+                        # 보기용 포맷
+                        for c in ["필요수량", "LOT수량", "수량"]:
+                            if c in detail_show.columns:
                                 try:
-                                    detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+                                    detail_show[c] = pd.to_numeric(detail_show[c], errors="coerce").fillna(0).astype(int).map(_format_int)
                                 except Exception:
                                     pass
-                            if "수량" in detail_show.columns:
-                                try:
-                                    detail_show["수량"] = pd.to_numeric(detail_show["수량"], errors="coerce").fillna(0).astype(int)
-                                    detail_show["수량"] = detail_show["수량"].map(_format_int)
-                                except Exception:
-                                    pass
-
-                            detail_cols = [
-                                "우선순위",
-                                "이니셜",
-                                "수주번호",
-                                "신규분류요약",
-                                "제품명",
-                                "제품코드",
-                                "LOT_NO",
-                                "수량",
-                            ]
-                            detail_cols = [c for c in detail_cols if c in detail_show.columns]
-                            if detail_cols:
-                                detail_show = detail_show[detail_cols].copy()
-                            st.dataframe(detail_show, use_container_width=True, hide_index=True)
+                        sort_cols = [c for c in ["우선순위", "제품코드", "LOT_NO"] if c in detail_show.columns]
+                        if sort_cols:
+                            try:
+                                detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+                            except Exception:
+                                pass
+                        detail_cols = [
+                            "우선순위",
+                            "이니셜",
+                            "수주번호",
+                            "신규분류요약",
+                            "제품명",
+                            "제품코드",
+                            "필요수량",
+                            "LOT_NO",
+                            "LOT수량",
+                            "수량",
+                        ]
+                        detail_cols = [c for c in detail_cols if c in detail_show.columns]
+                        if detail_cols:
+                            detail_show = detail_show[detail_cols].copy()
+                        st.dataframe(detail_show, use_container_width=True, hide_index=True)
         return
 
     if view_mode == "사출 계획":
