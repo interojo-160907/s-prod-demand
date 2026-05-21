@@ -1166,6 +1166,35 @@ def _to_excel_bytes(df: pd.DataFrame, *, sheet_name: str = "data") -> bytes:
     return output.getvalue()
 
 
+@st.cache_data(show_spinner=False)
+def _to_excel_bytes_multi(sheets: list[tuple[str, pd.DataFrame]]) -> bytes:
+    output = BytesIO()
+    safe_sheets: list[tuple[str, pd.DataFrame]] = []
+    for name, df in sheets:
+        sname = str(name or "data")[:31]
+        xdf = (df.copy() if df is not None else pd.DataFrame()).copy()
+        # Ensure date columns export as YYYY-MM-DD (no time component).
+        for c in list(xdf.columns):
+            try:
+                if c == "납기일":
+                    dt = pd.to_datetime(xdf[c], errors="coerce")
+                    xdf[c] = dt.dt.strftime("%Y-%m-%d")
+                elif pd.api.types.is_datetime64_any_dtype(xdf[c]):
+                    xdf[c] = xdf[c].dt.strftime("%Y-%m-%d")
+            except Exception:
+                pass
+        safe_sheets.append((sname, xdf))
+    try:
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            for sname, xdf in safe_sheets:
+                xdf.to_excel(writer, index=False, sheet_name=sname)
+    except Exception:
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:  # type: ignore[call-arg]
+            for sname, xdf in safe_sheets:
+                xdf.to_excel(writer, index=False, sheet_name=sname)
+    return output.getvalue()
+
+
 def _to_injection_operation_xlsx(
     sched: pd.DataFrame,
     *,
@@ -6410,6 +6439,86 @@ def main() -> None:
         if "납기일" in export_df.columns:
             export_df["납기일"] = pd.to_datetime(export_df["납기일"], errors="coerce").dt.date
 
+        # Build lot assignment (work lots only) + unassigned lots for this filtered view.
+        lot_assign_raw = pd.DataFrame()
+        unassigned_raw = pd.DataFrame()
+        try:
+            if (
+                supply is not None
+                and (not supply.empty)
+                and (export_df is not None)
+                and (not export_df.empty)
+                and ("제품코드" in export_df.columns)
+                and ("필요수량" in export_df.columns)
+            ):
+                base_cols = ["우선순위", "이니셜", "수주번호", "제품코드", "필요수량"]
+                if new_code_col and (new_code_col in export_df.columns):
+                    base_cols.append(new_code_col)
+                if "품명" in export_df.columns:
+                    base_cols.append("품명")
+                base_cols = [c for c in base_cols if c in export_df.columns]
+
+                base = export_df[base_cols].copy()
+                base["제품코드"] = base["제품코드"].astype("string").fillna("").astype(str).str.strip()
+                base["필요수량"] = pd.to_numeric(base["필요수량"], errors="coerce").fillna(0).astype(int)
+                base = base.loc[base["제품코드"].ne("") & base["필요수량"].gt(0)].copy()
+
+                if not base.empty:
+                    rows: list[dict[str, object]] = []
+                    for _, r in base.iterrows():
+                        item = str(r.get("제품코드") or "").strip()
+                        need_qty = int(r.get("필요수량") or 0)
+                        s_item = supply.loc[supply["제품코드"].astype("string").eq(item)].copy()
+                        picked = _pick_lots_min_count_min_overage(s_item, need_qty=need_qty, allow_partial_last=True)
+                        if not picked:
+                            continue
+                        for p in picked:
+                            row = dict(r)
+                            row["LOT_NO"] = p.get("LOT_NO")
+                            row["LOT수량"] = p.get("LOT수량")
+                            row["부족수량"] = need_qty
+                            row["필요수량"] = int(p.get("작업수량") or 0)
+                            rows.append(row)
+
+                    lot_assign_raw = pd.DataFrame(rows)
+                    if not lot_assign_raw.empty:
+                        if new_code_col and (new_code_col in lot_assign_raw.columns):
+                            lot_assign_raw = lot_assign_raw.rename(columns={new_code_col: "신규분류요약"})
+                        if "품명" in lot_assign_raw.columns:
+                            lot_assign_raw = lot_assign_raw.rename(columns={"품명": "제품명"})
+                        for c in ["부족수량", "LOT수량", "필요수량"]:
+                            if c in lot_assign_raw.columns:
+                                lot_assign_raw[c] = pd.to_numeric(lot_assign_raw[c], errors="coerce").fillna(0).astype(int)
+
+                    # Unassigned lots: lots within scope (products in `base`) that are not used at all.
+                    items = sorted(set(base["제품코드"].astype("string").fillna("").astype(str).str.strip().tolist()))
+                    items = [x for x in items if x]
+                    if items:
+                        s_scope = supply.loc[supply["제품코드"].astype("string").isin(items)].copy()
+                        if "가용수량" in s_scope.columns:
+                            s_scope = s_scope.rename(columns={"가용수량": "LOT수량"})
+                        used_pairs = set()
+                        if lot_assign_raw is not None and (not lot_assign_raw.empty) and ("제품코드" in lot_assign_raw.columns) and ("LOT_NO" in lot_assign_raw.columns):
+                            used_pairs = set(
+                                (str(a).strip(), str(b).strip())
+                                for a, b in lot_assign_raw[["제품코드", "LOT_NO"]].itertuples(index=False, name=None)
+                            )
+                        if used_pairs:
+                            keep = [
+                                (str(a).strip(), str(b).strip()) not in used_pairs
+                                for a, b in s_scope[["제품코드", "LOT_NO"]].itertuples(index=False, name=None)
+                            ]
+                            unassigned_raw = s_scope.loc[keep].copy()
+                        else:
+                            unassigned_raw = s_scope.copy()
+                        if not unassigned_raw.empty:
+                            unassigned_raw["LOT수량"] = pd.to_numeric(unassigned_raw.get("LOT수량"), errors="coerce").fillna(0).astype(int)
+                            unassigned_raw = unassigned_raw.loc[unassigned_raw["LOT수량"].gt(0)].copy()
+                            unassigned_raw = unassigned_raw.sort_values(["제품코드", "LOT_NO"], ascending=[True, True]).reset_index(drop=True)
+        except Exception:
+            lot_assign_raw = pd.DataFrame()
+            unassigned_raw = pd.DataFrame()
+
         xlsx_sig = (
             code_key,
             str(search_raw or ""),
@@ -6422,7 +6531,13 @@ def main() -> None:
             st.session_state[xlsx_cache_key] = {"sig": xlsx_sig, "xlsx": None}
         cache = st.session_state.get(xlsx_cache_key, {})
         if not isinstance(cache.get("xlsx"), (bytes, bytearray)) or not cache.get("xlsx"):
-            cache["xlsx"] = _to_excel_bytes(export_df, sheet_name="재작업")
+            cache["xlsx"] = _to_excel_bytes_multi(
+                [
+                    ("재작업 리스트", export_df),
+                    ("로트배정상세", lot_assign_raw if lot_assign_raw is not None else pd.DataFrame()),
+                    ("미배정 리스트", unassigned_raw if unassigned_raw is not None else pd.DataFrame()),
+                ]
+            )
             st.session_state[xlsx_cache_key] = cache
 
         # Download + totals line (match other tabs' style: black label + blue value, above table).
@@ -6472,90 +6587,53 @@ def main() -> None:
             # - 그래도 안 되면 큰 LOT부터 greedy로 최소 개수
             if supply is None or supply.empty:
                 st.caption("배정 상세가 없습니다. (재작업리스트 시트에서 LOT 데이터를 찾지 못했습니다)")
-            elif export_df is None or export_df.empty or ("제품코드" not in export_df.columns) or ("필요수량" not in export_df.columns):
-                st.caption("배정 상세가 없습니다. (상단 표에서 제품코드/필요수량을 찾지 못했습니다)")
+            elif lot_assign_raw is None or lot_assign_raw.empty:
+                st.caption("배정 상세가 없습니다. (표시할 배정 결과가 없습니다)")
             else:
-                base_cols = ["우선순위", "이니셜", "수주번호", "제품코드", "필요수량"]
-                if new_code_col and (new_code_col in export_df.columns):
-                    base_cols.append(new_code_col)
-                if "품명" in export_df.columns:
-                    base_cols.append("품명")
-                base_cols = [c for c in base_cols if c in export_df.columns]
-                base = export_df[base_cols].copy()
-                try:
-                    base["제품코드"] = base["제품코드"].astype("string").fillna("").astype(str).str.strip()
-                except Exception:
-                    pass
-                try:
-                    base["필요수량"] = pd.to_numeric(base["필요수량"], errors="coerce").fillna(0).astype(int)
-                except Exception:
-                    base["필요수량"] = 0
-                base = base.loc[base["제품코드"].ne("") & base["필요수량"].gt(0)].copy()
-                if base.empty:
-                    st.caption("배정 상세가 없습니다. (표시할 부족라인이 없습니다)")
-                else:
-                    rows: list[dict[str, object]] = []
-                    for _, r in base.iterrows():
-                        item = str(r.get("제품코드") or "").strip()
-                        need_qty = int(r.get("필요수량") or 0)
-                        s_item = supply.loc[supply["제품코드"].astype("string").eq(item)].copy()
-                        picked = _pick_lots_min_count_min_overage(s_item, need_qty=need_qty, allow_partial_last=True)
-                        if not picked:
-                            continue
-                        for p in picked:
-                            row = dict(r)
-                            row["LOT_NO"] = p.get("LOT_NO")
-                            row["LOT수량"] = p.get("LOT수량")
-                            row["필요수량"] = p.get("작업수량")
-                            rows.append(row)
-
-                    detail_show = pd.DataFrame(rows)
-                    if detail_show.empty:
-                        st.caption("배정 상세가 없습니다. (해당 제품코드에 매칭되는 LOT가 없습니다)")
-                    else:
-                        # 구분을 위해 상단 부족라인의 필요수량(총 필요)을 `부족수량`으로 표시하고,
-                        # LOT별로 실제 작업해야 하는 수량을 `필요수량`으로 표시한다.
-                        if "필요수량" in detail_show.columns:
-                            try:
-                                detail_show = detail_show.rename(columns={"필요수량": "부족수량"})
-                            except Exception:
-                                pass
-                        if "필요수량" in detail_show.columns and "부족수량" in detail_show.columns:
-                            # (안전장치) rename 충돌이 있으면 pass
+                detail_show = lot_assign_raw.copy()
+                for c in ["부족수량", "LOT수량", "필요수량"]:
+                    if c in detail_show.columns:
+                        try:
+                            detail_show[c] = pd.to_numeric(detail_show[c], errors="coerce").fillna(0).astype(int).map(_format_int)
+                        except Exception:
                             pass
-                        if new_code_col and (new_code_col in detail_show.columns):
-                            detail_show = detail_show.rename(columns={new_code_col: "신규분류요약"})
-                        if "품명" in detail_show.columns:
-                            detail_show = detail_show.rename(columns={"품명": "제품명"})
-                        # 보기용 포맷
-                        for c in ["부족수량", "LOT수량", "필요수량"]:
-                            if c in detail_show.columns:
-                                try:
-                                    detail_show[c] = pd.to_numeric(detail_show[c], errors="coerce").fillna(0).astype(int).map(_format_int)
-                                except Exception:
-                                    pass
-                        sort_cols = [c for c in ["우선순위", "제품코드", "LOT_NO"] if c in detail_show.columns]
-                        if sort_cols:
-                            try:
-                                detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
-                            except Exception:
-                                pass
-                        detail_cols = [
-                            "우선순위",
-                            "이니셜",
-                            "수주번호",
-                            "신규분류요약",
-                            "제품명",
-                            "제품코드",
-                            "LOT_NO",
-                            "LOT수량",
-                            "부족수량",
-                            "필요수량",
-                        ]
-                        detail_cols = [c for c in detail_cols if c in detail_show.columns]
-                        if detail_cols:
-                            detail_show = detail_show[detail_cols].copy()
-                        st.dataframe(detail_show, use_container_width=True, hide_index=True)
+                sort_cols = [c for c in ["우선순위", "제품코드", "LOT_NO"] if c in detail_show.columns]
+                if sort_cols:
+                    try:
+                        detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+                    except Exception:
+                        pass
+                detail_cols = [
+                    "우선순위",
+                    "이니셜",
+                    "수주번호",
+                    "신규분류요약",
+                    "제품명",
+                    "제품코드",
+                    "LOT_NO",
+                    "LOT수량",
+                    "부족수량",
+                    "필요수량",
+                ]
+                detail_cols = [c for c in detail_cols if c in detail_show.columns]
+                if detail_cols:
+                    detail_show = detail_show[detail_cols].copy()
+                st.dataframe(detail_show, use_container_width=True, hide_index=True)
+
+        with st.expander("미배정 상세", expanded=False):
+            if unassigned_raw is None or unassigned_raw.empty:
+                st.caption("미배정 LOT가 없습니다.")
+            else:
+                u = unassigned_raw.copy()
+                if "LOT수량" in u.columns:
+                    try:
+                        u["LOT수량"] = pd.to_numeric(u["LOT수량"], errors="coerce").fillna(0).astype(int).map(_format_int)
+                    except Exception:
+                        pass
+                u_cols = [c for c in ["제품코드", "LOT_NO", "LOT수량"] if c in u.columns]
+                if u_cols:
+                    u = u[u_cols].copy()
+                st.dataframe(u, use_container_width=True, hide_index=True)
         return
 
     if view_mode == "사출 계획":
