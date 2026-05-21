@@ -6374,12 +6374,28 @@ def main() -> None:
                 try:
                     key_cols = [c for c in ["우선순위", "제품코드", "납기일", "이니셜", "수주번호"] if c in view_show.columns]
                     if key_cols and all(c in detail_show.columns for c in key_cols):
-                        keys = set(tuple(row) for row in view_show[key_cols].itertuples(index=False, name=None))
-                        detail_keys = list(detail_show[key_cols].itertuples(index=False, name=None))
+                        view_keys_df = view_show[key_cols].copy()
+                        detail_keys_df = detail_show[key_cols].copy()
+                        for c in key_cols:
+                            if c == "납기일":
+                                view_keys_df[c] = (
+                                    pd.to_datetime(view_keys_df[c], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+                                )
+                                detail_keys_df[c] = (
+                                    pd.to_datetime(detail_keys_df[c], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+                                )
+                            else:
+                                view_keys_df[c] = view_keys_df[c].astype("string").fillna("").astype(str).str.strip()
+                                detail_keys_df[c] = detail_keys_df[c].astype("string").fillna("").astype(str).str.strip()
+                        keys = set(tuple(row) for row in view_keys_df.itertuples(index=False, name=None))
+                        detail_keys = list(detail_keys_df.itertuples(index=False, name=None))
                         keep_mask = [k in keys for k in detail_keys]
                         detail_show = detail_show.loc[keep_mask].copy()
                 except Exception:
                     pass
+                if detail_show is None or detail_show.empty:
+                    st.caption("배정 상세가 없습니다. (현재 선택된 필터/표와 매칭되는 LOT 배정이 없어요)")
+                    return
                 # Stable ordering for scanability (priority -> item -> lot)
                 sort_cols = [c for c in ["우선순위", "납기일", "제품코드", "LOT_NO"] if c in detail_show.columns]
                 if sort_cols:
