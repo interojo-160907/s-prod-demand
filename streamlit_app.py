@@ -6373,44 +6373,71 @@ def main() -> None:
             elif view_show is None or view_show.empty or ("제품코드" not in view_show.columns):
                 st.caption("배정 상세가 없습니다. (상단 표에서 제품코드를 찾지 못했습니다)")
             else:
-                try:
-                    items = (
-                        view_show["제품코드"]
-                        .astype("string")
-                        .fillna("")
-                        .astype(str)
-                        .str.strip()
-                    )
-                    items = sorted(set([x for x in items.tolist() if x]))
-                except Exception:
-                    items = []
+                base_meta_cols = ["우선순위", "이니셜", "수주번호"]
+                if new_code_col and (new_code_col in view_show.columns):
+                    base_meta_cols.append(new_code_col)
+                if "품명" in view_show.columns:
+                    base_meta_cols.append("품명")
+                base_meta_cols.append("제품코드")
+                base_meta_cols = [c for c in base_meta_cols if c in view_show.columns]
 
-                if not items:
+                try:
+                    base_meta = view_show[base_meta_cols].copy()
+                except Exception:
+                    base_meta = pd.DataFrame()
+
+                if base_meta is None or base_meta.empty or ("제품코드" not in base_meta.columns):
                     st.caption("배정 상세가 없습니다. (상단 표에 제품코드가 없습니다)")
                 else:
-                    detail_show = supply.loc[supply["제품코드"].astype("string").isin(items)].copy()
-                    if detail_show.empty:
-                        st.caption("배정 상세가 없습니다. (해당 제품코드에 매칭되는 LOT가 없습니다)")
+                    try:
+                        base_meta["제품코드"] = base_meta["제품코드"].astype("string").fillna("").astype(str).str.strip()
+                    except Exception:
+                        pass
+                    base_meta = base_meta.loc[base_meta["제품코드"].ne("")].copy()
+                    if base_meta.empty:
+                        st.caption("배정 상세가 없습니다. (상단 표에 제품코드가 없습니다)")
                     else:
-                        # 표 컬럼 이름을 UI와 맞춘다: 배정수량 = LOT별 지시수량(G열)
-                        if "가용수량" in detail_show.columns:
-                            detail_show = detail_show.rename(columns={"가용수량": "배정수량"})
-                        sort_cols = [c for c in ["제품코드", "LOT_NO"] if c in detail_show.columns]
-                        if sort_cols:
-                            try:
-                                detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols))
-                            except Exception:
-                                pass
-                        if "배정수량" in detail_show.columns:
-                            try:
-                                detail_show["배정수량"] = pd.to_numeric(detail_show["배정수량"], errors="coerce").fillna(0).astype(int)
-                                detail_show["배정수량"] = detail_show["배정수량"].map(_format_int)
-                            except Exception:
-                                pass
-                        detail_cols = [c for c in ["제품코드", "LOT_NO", "배정수량"] if c in detail_show.columns]
-                        if detail_cols:
-                            detail_show = detail_show[detail_cols].copy()
-                        st.dataframe(detail_show, use_container_width=True, hide_index=True)
+                        # LOT 목록 붙이기: 제품코드 기준으로 (부족라인 x LOT) 형태로 펼친다.
+                        detail_show = base_meta.merge(supply, on="제품코드", how="left")
+                        detail_show = detail_show.loc[detail_show["LOT_NO"].notna()].copy() if "LOT_NO" in detail_show.columns else detail_show
+                        if detail_show is None or detail_show.empty:
+                            st.caption("배정 상세가 없습니다. (해당 제품코드에 매칭되는 LOT가 없습니다)")
+                        else:
+                            # 표 컬럼 이름을 UI와 맞춘다: 수량 = LOT별 지시수량(G열)
+                            if "가용수량" in detail_show.columns:
+                                detail_show = detail_show.rename(columns={"가용수량": "수량"})
+                            if new_code_col and (new_code_col in detail_show.columns):
+                                detail_show = detail_show.rename(columns={new_code_col: "신규분류요약"})
+                            if "품명" in detail_show.columns:
+                                detail_show = detail_show.rename(columns={"품명": "제품명"})
+
+                            sort_cols = [c for c in ["우선순위", "제품코드", "LOT_NO"] if c in detail_show.columns]
+                            if sort_cols:
+                                try:
+                                    detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+                                except Exception:
+                                    pass
+                            if "수량" in detail_show.columns:
+                                try:
+                                    detail_show["수량"] = pd.to_numeric(detail_show["수량"], errors="coerce").fillna(0).astype(int)
+                                    detail_show["수량"] = detail_show["수량"].map(_format_int)
+                                except Exception:
+                                    pass
+
+                            detail_cols = [
+                                "우선순위",
+                                "이니셜",
+                                "수주번호",
+                                "신규분류요약",
+                                "제품명",
+                                "제품코드",
+                                "LOT_NO",
+                                "수량",
+                            ]
+                            detail_cols = [c for c in detail_cols if c in detail_show.columns]
+                            if detail_cols:
+                                detail_show = detail_show[detail_cols].copy()
+                            st.dataframe(detail_show, use_container_width=True, hide_index=True)
         return
 
     if view_mode == "사출 계획":
