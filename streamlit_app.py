@@ -6366,79 +6366,51 @@ def main() -> None:
         )
 
         with st.expander("LOT 배정 상세", expanded=False):
-            if alloc_detail is None or alloc_detail.empty:
-                st.caption("배정 상세가 없습니다. (재작업리스트에 해당 제품코드/LOT가 없거나 가용수량이 0일 수 있어요)")
+            # `재작업 리스트` 상단 표(view_show)에 보이는 제품코드들에 대해,
+            # `재작업리스트` 시트의 LOT별 수량(= G열 `지시수량`)을 그대로 보여준다.
+            if supply is None or supply.empty:
+                st.caption("배정 상세가 없습니다. (재작업리스트 시트에서 LOT 데이터를 찾지 못했습니다)")
+            elif view_show is None or view_show.empty or ("제품코드" not in view_show.columns):
+                st.caption("배정 상세가 없습니다. (상단 표에서 제품코드를 찾지 못했습니다)")
             else:
-                detail_show = alloc_detail.copy()
-                # Keep detail in sync with the filtered top table when possible.
                 try:
-                    key_cols = [c for c in ["우선순위", "제품코드", "납기일", "이니셜", "수주번호"] if c in view_show.columns]
-                    if key_cols and all(c in detail_show.columns for c in key_cols):
-                        view_keys_df = view_show[key_cols].copy()
-                        detail_keys_df = detail_show[key_cols].copy()
-                        for c in key_cols:
-                            if c == "납기일":
-                                view_keys_df[c] = (
-                                    pd.to_datetime(view_keys_df[c], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
-                                )
-                                detail_keys_df[c] = (
-                                    pd.to_datetime(detail_keys_df[c], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
-                                )
-                            else:
-                                view_keys_df[c] = view_keys_df[c].astype("string").fillna("").astype(str).str.strip()
-                                detail_keys_df[c] = detail_keys_df[c].astype("string").fillna("").astype(str).str.strip()
-                        keys = set(tuple(row) for row in view_keys_df.itertuples(index=False, name=None))
-                        detail_keys = list(detail_keys_df.itertuples(index=False, name=None))
-                        keep_mask = [k in keys for k in detail_keys]
-                        detail_show = detail_show.loc[keep_mask].copy()
+                    items = (
+                        view_show["제품코드"]
+                        .astype("string")
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                    )
+                    items = sorted(set([x for x in items.tolist() if x]))
                 except Exception:
-                    pass
-                if detail_show is None or detail_show.empty:
-                    st.caption("배정 상세가 없습니다. (현재 선택된 필터/표와 매칭되는 LOT 배정이 없어요)")
-                    return
-                # Stable ordering for scanability (priority -> item -> lot)
-                sort_cols = [c for c in ["우선순위", "납기일", "제품코드", "LOT_NO"] if c in detail_show.columns]
-                if sort_cols:
-                    try:
-                        detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
-                    except Exception:
-                        pass
-                # Align priority numbering with the top table (1..N after filters).
-                try:
-                    if "우선순위" in view_show.columns and "우선순위" in detail_show.columns:
-                        pr_map = (
-                            view_show[["제품코드", "납기일", "이니셜", "수주번호", "우선순위"]]
-                            .drop_duplicates()
-                            .copy()
-                        )
-                        join_cols = [c for c in ["제품코드", "납기일", "이니셜", "수주번호"] if c in pr_map.columns and c in detail_show.columns]
-                        if join_cols:
-                            detail_show = detail_show.drop(columns=["우선순위"]).merge(pr_map, on=join_cols, how="left")
-                except Exception:
-                    pass
-                try:
-                    if "납기일" in detail_show.columns:
-                        detail_show["납기일"] = pd.to_datetime(detail_show["납기일"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
-                except Exception:
-                    pass
-                if "배정수량" in detail_show.columns:
-                    try:
-                        detail_show["배정수량"] = detail_show["배정수량"].map(_format_int)
-                    except Exception:
-                        pass
-                detail_cols = [
-                    "우선순위",
-                    "제품코드",
-                    "LOT_NO",
-                    "배정수량",
-                    "납기일",
-                    "이니셜",
-                    "수주번호",
-                ]
-                detail_cols = [c for c in detail_cols if c in detail_show.columns]
-                if detail_cols:
-                    detail_show = detail_show[detail_cols].copy()
-                st.dataframe(detail_show, use_container_width=True, hide_index=True)
+                    items = []
+
+                if not items:
+                    st.caption("배정 상세가 없습니다. (상단 표에 제품코드가 없습니다)")
+                else:
+                    detail_show = supply.loc[supply["제품코드"].astype("string").isin(items)].copy()
+                    if detail_show.empty:
+                        st.caption("배정 상세가 없습니다. (해당 제품코드에 매칭되는 LOT가 없습니다)")
+                    else:
+                        # 표 컬럼 이름을 UI와 맞춘다: 배정수량 = LOT별 지시수량(G열)
+                        if "가용수량" in detail_show.columns:
+                            detail_show = detail_show.rename(columns={"가용수량": "배정수량"})
+                        sort_cols = [c for c in ["제품코드", "LOT_NO"] if c in detail_show.columns]
+                        if sort_cols:
+                            try:
+                                detail_show = detail_show.sort_values(sort_cols, ascending=[True] * len(sort_cols))
+                            except Exception:
+                                pass
+                        if "배정수량" in detail_show.columns:
+                            try:
+                                detail_show["배정수량"] = pd.to_numeric(detail_show["배정수량"], errors="coerce").fillna(0).astype(int)
+                                detail_show["배정수량"] = detail_show["배정수량"].map(_format_int)
+                            except Exception:
+                                pass
+                        detail_cols = [c for c in ["제품코드", "LOT_NO", "배정수량"] if c in detail_show.columns]
+                        if detail_cols:
+                            detail_show = detail_show[detail_cols].copy()
+                        st.dataframe(detail_show, use_container_width=True, hide_index=True)
         return
 
     if view_mode == "사출 계획":
