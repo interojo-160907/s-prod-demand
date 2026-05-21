@@ -6442,6 +6442,7 @@ def main() -> None:
         # Build lot assignment (work lots only) + unassigned lots for this filtered view.
         lot_assign_raw = pd.DataFrame()
         unassigned_raw = pd.DataFrame()
+        unassigned_sum = 0
         try:
             if (
                 supply is not None
@@ -6490,58 +6491,74 @@ def main() -> None:
                             if c in lot_assign_raw.columns:
                                 lot_assign_raw[c] = pd.to_numeric(lot_assign_raw[c], errors="coerce").fillna(0).astype(int)
 
-                    # Unassigned lots: lots within scope (products in `base`) that are not used at all.
-                    items = sorted(set(base["제품코드"].astype("string").fillna("").astype(str).str.strip().tolist()))
-                    items = [x for x in items if x]
-                    if items:
-                        # Attach metadata (신규분류요약/제품명) per 제품코드 from the 1st table.
+                    # Unassigned lots: show the full lot pool (전체) regardless of rework table filters.
+                    # We exclude only the lots picked in the current lot assignment view.
+                    # Attach metadata (신규분류요약/제품명) per 제품코드 from the broader dataset when available.
+                    meta = pd.DataFrame(columns=["제품코드"])
+                    try:
+                        meta_src = need_alloc if (need_alloc is not None and (not need_alloc.empty)) else export_df
                         meta_cols = ["제품코드"]
-                        if new_code_col and (new_code_col in export_df.columns):
+                        if new_code_col and (new_code_col in meta_src.columns):
                             meta_cols.append(new_code_col)
-                        if "품명" in export_df.columns:
+                        if "품명" in meta_src.columns:
                             meta_cols.append("품명")
-                        meta_cols = [c for c in meta_cols if c in export_df.columns]
-                        meta = export_df[meta_cols].copy() if meta_cols else pd.DataFrame(columns=["제품코드"])
-                        try:
+                        meta_cols = [c for c in meta_cols if c in meta_src.columns]
+                        if meta_cols:
+                            meta = meta_src[meta_cols].copy()
                             meta["제품코드"] = meta["제품코드"].astype("string").fillna("").astype(str).str.strip()
-                        except Exception:
-                            pass
-                        meta = meta.loc[meta["제품코드"].ne("")].drop_duplicates(subset=["제품코드"]).copy()
-                        if new_code_col and (new_code_col in meta.columns):
-                            meta = meta.rename(columns={new_code_col: "신규분류요약"})
-                        if "품명" in meta.columns:
-                            meta = meta.rename(columns={"품명": "제품명"})
+                            meta = meta.loc[meta["제품코드"].ne("")].drop_duplicates(subset=["제품코드"]).copy()
+                            if new_code_col and (new_code_col in meta.columns):
+                                meta = meta.rename(columns={new_code_col: "신규분류요약"})
+                            if "품명" in meta.columns:
+                                meta = meta.rename(columns={"품명": "제품명"})
+                    except Exception:
+                        meta = pd.DataFrame(columns=["제품코드"])
 
-                        s_scope = supply.loc[supply["제품코드"].astype("string").isin(items)].copy()
-                        if "가용수량" in s_scope.columns:
-                            s_scope = s_scope.rename(columns={"가용수량": "LOT수량"})
-                        used_pairs = set()
-                        if lot_assign_raw is not None and (not lot_assign_raw.empty) and ("제품코드" in lot_assign_raw.columns) and ("LOT_NO" in lot_assign_raw.columns):
+                    s_scope = supply.copy()
+                    if "가용수량" in s_scope.columns:
+                        s_scope = s_scope.rename(columns={"가용수량": "LOT수량"})
+                    used_pairs = set()
+                    try:
+                        if (
+                            lot_assign_raw is not None
+                            and (not lot_assign_raw.empty)
+                            and ("제품코드" in lot_assign_raw.columns)
+                            and ("LOT_NO" in lot_assign_raw.columns)
+                        ):
                             used_pairs = set(
                                 (str(a).strip(), str(b).strip())
                                 for a, b in lot_assign_raw[["제품코드", "LOT_NO"]].itertuples(index=False, name=None)
                             )
-                        if used_pairs:
-                            keep = [
-                                (str(a).strip(), str(b).strip()) not in used_pairs
-                                for a, b in s_scope[["제품코드", "LOT_NO"]].itertuples(index=False, name=None)
-                            ]
-                            unassigned_raw = s_scope.loc[keep].copy()
-                        else:
-                            unassigned_raw = s_scope.copy()
-                        if not unassigned_raw.empty:
-                            # Merge metadata
-                            try:
-                                if meta is not None and (not meta.empty) and ("제품코드" in meta.columns):
-                                    unassigned_raw = unassigned_raw.merge(meta, on="제품코드", how="left")
-                            except Exception:
-                                pass
+                    except Exception:
+                        used_pairs = set()
+                    if used_pairs:
+                        keep = [
+                            (str(a).strip(), str(b).strip()) not in used_pairs
+                            for a, b in s_scope[["제품코드", "LOT_NO"]].itertuples(index=False, name=None)
+                        ]
+                        unassigned_raw = s_scope.loc[keep].copy()
+                    else:
+                        unassigned_raw = s_scope.copy()
+                    if not unassigned_raw.empty:
+                        try:
                             unassigned_raw["LOT수량"] = pd.to_numeric(unassigned_raw.get("LOT수량"), errors="coerce").fillna(0).astype(int)
-                            unassigned_raw = unassigned_raw.loc[unassigned_raw["LOT수량"].gt(0)].copy()
-                            unassigned_raw = unassigned_raw.sort_values(["제품코드", "LOT_NO"], ascending=[True, True]).reset_index(drop=True)
+                        except Exception:
+                            pass
+                        unassigned_raw = unassigned_raw.loc[unassigned_raw["LOT수량"].gt(0)].copy()
+                        try:
+                            if meta is not None and (not meta.empty) and ("제품코드" in meta.columns):
+                                unassigned_raw = unassigned_raw.merge(meta, on="제품코드", how="left")
+                        except Exception:
+                            pass
+                        unassigned_raw = unassigned_raw.sort_values(["제품코드", "LOT_NO"], ascending=[True, True]).reset_index(drop=True)
+                        try:
+                            unassigned_sum = int(pd.to_numeric(unassigned_raw.get("LOT수량"), errors="coerce").fillna(0).sum())
+                        except Exception:
+                            unassigned_sum = 0
         except Exception:
             lot_assign_raw = pd.DataFrame()
             unassigned_raw = pd.DataFrame()
+            unassigned_sum = 0
 
         xlsx_sig = (
             code_key,
@@ -6576,6 +6593,8 @@ def main() -> None:
             f"<div style='margin: 8px 0 8px 0; padding: 4px 8px;'>"
             f"<span style='margin-right: 20px; font-size: 15px;'>재작업 가능수량: "
             f"<strong style='color: #0066cc;'>{_format_int(rework_sum)}</strong></span>"
+            f"<span style='margin-right: 20px; font-size: 15px;'>미배정 재작업 대기 수량: "
+            f"<strong style='color: #0066cc;'>{_format_int(unassigned_sum)}</strong></span>"
             f"</div>",
             unsafe_allow_html=True,
         )
