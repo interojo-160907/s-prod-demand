@@ -6494,6 +6494,24 @@ def main() -> None:
                     items = sorted(set(base["제품코드"].astype("string").fillna("").astype(str).str.strip().tolist()))
                     items = [x for x in items if x]
                     if items:
+                        # Attach metadata (신규분류요약/제품명) per 제품코드 from the 1st table.
+                        meta_cols = ["제품코드"]
+                        if new_code_col and (new_code_col in export_df.columns):
+                            meta_cols.append(new_code_col)
+                        if "품명" in export_df.columns:
+                            meta_cols.append("품명")
+                        meta_cols = [c for c in meta_cols if c in export_df.columns]
+                        meta = export_df[meta_cols].copy() if meta_cols else pd.DataFrame(columns=["제품코드"])
+                        try:
+                            meta["제품코드"] = meta["제품코드"].astype("string").fillna("").astype(str).str.strip()
+                        except Exception:
+                            pass
+                        meta = meta.loc[meta["제품코드"].ne("")].drop_duplicates(subset=["제품코드"]).copy()
+                        if new_code_col and (new_code_col in meta.columns):
+                            meta = meta.rename(columns={new_code_col: "신규분류요약"})
+                        if "품명" in meta.columns:
+                            meta = meta.rename(columns={"품명": "제품명"})
+
                         s_scope = supply.loc[supply["제품코드"].astype("string").isin(items)].copy()
                         if "가용수량" in s_scope.columns:
                             s_scope = s_scope.rename(columns={"가용수량": "LOT수량"})
@@ -6512,6 +6530,12 @@ def main() -> None:
                         else:
                             unassigned_raw = s_scope.copy()
                         if not unassigned_raw.empty:
+                            # Merge metadata
+                            try:
+                                if meta is not None and (not meta.empty) and ("제품코드" in meta.columns):
+                                    unassigned_raw = unassigned_raw.merge(meta, on="제품코드", how="left")
+                            except Exception:
+                                pass
                             unassigned_raw["LOT수량"] = pd.to_numeric(unassigned_raw.get("LOT수량"), errors="coerce").fillna(0).astype(int)
                             unassigned_raw = unassigned_raw.loc[unassigned_raw["LOT수량"].gt(0)].copy()
                             unassigned_raw = unassigned_raw.sort_values(["제품코드", "LOT_NO"], ascending=[True, True]).reset_index(drop=True)
@@ -6533,9 +6557,9 @@ def main() -> None:
         if not isinstance(cache.get("xlsx"), (bytes, bytearray)) or not cache.get("xlsx"):
             cache["xlsx"] = _to_excel_bytes_multi(
                 [
-                    ("재작업 리스트", export_df),
+                    ("재작업리스트", export_df),
                     ("로트배정상세", lot_assign_raw if lot_assign_raw is not None else pd.DataFrame()),
-                    ("미배정 리스트", unassigned_raw if unassigned_raw is not None else pd.DataFrame()),
+                    ("미배정상세", unassigned_raw if unassigned_raw is not None else pd.DataFrame()),
                 ]
             )
             st.session_state[xlsx_cache_key] = cache
@@ -6630,7 +6654,7 @@ def main() -> None:
                         u["LOT수량"] = pd.to_numeric(u["LOT수량"], errors="coerce").fillna(0).astype(int).map(_format_int)
                     except Exception:
                         pass
-                u_cols = [c for c in ["제품코드", "LOT_NO", "LOT수량"] if c in u.columns]
+                u_cols = [c for c in ["신규분류요약", "제품명", "제품코드", "LOT_NO", "LOT수량"] if c in u.columns]
                 if u_cols:
                     u = u[u_cols].copy()
                 st.dataframe(u, use_container_width=True, hide_index=True)
