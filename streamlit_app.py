@@ -2247,16 +2247,28 @@ def _load_rework_supply_from_excel(path: str, mtime: float) -> pd.DataFrame:
     if ("제품코드" not in raw.columns) or ("지시수량" not in raw.columns):
         return pd.DataFrame()
 
-    df = raw[["제품코드", "지시수량", lot_col]].copy()
+    cols = ["제품코드", "지시수량", lot_col]
+    if "제품명" in raw.columns:
+        cols.append("제품명")
+    df = raw[cols].copy()
     df = df.rename(columns={lot_col: "LOT_NO"})
     df["제품코드"] = df["제품코드"].astype("string").fillna("").astype(str).str.strip()
     df["LOT_NO"] = df["LOT_NO"].astype("string").fillna("").astype(str).str.strip()
+    if "제품명" in df.columns:
+        df["제품명"] = df["제품명"].astype("string").fillna("").astype(str).str.strip()
     df["지시수량"] = pd.to_numeric(df["지시수량"], errors="coerce").fillna(0).astype(int)
     df = df.loc[df["제품코드"].ne("") & df["LOT_NO"].ne("") & df["지시수량"].gt(0)].copy()
     if df.empty:
         return pd.DataFrame()
 
-    df = df.groupby(["제품코드", "LOT_NO"], as_index=False)["지시수량"].sum()
+    if "제품명" in df.columns:
+        df = (
+            df.groupby(["제품코드", "LOT_NO"], as_index=False)
+            .agg({"지시수량": "sum", "제품명": "first"})
+            .copy()
+        )
+    else:
+        df = df.groupby(["제품코드", "LOT_NO"], as_index=False)["지시수량"].sum()
     df = df.rename(columns={"지시수량": "가용수량"})
     return df
 
@@ -6413,7 +6425,6 @@ def main() -> None:
             "우선순위",
             "이니셜",
             "수주번호",
-            "신규분류 요약코드",
             "품명",
             "제품코드",
             "POWER",
@@ -6484,10 +6495,6 @@ def main() -> None:
                 and ("필요수량" in export_df.columns)
             ):
                 base_cols = ["우선순위", "이니셜", "수주번호", "제품코드", "필요수량"]
-                if new_code_col and (new_code_col in export_df.columns):
-                    base_cols.append(new_code_col)
-                if "품명" in export_df.columns:
-                    base_cols.append("품명")
                 base_cols = [c for c in base_cols if c in export_df.columns]
 
                 base = export_df[base_cols].copy()
@@ -6514,10 +6521,13 @@ def main() -> None:
 
                     lot_assign_raw = pd.DataFrame(rows)
                     if not lot_assign_raw.empty:
-                        if new_code_col and (new_code_col in lot_assign_raw.columns):
-                            lot_assign_raw = lot_assign_raw.rename(columns={new_code_col: "신규분류요약"})
-                        if "품명" in lot_assign_raw.columns:
-                            lot_assign_raw = lot_assign_raw.rename(columns={"품명": "제품명"})
+                        # Attach product name from the rework sheet (제품명, E열) via (제품코드, LOT_NO).
+                        try:
+                            s_name = supply.loc[:, [c for c in ["제품코드", "LOT_NO", "제품명"] if c in supply.columns]].copy()
+                            if (not s_name.empty) and ("제품명" in s_name.columns):
+                                lot_assign_raw = lot_assign_raw.merge(s_name, on=["제품코드", "LOT_NO"], how="left")
+                        except Exception:
+                            pass
                         for c in ["부족수량", "LOT수량", "필요수량"]:
                             if c in lot_assign_raw.columns:
                                 lot_assign_raw[c] = pd.to_numeric(lot_assign_raw[c], errors="coerce").fillna(0).astype(int)
@@ -6525,26 +6535,6 @@ def main() -> None:
                     # Unassigned lots: show the full lot pool (전체) regardless of rework table filters.
                     # We exclude only the lots picked in the current lot assignment view.
                     # Attach metadata (신규분류요약/제품명) per 제품코드 from the broader dataset when available.
-                    meta = pd.DataFrame(columns=["제품코드"])
-                    try:
-                        meta_src = need_alloc if (need_alloc is not None and (not need_alloc.empty)) else export_df
-                        meta_cols = ["제품코드"]
-                        if new_code_col and (new_code_col in meta_src.columns):
-                            meta_cols.append(new_code_col)
-                        if "품명" in meta_src.columns:
-                            meta_cols.append("품명")
-                        meta_cols = [c for c in meta_cols if c in meta_src.columns]
-                        if meta_cols:
-                            meta = meta_src[meta_cols].copy()
-                            meta["제품코드"] = meta["제품코드"].astype("string").fillna("").astype(str).str.strip()
-                            meta = meta.loc[meta["제품코드"].ne("")].drop_duplicates(subset=["제품코드"]).copy()
-                            if new_code_col and (new_code_col in meta.columns):
-                                meta = meta.rename(columns={new_code_col: "신규분류요약"})
-                            if "품명" in meta.columns:
-                                meta = meta.rename(columns={"품명": "제품명"})
-                    except Exception:
-                        meta = pd.DataFrame(columns=["제품코드"])
-
                     s_scope = supply.copy()
                     if "가용수량" in s_scope.columns:
                         s_scope = s_scope.rename(columns={"가용수량": "LOT수량"})
@@ -6576,11 +6566,6 @@ def main() -> None:
                         except Exception:
                             pass
                         unassigned_raw = unassigned_raw.loc[unassigned_raw["LOT수량"].gt(0)].copy()
-                        try:
-                            if meta is not None and (not meta.empty) and ("제품코드" in meta.columns):
-                                unassigned_raw = unassigned_raw.merge(meta, on="제품코드", how="left")
-                        except Exception:
-                            pass
                         unassigned_raw = unassigned_raw.sort_values(["제품코드", "LOT_NO"], ascending=[True, True]).reset_index(drop=True)
                         try:
                             unassigned_sum = int(pd.to_numeric(unassigned_raw.get("LOT수량"), errors="coerce").fillna(0).sum())
@@ -6596,7 +6581,7 @@ def main() -> None:
             str(search_raw or ""),
             str(st.session_state.get("rework_due_quick", "해제")),
             str(st.session_state.get("rework_due_end", "")),
-            "v3sheets_2026-05-21",
+            "v4_no_group_summary_2026-05-21",
         )
         xlsx_cache_key = f"rework_{code_key}_xlsx_cache"
         cache = st.session_state.get(xlsx_cache_key)
@@ -6682,7 +6667,6 @@ def main() -> None:
                     "우선순위",
                     "이니셜",
                     "수주번호",
-                    "신규분류요약",
                     "제품명",
                     "제품코드",
                     "LOT_NO",
@@ -6705,7 +6689,7 @@ def main() -> None:
                         u["LOT수량"] = pd.to_numeric(u["LOT수량"], errors="coerce").fillna(0).astype(int).map(_format_int)
                     except Exception:
                         pass
-                u_cols = [c for c in ["신규분류요약", "제품명", "제품코드", "LOT_NO", "LOT수량"] if c in u.columns]
+                u_cols = [c for c in ["제품명", "제품코드", "LOT_NO", "LOT수량"] if c in u.columns]
                 if u_cols:
                     u = u[u_cols].copy()
                 st.dataframe(u, use_container_width=True, hide_index=True)
