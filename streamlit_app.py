@@ -1178,9 +1178,9 @@ def _to_excel_bytes_multi(sheets: list[tuple[str, pd.DataFrame]]) -> bytes:
             try:
                 if c == "납기일":
                     dt = pd.to_datetime(xdf[c], errors="coerce")
-                    xdf[c] = dt.dt.strftime("%Y-%m-%d")
+                    xdf[c] = dt.dt.date
                 elif pd.api.types.is_datetime64_any_dtype(xdf[c]):
-                    xdf[c] = xdf[c].dt.strftime("%Y-%m-%d")
+                    xdf[c] = xdf[c].dt.date
             except Exception:
                 pass
         safe_sheets.append((sname, xdf))
@@ -1188,6 +1188,37 @@ def _to_excel_bytes_multi(sheets: list[tuple[str, pd.DataFrame]]) -> bytes:
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             for sname, xdf in safe_sheets:
                 xdf.to_excel(writer, index=False, sheet_name=sname)
+                # Apply Excel display formats for readability.
+                try:
+                    ws = writer.book[sname]
+                    max_row = ws.max_row or 1
+                    max_col = ws.max_column or 1
+                    headers = [ws.cell(row=1, column=ci).value for ci in range(1, max_col + 1)]
+                    num_cols: set[int] = set()
+                    date_cols: set[int] = set()
+                    for idx, h in enumerate(headers, start=1):
+                        if h is None:
+                            continue
+                        col_name = str(h)
+                        if col_name == "납기일":
+                            date_cols.add(idx)
+                            continue
+                        try:
+                            if col_name in xdf.columns and pd.api.types.is_numeric_dtype(xdf[col_name]):
+                                num_cols.add(idx)
+                        except Exception:
+                            pass
+                    for r in range(2, max_row + 1):
+                        for ci in num_cols:
+                            cell = ws.cell(row=r, column=ci)
+                            if cell.value is not None and isinstance(cell.value, (int, float)):
+                                cell.number_format = "#,##0"
+                        for ci in date_cols:
+                            cell = ws.cell(row=r, column=ci)
+                            if cell.value is not None:
+                                cell.number_format = "yyyy-mm-dd"
+                except Exception:
+                    pass
     except Exception:
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:  # type: ignore[call-arg]
             for sname, xdf in safe_sheets:
@@ -6565,6 +6596,7 @@ def main() -> None:
             str(search_raw or ""),
             str(st.session_state.get("rework_due_quick", "해제")),
             str(st.session_state.get("rework_due_end", "")),
+            "v3sheets_2026-05-21",
         )
         xlsx_cache_key = f"rework_{code_key}_xlsx_cache"
         cache = st.session_state.get(xlsx_cache_key)
