@@ -6547,9 +6547,9 @@ def main() -> None:
                             "신규분류요약",
                             "제품명",
                             "제품코드",
-                            "부족수량",
                             "LOT_NO",
                             "LOT수량",
+                            "부족수량",
                             "필요수량",
                         ]
                         detail_cols = [c for c in detail_cols if c in detail_show.columns]
