@@ -2481,6 +2481,17 @@ def _pick_lots_min_count_min_overage(
     return picked
 
 
+def _reorder_cols_for_export(df: pd.DataFrame, desired: list[str]) -> pd.DataFrame:
+    if df is None:
+        return pd.DataFrame()
+    if df.empty:
+        return df.copy()
+    cols = list(df.columns)
+    first = [c for c in desired if c in cols]
+    rest = [c for c in cols if c not in first]
+    return df[first + rest].copy()
+
+
 @st.cache_data(show_spinner=False)
 def _sort_due_table_cached(
     *,
@@ -6581,7 +6592,7 @@ def main() -> None:
             str(search_raw or ""),
             str(st.session_state.get("rework_due_quick", "해제")),
             str(st.session_state.get("rework_due_end", "")),
-            "v4_no_group_summary_2026-05-21",
+            "v5_export_col_order_2026-05-21",
         )
         xlsx_cache_key = f"rework_{code_key}_xlsx_cache"
         cache = st.session_state.get(xlsx_cache_key)
@@ -6589,11 +6600,20 @@ def main() -> None:
             st.session_state[xlsx_cache_key] = {"sig": xlsx_sig, "xlsx": None}
         cache = st.session_state.get(xlsx_cache_key, {})
         if not isinstance(cache.get("xlsx"), (bytes, bytearray)) or not cache.get("xlsx"):
+            export_df_xlsx = _reorder_cols_for_export(export_df, show_cols)
+            lot_assign_xlsx = _reorder_cols_for_export(
+                lot_assign_raw if lot_assign_raw is not None else pd.DataFrame(),
+                ["우선순위", "이니셜", "수주번호", "제품명", "제품코드", "LOT_NO", "LOT수량", "부족수량", "필요수량"],
+            )
+            unassigned_xlsx = _reorder_cols_for_export(
+                unassigned_raw if unassigned_raw is not None else pd.DataFrame(),
+                ["제품명", "제품코드", "LOT_NO", "LOT수량"],
+            )
             cache["xlsx"] = _to_excel_bytes_multi(
                 [
-                    ("재작업리스트", export_df),
-                    ("로트배정상세", lot_assign_raw if lot_assign_raw is not None else pd.DataFrame()),
-                    ("미배정상세", unassigned_raw if unassigned_raw is not None else pd.DataFrame()),
+                    ("재작업리스트", export_df_xlsx),
+                    ("로트배정상세", lot_assign_xlsx),
+                    ("미배정상세", unassigned_xlsx),
                 ]
             )
             st.session_state[xlsx_cache_key] = cache
