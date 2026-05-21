@@ -6526,7 +6526,6 @@ def main() -> None:
                             row = dict(r)
                             row["LOT_NO"] = p.get("LOT_NO")
                             row["LOT수량"] = p.get("LOT수량")
-                            row["부족수량"] = need_qty
                             row["필요수량"] = int(p.get("작업수량") or 0)
                             rows.append(row)
 
@@ -6539,7 +6538,7 @@ def main() -> None:
                                 lot_assign_raw = lot_assign_raw.merge(s_name, on=["제품코드", "LOT_NO"], how="left")
                         except Exception:
                             pass
-                        for c in ["부족수량", "LOT수량", "필요수량"]:
+                        for c in ["LOT수량", "필요수량"]:
                             if c in lot_assign_raw.columns:
                                 lot_assign_raw[c] = pd.to_numeric(lot_assign_raw[c], errors="coerce").fillna(0).astype(int)
 
@@ -6592,7 +6591,7 @@ def main() -> None:
             str(search_raw or ""),
             str(st.session_state.get("rework_due_quick", "해제")),
             str(st.session_state.get("rework_due_end", "")),
-            "v5_export_col_order_2026-05-21",
+            "v6_drop_shortage_qty_col_2026-05-21",
         )
         xlsx_cache_key = f"rework_{code_key}_xlsx_cache"
         cache = st.session_state.get(xlsx_cache_key)
@@ -6603,7 +6602,7 @@ def main() -> None:
             export_df_xlsx = _reorder_cols_for_export(export_df, show_cols)
             lot_assign_xlsx = _reorder_cols_for_export(
                 lot_assign_raw if lot_assign_raw is not None else pd.DataFrame(),
-                ["우선순위", "이니셜", "수주번호", "제품명", "제품코드", "LOT_NO", "LOT수량", "부족수량", "필요수량"],
+                ["우선순위", "이니셜", "수주번호", "제품명", "제품코드", "LOT_NO", "LOT수량", "필요수량"],
             )
             unassigned_xlsx = _reorder_cols_for_export(
                 unassigned_raw if unassigned_raw is not None else pd.DataFrame(),
@@ -6691,7 +6690,6 @@ def main() -> None:
                     "제품코드",
                     "LOT_NO",
                     "LOT수량",
-                    "부족수량",
                     "필요수량",
                 ]
                 detail_cols = [c for c in detail_cols if c in detail_show.columns]
