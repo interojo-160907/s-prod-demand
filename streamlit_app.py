@@ -6506,19 +6506,29 @@ def main() -> None:
                             row = dict(r)
                             row["LOT_NO"] = p.get("LOT_NO")
                             row["LOT수량"] = p.get("LOT수량")
-                            row["수량"] = p.get("작업수량")
+                            row["필요수량"] = p.get("작업수량")
                             rows.append(row)
 
                     detail_show = pd.DataFrame(rows)
                     if detail_show.empty:
                         st.caption("배정 상세가 없습니다. (해당 제품코드에 매칭되는 LOT가 없습니다)")
                     else:
+                        # 구분을 위해 상단 부족라인의 필요수량(총 필요)을 `부족수량`으로 표시하고,
+                        # LOT별로 실제 작업해야 하는 수량을 `필요수량`으로 표시한다.
+                        if "필요수량" in detail_show.columns:
+                            try:
+                                detail_show = detail_show.rename(columns={"필요수량": "부족수량"})
+                            except Exception:
+                                pass
+                        if "필요수량" in detail_show.columns and "부족수량" in detail_show.columns:
+                            # (안전장치) rename 충돌이 있으면 pass
+                            pass
                         if new_code_col and (new_code_col in detail_show.columns):
                             detail_show = detail_show.rename(columns={new_code_col: "신규분류요약"})
                         if "품명" in detail_show.columns:
                             detail_show = detail_show.rename(columns={"품명": "제품명"})
                         # 보기용 포맷
-                        for c in ["필요수량", "LOT수량", "수량"]:
+                        for c in ["부족수량", "LOT수량", "필요수량"]:
                             if c in detail_show.columns:
                                 try:
                                     detail_show[c] = pd.to_numeric(detail_show[c], errors="coerce").fillna(0).astype(int).map(_format_int)
@@ -6537,10 +6547,10 @@ def main() -> None:
                             "신규분류요약",
                             "제품명",
                             "제품코드",
-                            "필요수량",
+                            "부족수량",
                             "LOT_NO",
                             "LOT수량",
-                            "수량",
+                            "필요수량",
                         ]
                         detail_cols = [c for c in detail_cols if c in detail_show.columns]
                         if detail_cols:
