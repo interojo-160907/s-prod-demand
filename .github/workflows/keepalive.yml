@@ -15,4 +15,4 @@ jobs:
     steps:
       - name: Ping Streamlit app
         run: |
-          curl --location --silent --show-error --fail --max-time 30 "${{ secrets.STREAMLIT_URL }}"
+          curl --silent --show-error --fail --max-time 30 --output /dev/null "${{ secrets.STREAMLIT_URL }}"
