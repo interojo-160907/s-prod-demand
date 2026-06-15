@@ -5479,7 +5479,9 @@ def main() -> None:
 
         view_show.columns = cols
 
-        table_h = _table_height_for_rows(len(view), min_height=280, max_height=720)
+        # Keep the due/process table height stable while users type in search.
+        # Dynamic height based on filtered rows makes the page jump on every rerun.
+        table_h = 720
         _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(view_show),
             view_show,
