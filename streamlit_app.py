@@ -5384,9 +5384,9 @@ def main() -> None:
             if exclude_dom_safe:
                 if can_exclude:
                     tmp = export_df2.merge(dom_safe_map[join_cols + ["_is_dom_safe"]], on=join_cols, how="left")
-                    keep_idx = tmp.index[~tmp["_is_dom_safe"].fillna(False).astype(bool)]
-                    export_df2 = export_df2.loc[keep_idx].copy()
-                    view = view.loc[view.index.intersection(keep_idx)].copy()
+                    keep_mask = (~tmp["_is_dom_safe"].fillna(False).astype(bool)).to_numpy()
+                    export_df2 = export_df2.iloc[keep_mask].copy()
+                    view = view.iloc[keep_mask].copy()
                 else:
                     st.caption("국내/안전 제외용 매핑(수주상세/키 컬럼)이 없어 필터를 적용할 수 없습니다.")
 
@@ -5448,9 +5448,9 @@ def main() -> None:
             if exclude_dom_safe:
                 if can_exclude:
                     tmp = export_df2.merge(dom_safe_map[join_cols + ["_is_dom_safe"]], on=join_cols, how="left")
-                    keep_idx = tmp.index[~tmp["_is_dom_safe"].fillna(False).astype(bool)]
-                    export_df2 = export_df2.loc[keep_idx].copy()
-                    view = view.loc[view.index.intersection(keep_idx)].copy()
+                    keep_mask = (~tmp["_is_dom_safe"].fillna(False).astype(bool)).to_numpy()
+                    export_df2 = export_df2.iloc[keep_mask].copy()
+                    view = view.iloc[keep_mask].copy()
                 else:
                     st.caption("국내/안전 제외용 매핑(수주상세/키 컬럼)이 없어 필터를 적용할 수 없습니다.")
 
