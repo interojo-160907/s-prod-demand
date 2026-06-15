@@ -5409,14 +5409,60 @@ def main() -> None:
                     key=f"{ui_key_prefix}_download",
                 )
         else:
+            dl_col, cb_col = st.columns([3, 2], gap="small")
+
+            leak_key = f"{ui_key_prefix}_leak_only"
+            exclude_key = f"{ui_key_prefix}_exclude_dom_safe"
+            st.session_state.setdefault(leak_key, False)
+            st.session_state.setdefault(exclude_key, False)
+            dom_safe_map = _load_dom_safe_flag_map(detail_csv, float(os.path.getmtime(detail_csv)), selected_plant)
+            join_key_candidates = ["설비 사이트 코드", "신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+            join_cols = [c for c in join_key_candidates if c in export_df2.columns and (dom_safe_map is not None) and (c in dom_safe_map.columns)]
+            can_exclude = bool(join_cols) and (dom_safe_map is not None) and (not dom_safe_map.empty)
+
+            with cb_col:
+                leak_only = st.checkbox(
+                    "관별 전용 출고",
+                    value=bool(st.session_state.get(leak_key, False)),
+                    key=leak_key,
+                    disabled=("누수규격" not in export_df2.columns),
+                    help="누수규격 필요수량(부족수량)이 있는 항목만 표시합니다. (사출만 있고 후공정 0인 이관 항목은 제외)",
+                )
+                exclude_dom_safe = st.checkbox(
+                    "국내/안전 제외",
+                    value=bool(st.session_state.get(exclude_key, False)),
+                    key=exclude_key,
+                    disabled=(not can_exclude),
+                    help="이니셜에 '국내' 또는 '안전'이 포함된 항목을 제외합니다.",
+                )
+
+            if leak_only:
+                if "누수규격" in export_df2.columns:
+                    leak_v = pd.to_numeric(export_df2["누수규격"], errors="coerce").fillna(0)
+                    keep_idx = export_df2.index[leak_v.gt(0)]
+                    export_df2 = export_df2.loc[keep_idx].copy()
+                    view = view.loc[view.index.intersection(keep_idx)].copy()
+                else:
+                    st.caption("`누수규격` 컬럼이 없어 필터를 적용할 수 없습니다.")
+
+            if exclude_dom_safe:
+                if can_exclude:
+                    tmp = export_df2.merge(dom_safe_map[join_cols + ["_is_dom_safe"]], on=join_cols, how="left")
+                    keep_idx = tmp.index[~tmp["_is_dom_safe"].fillna(False).astype(bool)]
+                    export_df2 = export_df2.loc[keep_idx].copy()
+                    view = view.loc[view.index.intersection(keep_idx)].copy()
+                else:
+                    st.caption("국내/안전 제외용 매핑(수주상세/키 컬럼)이 없어 필터를 적용할 수 없습니다.")
+
             xlsx_bytes = _to_excel_bytes(export_df2[export_cols], sheet_name="다운로드")
-            st.download_button(
-                "엑셀 다운로드",
-                data=xlsx_bytes,
-                file_name=f"{'공정' if process_only else '납기'}_{selected_code or '전체'}_{process_only or '전체'}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"{ui_key_prefix}_download",
-            )
+            with dl_col:
+                st.download_button(
+                    "엑셀 다운로드",
+                    data=xlsx_bytes,
+                    file_name=f"{'공정' if process_only else '납기'}_{selected_code or '전체'}_{process_only or '전체'}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"{ui_key_prefix}_download",
+                )
 
         stage_totals = {c: _format_int(pd.to_numeric(export_df2[c], errors="coerce").fillna(0).sum()) for c in stage_cols_raw if c in export_df2.columns}
         view_show = view[cols].copy()
