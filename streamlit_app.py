@@ -4146,7 +4146,7 @@ def _load_dom_safe_flag_map(detail_csv: str, detail_mtime: float, plant: str) ->
     if "이니셜" not in src.columns:
         return pd.DataFrame()
 
-    key_candidates = ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+    key_candidates = ["설비 사이트 코드", "신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
     key_cols = [c for c in key_candidates if c in src.columns]
     if not key_cols:
         return pd.DataFrame()
@@ -4157,6 +4157,54 @@ def _load_dom_safe_flag_map(detail_csv: str, detail_mtime: float, plant: str) ->
     init_s = work["이니셜"].astype("string").fillna("").astype(str)
     work["_is_dom_safe"] = init_s.str.contains("국내|안전", case=False, regex=True, na=False)
     out = work.groupby(key_cols, dropna=False, as_index=False).agg(_is_dom_safe=("_is_dom_safe", "any"))
+    return out
+
+
+@st.cache_data(show_spinner=False)
+def _load_due_order_search_map(detail_csv: str, detail_mtime: float, plant: str) -> pd.DataFrame:
+    """
+    Build key->search text for due/process aggregate rows.
+    The text is used only for filtering; order-level fields are not shown in the table.
+    """
+    try:
+        src = _load_order_detail_prepared(detail_csv, detail_mtime)
+    except Exception:
+        return pd.DataFrame()
+
+    src = _filter_by_plant(src, plant)
+    if src is None or src.empty:
+        return pd.DataFrame()
+
+    key_candidates = ["설비 사이트 코드", "신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+    key_cols = [c for c in key_candidates if c in src.columns]
+    search_cols = [c for c in ["이니셜", "수주번호"] if c in src.columns]
+    if not key_cols or not search_cols:
+        return pd.DataFrame()
+
+    work = src[key_cols + search_cols].copy()
+    if "납기일" in work.columns:
+        work["납기일"] = pd.to_datetime(work["납기일"], errors="coerce")
+
+    def _join_unique_values(values: pd.Series) -> str:
+        vals: list[str] = []
+        seen: set[str] = set()
+        for v in values.astype("string").fillna("").astype(str):
+            for part in v.split():
+                s = part.strip()
+                if not s or s in seen:
+                    continue
+                vals.append(s)
+                seen.add(s)
+        return " ".join(vals)
+
+    work["_order_search_text"] = ""
+    for c in search_cols:
+        piece = work[c].astype("string").fillna("").astype(str).str.strip()
+        work["_order_search_text"] = (work["_order_search_text"] + " " + piece).str.strip()
+
+    out = work.groupby(key_cols, dropna=False, as_index=False).agg(
+        _order_search_text=("_order_search_text", _join_unique_values)
+    )
     return out
 
 
@@ -5088,10 +5136,10 @@ def main() -> None:
         header_ph = st.empty()
         metric_ph = st.empty()
 
-        search_label = "검색 (품명)" if not process_only else "검색 (품명/제품코드)"
+        search_label = "검색 (품명/이니셜/수주번호)" if not process_only else "검색 (품명/제품코드/이니셜/수주번호)"
         search_raw = st.text_input(
             search_label,
-            placeholder="예: O2O2, SEPIA, P0365A-01.00, P0365A, -01.00",
+            placeholder="예: O2O2, SEPIA, YH0150, 202604170088, P0365A-01.00, -01.00",
             key=f"{ui_key_prefix}_name_search",
         )
         # Build view first (so product code mapping exists), then apply search.
@@ -5166,11 +5214,26 @@ def main() -> None:
             if "최소목표일" not in view.columns:
                 view["최소목표일"] = pd.NaT
 
+        try:
+            order_search_map = _load_due_order_search_map(
+                detail_csv,
+                float(os.path.getmtime(detail_csv)),
+                selected_plant,
+            )
+        except Exception:
+            order_search_map = pd.DataFrame()
+        order_key_candidates = ["설비 사이트 코드", "신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+        order_key_cols = [c for c in order_key_candidates if c in view.columns and c in order_search_map.columns]
+        if not order_search_map.empty and order_key_cols:
+            view = view.merge(order_search_map[order_key_cols + ["_order_search_text"]], on=order_key_cols, how="left")
+        if "_order_search_text" not in view.columns:
+            view["_order_search_text"] = ""
+
         # Apply search AFTER code mapping so partial product-code terms (e.g. "-08.00") work.
         if process_only:
-            view = _filter_by_any_contains(view, ["품명", "제품코드", "제품 코드"], search_raw)
+            view = _filter_by_any_contains(view, ["품명", "제품코드", "제품 코드", "_order_search_text"], search_raw)
         else:
-            view = _filter_by_name_contains(view, "품명", search_raw)
+            view = _filter_by_any_contains(view, ["품명", "_order_search_text"], search_raw)
 
         # Process-only view: hide rows with 0 demand for that process.
         if process_only and process_only in view.columns:
@@ -5297,7 +5360,7 @@ def main() -> None:
             exclude_key = f"{ui_key_prefix}_exclude_dom_safe"
             st.session_state.setdefault(exclude_key, False)
             dom_safe_map = _load_dom_safe_flag_map(detail_csv, float(os.path.getmtime(detail_csv)), selected_plant)
-            join_key_candidates = ["신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
+            join_key_candidates = ["설비 사이트 코드", "신규분류 요약코드", "제품군", "ADD", "CP", "AXIS", "납기일"]
             join_cols = [c for c in join_key_candidates if c in export_df2.columns and (dom_safe_map is not None) and (c in dom_safe_map.columns)]
             can_exclude = bool(join_cols) and (dom_safe_map is not None) and (not dom_safe_map.empty)
 
