@@ -733,6 +733,105 @@ def generate_report_by_type(report_type: str, data: dict[str, object]) -> str:
     return "지원하지 않는 리포트 타입입니다."
 
 
+def _get_openai_setting(name: str, default: str = "") -> str:
+    try:
+        value = st.secrets.get(name, "")
+        if value:
+            return str(value).strip()
+    except Exception:
+        pass
+    return str(os.environ.get(name, default) or default).strip()
+
+
+def has_openai_api_key() -> bool:
+    return bool(_get_openai_setting("OPENAI_API_KEY"))
+
+
+def get_openai_model() -> str:
+    return _get_openai_setting("OPENAI_MODEL", "gpt-4.1-mini")
+
+
+def build_ai_report_payload(report_type: str, data: dict[str, object]) -> dict[str, object]:
+    """
+    Small, GPT-facing payload.
+    Keep raw rows out; GPT should explain already-computed dashboard metrics only.
+    """
+    payload: dict[str, object] = {
+        "report_type": report_type,
+        "report_label": REPORT_TYPES.get(report_type, report_type),
+        "report_date": data.get("report_date"),
+    }
+    if report_type == "total":
+        payload.update(
+            {
+                "scope": "전체",
+                "rows": data.get("rows"),
+                "total_need": data.get("total_need"),
+                "stage_totals": data.get("stage_totals"),
+                "top_codes": data.get("top_codes"),
+            }
+        )
+        return payload
+
+    if report_type in REPORT_FACTORY_MAP:
+        factory = REPORT_FACTORY_MAP[report_type]
+        factories = data.get("factories") or {}
+        info = factories.get(factory, {}) if isinstance(factories, dict) else {}
+        payload.update(
+            {
+                "scope": factory,
+                "factory": factory,
+                "rows": info.get("rows") if isinstance(info, dict) else 0,
+                "total_need": info.get("total_need") if isinstance(info, dict) else 0,
+                "stage_totals": info.get("stage_totals") if isinstance(info, dict) else {},
+                "top_codes": info.get("top_codes") if isinstance(info, dict) else [],
+            }
+        )
+        return payload
+
+    if report_type == "packing":
+        payload.update({"scope": "포장", "packing": data.get("packing") or {}})
+        return payload
+
+    payload.update({"scope": "알 수 없음"})
+    return payload
+
+
+def generate_ai_report(report_type: str, summary_data: dict[str, object]) -> str:
+    api_key = _get_openai_setting("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY가 설정되어 있지 않습니다.")
+
+    try:
+        from openai import OpenAI
+    except Exception as e:
+        raise RuntimeError("openai 패키지가 설치되어 있지 않습니다. requirements.txt 반영 후 앱을 재배포하세요.") from e
+
+    payload = build_ai_report_payload(report_type, summary_data)
+    fallback_report = generate_report_by_type(report_type, summary_data)
+    client = OpenAI(api_key=api_key)
+    response = client.responses.create(
+        model=get_openai_model(),
+        instructions=(
+            "너는 콘택트렌즈 생산관리 대시보드의 자동 리포트 작성자다. "
+            "입력 payload의 숫자는 Streamlit에서 이미 계산된 값이므로 절대 재계산하지 말고 그대로 사용한다. "
+            "원본 데이터가 없다고 추측하거나 새로운 수치를 만들지 않는다. "
+            "한국어로 간결하게 작성하고, 현황/병목 또는 주의점/우선 대응 순서로 정리한다. "
+            "생산 현장 담당자가 바로 읽을 수 있게 과장 없이 작성한다."
+        ),
+        input=(
+            "아래 JSON payload만 근거로 자동 리포트를 작성하세요.\n\n"
+            f"payload:\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n\n"
+            "규칙 기반 기본 리포트도 참고하되, 숫자는 payload와 기본 리포트에 있는 값만 사용하세요.\n\n"
+            f"기본 리포트:\n{fallback_report}"
+        ),
+    )
+    text = str(getattr(response, "output_text", "") or "").strip()
+    if not text:
+        raise RuntimeError("GPT 응답 텍스트가 비어 있습니다.")
+    return text
+
+
 def render_data_status_sidebar(*, excel_path: str, out_dir: str, status: dict) -> None:
     excel_label = _file_mtime_label(excel_path) if excel_path else "-"
     gen_label = _outputs_generated_label(out_dir)
@@ -755,18 +854,42 @@ def render_data_status_sidebar(*, excel_path: str, out_dir: str, status: dict) -
 def render_report_sidebar(report_data: dict[str, object]) -> None:
     with st.sidebar:
         st.markdown("<div class='sb-title'>🤖 자동 리포트 Beta</div>", unsafe_allow_html=True)
+        can_use_ai = has_openai_api_key()
+        use_ai = st.toggle(
+            "GPT로 문장화",
+            value=can_use_ai,
+            disabled=not can_use_ai,
+            help="Streamlit이 계산한 요약 데이터만 GPT에 전달해 리포트 문장으로 다듬습니다.",
+        )
+        if not can_use_ai:
+            st.caption("GPT 사용을 위해 Streamlit Secrets에 `OPENAI_API_KEY`를 설정하세요.")
+        elif use_ai:
+            st.caption(f"모델: `{get_openai_model()}`")
         for report_type, label in REPORT_TYPES.items():
             if st.button(label, key=f"report_btn_{report_type}", use_container_width=True):
                 st.session_state["selected_report_type"] = report_type
-                st.session_state["generated_report_text"] = generate_report_by_type(report_type, report_data)
+                if use_ai:
+                    try:
+                        with st.spinner("GPT 리포트 생성 중..."):
+                            st.session_state["generated_report_text"] = generate_ai_report(report_type, report_data)
+                        st.session_state["generated_report_mode"] = "GPT"
+                    except Exception as e:
+                        st.session_state["generated_report_text"] = generate_report_by_type(report_type, report_data)
+                        st.session_state["generated_report_mode"] = "기본"
+                        st.warning(f"GPT 리포트 생성 실패로 기본 리포트를 표시합니다: {e}")
+                else:
+                    st.session_state["generated_report_text"] = generate_report_by_type(report_type, report_data)
+                    st.session_state["generated_report_mode"] = "기본"
         report_text = st.session_state.get("generated_report_text")
         if report_text:
+            mode = st.session_state.get("generated_report_mode", "기본")
+            st.caption(f"생성 방식: `{mode}`")
             st.text_area(
                 "생성 결과",
                 value=str(report_text),
                 height=220,
             )
-        st.caption("GPT/텔레그램 연동 시 현재 요약 데이터 구조를 메시지 생성 입력으로 사용합니다.")
+        st.caption("GPT와 텔레그램은 현재 요약 데이터 구조를 메시지 생성/전송 입력으로 사용합니다.")
 
 
 def _load_theme_from_config() -> dict:
