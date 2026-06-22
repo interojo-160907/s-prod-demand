@@ -570,6 +570,205 @@ def _outputs_generated_label(out_dir: str) -> str:
         return "-"
 
 
+def _format_report_int(value: object) -> str:
+    try:
+        if pd.isna(value):
+            return "0"
+        return f"{int(round(float(value))):,}"
+    except Exception:
+        return "0"
+
+
+def _sum_numeric(df: pd.DataFrame, col: str) -> float:
+    if df is None or df.empty or col not in df.columns:
+        return 0.0
+    return float(pd.to_numeric(df[col], errors="coerce").fillna(0).sum())
+
+
+def _top_records(df: pd.DataFrame, *, group_col: str, value_col: str, limit: int = 5) -> list[dict[str, object]]:
+    if df is None or df.empty or group_col not in df.columns or value_col not in df.columns:
+        return []
+    tmp = df[[group_col, value_col]].copy()
+    tmp[group_col] = tmp[group_col].astype("string").fillna("").str.strip()
+    tmp[value_col] = pd.to_numeric(tmp[value_col], errors="coerce").fillna(0)
+    tmp = tmp.loc[tmp[group_col].ne("") & tmp[value_col].gt(0)]
+    if tmp.empty:
+        return []
+    agg = tmp.groupby(group_col, dropna=False, as_index=False)[value_col].sum()
+    agg = agg.sort_values(value_col, ascending=False).head(limit)
+    return [{str(group_col): str(r[group_col]), str(value_col): float(r[value_col])} for r in agg.to_dict("records")]
+
+
+def _load_packing_summary(out_dir: str) -> dict[str, object]:
+    """
+    Packaging is not yet part of the dashboard's derived shortage table.
+    Keep this as a separate summary source so GPT/Telegram can consume a stable payload later.
+    """
+    path = os.path.join(out_dir, "이니셜별_공정별_합계.csv")
+    if not os.path.exists(path):
+        return {"status": "데이터 없음", "total_qty": 0.0, "source": path}
+    try:
+        df = pd.read_csv(path, encoding="utf-8-sig")
+    except Exception:
+        return {"status": "데이터 없음", "total_qty": 0.0, "source": path}
+    if df.empty or "공정" not in df.columns or "합계" not in df.columns:
+        return {"status": "데이터 없음", "total_qty": 0.0, "source": path}
+    proc = df["공정"].astype("string").fillna("").astype(str)
+    mask = proc.str.contains("포장", na=False) | proc.str.contains(r"\[85\]", regex=True, na=False)
+    total_qty = float(pd.to_numeric(df.loc[mask, "합계"], errors="coerce").fillna(0).sum())
+    return {
+        "status": "정상" if total_qty > 0 else "데이터 없음",
+        "total_qty": total_qty,
+        "source": path,
+    }
+
+
+def build_report_summary_data(due_df: pd.DataFrame, *, out_dir: str) -> dict[str, object]:
+    """
+    GPT-ready report payload.
+    Streamlit computes the metrics; GPT/Telegram layers should only turn this payload into messages.
+    """
+    base = due_df.copy() if due_df is not None else pd.DataFrame()
+    stage_cols = [c for c in DEFAULT_STAGE_COLS if c in base.columns]
+    if "필요수량" not in base.columns and stage_cols:
+        base["필요수량"] = base[stage_cols].apply(pd.to_numeric, errors="coerce").fillna(0).max(axis=1)
+    if "필요수량" in base.columns:
+        base["필요수량"] = pd.to_numeric(base["필요수량"], errors="coerce").fillna(0)
+    for c in stage_cols:
+        base[c] = pd.to_numeric(base[c], errors="coerce").fillna(0)
+
+    stage_totals = {c: _sum_numeric(base, c) for c in stage_cols}
+    total_need = _sum_numeric(base, "필요수량")
+    factories: dict[str, object] = {}
+    plant_col = "설비 사이트 코드" if "설비 사이트 코드" in base.columns else ("공장" if "공장" in base.columns else None)
+    if plant_col:
+        for factory in sorted(x for x in base[plant_col].astype("string").fillna("").str.strip().unique().tolist() if x):
+            fdf = base.loc[base[plant_col].astype("string").fillna("").str.strip().eq(factory)].copy()
+            factories[factory] = {
+                "factory": factory,
+                "rows": int(len(fdf)),
+                "total_need": _sum_numeric(fdf, "필요수량"),
+                "stage_totals": {c: _sum_numeric(fdf, c) for c in stage_cols},
+                "top_codes": _top_records(fdf, group_col="신규분류 요약코드", value_col="필요수량", limit=5),
+            }
+
+    return {
+        "report_date": datetime.now(tz=KST).strftime("%Y-%m-%d %H:%M:%S %Z"),
+        "rows": int(len(base)),
+        "total_need": total_need,
+        "stage_totals": stage_totals,
+        "top_codes": _top_records(base, group_col="신규분류 요약코드", value_col="필요수량", limit=5),
+        "factories": factories,
+        "packing": _load_packing_summary(out_dir),
+    }
+
+
+def _format_top_codes(records: list[dict[str, object]]) -> str:
+    if not records:
+        return "상위 부족 제품군 데이터가 없습니다."
+    parts = []
+    for r in records:
+        code = str(r.get("신규분류 요약코드") or "-")
+        qty = _format_report_int(r.get("필요수량"))
+        parts.append(f"{code} {qty}개")
+    return ", ".join(parts)
+
+
+def _format_stage_totals(stage_totals: dict[str, object]) -> str:
+    if not stage_totals:
+        return "공정별 부족수량 데이터가 없습니다."
+    return ", ".join(f"{k} {_format_report_int(v)}개" for k, v in stage_totals.items())
+
+
+def generate_total_report(data: dict[str, object]) -> str:
+    return "\n".join(
+        [
+            f"[{REPORT_TYPES['total']}]",
+            f"- 기준시각: {data.get('report_date', '-')}",
+            f"- 총 필요수량: {_format_report_int(data.get('total_need'))}개",
+            f"- 공정별 부족: {_format_stage_totals(data.get('stage_totals') or {})}",
+            f"- 상위 부족 제품군: {_format_top_codes(data.get('top_codes') or [])}",
+        ]
+    )
+
+
+def generate_factory_report(data: dict[str, object], factory: str) -> str:
+    factories = data.get("factories") or {}
+    info = factories.get(factory, {}) if isinstance(factories, dict) else {}
+    if not info:
+        return f"[{factory} 리포트]\n- 현재 산출 데이터에서 해당 공장 데이터를 찾을 수 없습니다."
+    return "\n".join(
+        [
+            f"[{factory} 리포트]",
+            f"- 기준시각: {data.get('report_date', '-')}",
+            f"- 총 필요수량: {_format_report_int(info.get('total_need'))}개",
+            f"- 공정별 부족: {_format_stage_totals(info.get('stage_totals') or {})}",
+            f"- 상위 부족 제품군: {_format_top_codes(info.get('top_codes') or [])}",
+        ]
+    )
+
+
+def generate_packing_report(data: dict[str, object]) -> str:
+    packing = data.get("packing") or {}
+    status = str(packing.get("status") or "데이터 없음") if isinstance(packing, dict) else "데이터 없음"
+    total_qty = packing.get("total_qty") if isinstance(packing, dict) else 0
+    return "\n".join(
+        [
+            f"[{REPORT_TYPES['packing']}]",
+            f"- 기준시각: {data.get('report_date', '-')}",
+            f"- 포장 데이터 상태: {status}",
+            f"- 포장 필요/합계 수량: {_format_report_int(total_qty)}개",
+            "- 포장 상세 산출은 별도 연계 예정입니다." if status != "정상" else "- 포장 공정 합계 기준 요약입니다.",
+        ]
+    )
+
+
+def generate_report_by_type(report_type: str, data: dict[str, object]) -> str:
+    if report_type == "total":
+        return generate_total_report(data)
+    if report_type in REPORT_FACTORY_MAP:
+        return generate_factory_report(data, REPORT_FACTORY_MAP[report_type])
+    if report_type == "packing":
+        return generate_packing_report(data)
+    return "지원하지 않는 리포트 타입입니다."
+
+
+def render_data_status_sidebar(*, excel_path: str, out_dir: str, status: dict) -> None:
+    excel_label = _file_mtime_label(excel_path) if excel_path else "-"
+    gen_label = _outputs_generated_label(out_dir)
+    data_state = "산출물 업데이트 필요" if status.get("needs_regen") else "정상"
+    if status.get("needs_regen") and ALLOW_RUNTIME_REGEN:
+        data_state = "산출물 업데이트 필요 / 런타임 재생성 ON"
+    elif status.get("needs_regen") and not ALLOW_RUNTIME_REGEN:
+        data_state = "산출물 업데이트 필요 / 스냅샷 전용"
+
+    with st.sidebar:
+        st.markdown("<div class='sb-title'>📊 데이터 현황</div>", unsafe_allow_html=True)
+        st.caption(f"APS 원본 갱신일시: `{excel_label}`")
+        st.caption("ERP 원본 갱신일시: `연계 예정`")
+        st.caption("포장 원본 갱신일시: `데이터 없음`")
+        st.caption(f"산출물 생성일시: `{gen_label}`")
+        st.caption(f"데이터 상태: `{data_state}`")
+        st.markdown("<div class='sb-hr'></div>", unsafe_allow_html=True)
+
+
+def render_report_sidebar(report_data: dict[str, object]) -> None:
+    with st.sidebar:
+        st.markdown("<div class='sb-title'>🤖 자동 리포트 Beta</div>", unsafe_allow_html=True)
+        for report_type, label in REPORT_TYPES.items():
+            if st.button(label, key=f"report_btn_{report_type}", use_container_width=True):
+                st.session_state["selected_report_type"] = report_type
+                st.session_state["generated_report_text"] = generate_report_by_type(report_type, report_data)
+        report_text = st.session_state.get("generated_report_text")
+        if report_text:
+            st.text_area(
+                "생성 결과",
+                value=str(report_text),
+                height=220,
+            )
+        st.caption("GPT/텔레그램 연동 시 현재 요약 데이터 구조를 메시지 생성 입력으로 사용합니다.")
+
+
 def _load_theme_from_config() -> dict:
     """
     Load Streamlit theme config (cached by file mtime).
@@ -1139,6 +1338,18 @@ def _filter_by_any_contains_all_terms(df: pd.DataFrame, cols: list[str], raw_ter
 
 
 DEFAULT_STAGE_COLS = ["사출", "분리", "하이드레이션", "접착", "누수규격"]
+REPORT_TYPES = {
+    "total": "종합 리포트",
+    "factory_A": "A관 리포트",
+    "factory_C": "C관 리포트",
+    "factory_S": "S관 리포트",
+    "packing": "포장 리포트",
+}
+REPORT_FACTORY_MAP = {
+    "factory_A": "A관(1공장)",
+    "factory_C": "C관(2공장)",
+    "factory_S": "S관(3공장)",
+}
 
 # UI performance guardrails (large tables are expensive to render in Streamlit).
 MAX_DF_ROWS_DISPLAY = 3000
@@ -4946,40 +5157,7 @@ def main() -> None:
     boot_ph.caption("초기 로딩 중...")
     _apply_local_theme_css()
 
-    dashboard_links = _load_dashboard_links()
-    with st.sidebar:
-        if dashboard_links:
-            st.markdown("<div class='sb-title'>대시보드 링크</div>", unsafe_allow_html=True)
-            for item in dashboard_links:
-                st.link_button(item["label"], item["url"], use_container_width=True)
-            st.markdown("<div class='sb-hr'></div>", unsafe_allow_html=True)
-        else:
-            st.markdown("<div class='sb-title'>대시보드 링크</div>", unsafe_allow_html=True)
-            st.caption(f"`{DASHBOARD_LINKS_PATH}`에 링크를 추가하면 여기서 새 탭으로 열 수 있어요.")
-            st.markdown("<div class='sb-hr'></div>", unsafe_allow_html=True)
-
     excel_path = _find_repo_excel()
-    if excel_path:
-        st.caption(f"업데이트(APS raw data): `{_file_mtime_label(excel_path)}`")
-    with st.sidebar:
-        st.markdown("<div class='sb-title'>자료 다운로드</div>", unsafe_allow_html=True)
-        b = _read_bytes(TEMPLATE_XLSX_PATH)
-        if b is not None:
-            st.download_button(
-                "업로드 양식(.xlsx) 다운로드",
-                data=b,
-                file_name=os.path.basename(TEMPLATE_XLSX_PATH),
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="dl_tpl_xlsx",
-            )
-        else:
-            st.caption(f"양식 파일이 없습니다: `{TEMPLATE_XLSX_PATH}`")
-
-        if excel_path:
-            st.caption(f"읽는 파일: `{os.path.basename(excel_path)}`")
-        else:
-            st.caption("읽는 파일: -")
-
     if not excel_path:
         st.error("`s관 부족수량.xlsx` 파일을 찾지 못했습니다. 저장소에 커밋해 두고 다시 실행하세요.")
         st.caption("기대 위치: `s관 부족수량.xlsx` 또는 `data/s관 부족수량.xlsx`")
@@ -5009,18 +5187,7 @@ def main() -> None:
     detail_csv_try = str(status.get("detail_csv") or "")
     has_existing = bool(due_csv_try and detail_csv_try and os.path.exists(due_csv_try) and os.path.exists(detail_csv_try))
 
-    excel_label = _file_mtime_label(excel_path)
-    gen_label = _outputs_generated_label(out_dir)
-    with st.sidebar:
-        st.markdown("<div class='sb-title'>데이터 업데이트</div>", unsafe_allow_html=True)
-        st.caption(f"- 엑셀: `{excel_label}`")
-        st.caption(f"- 산출물: `{gen_label}`")
-        if status.get("needs_regen"):
-            st.caption("상태: 산출물 업데이트 필요")
-            if not ALLOW_RUNTIME_REGEN:
-                st.caption("모드: 스냅샷 전용(런타임 재생성 OFF)")
-            else:
-                st.caption("모드: 런타임 재생성 ON")
+    render_data_status_sidebar(excel_path=excel_path, out_dir=out_dir, status=status)
 
     if status.get("needs_regen"):
         if not has_existing:
@@ -5076,6 +5243,9 @@ def main() -> None:
         st.stop()
 
     df = base
+    report_summary_data = build_report_summary_data(base, out_dir=out_dir)
+    render_report_sidebar(report_summary_data)
+
     new_code_col = "신규분류 요약코드" if "신규분류 요약코드" in df.columns else None
 
     # Top-level plant filter (관/공장) - keep selection across all view modes.
