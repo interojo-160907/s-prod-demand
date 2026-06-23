@@ -8,19 +8,15 @@ A관(1공장),1-Day_Sph,1-Day_Metha + -03.00,사출,2026-06-26
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + +02.00,사출,2026-07-14
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + +02.50,사출,2026-07-14
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + +04.50,사출,2026-07-14
-A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -00.75,사출,2026-07-14
-A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -01.25,사출,2026-07-14
-A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -01.75,사출,2026-07-11
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.00,사출,2026-07-11
+A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.25,사출,2026-07-14
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.50,사출,2026-07-11
-A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.75,사출,2026-07-25
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -03.50,사출,2026-07-11
+A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -03.75,사출,2026-07-11
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -04.25,사출,2026-07-11
-A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -04.50,사출,2026-07-14
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -05.00,사출,2026-07-14
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -05.50,사출,2026-07-14
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -06.00,사출,2026-07-22
-A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -06.50,사출,2026-07-14
 A관(1공장),1-Day_Sph,1-day_58_Kontaktni-HA + -12.00,사출,2026-06-27
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.00,누수규격,2026-07-02
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.00,접착,2026-07-01
@@ -28,9 +24,6 @@ A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.00,하이드레이션,202
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.50,누수규격,2026-07-02
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.50,접착,2026-07-01
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.50,하이드레이션,2026-06-29
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.75,누수규격,2026-07-02
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.75,접착,2026-07-01
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -01.75,하이드레이션,2026-06-29
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -02.25,누수규격,2026-07-02
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -02.25,접착,2026-07-01
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -02.25,하이드레이션,2026-06-29
@@ -40,9 +33,6 @@ A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -03.00,하이드레이션,202
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -03.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -03.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -03.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -03.50,누수규격,2026-07-02
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -03.50,접착,2026-07-01
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -03.50,하이드레이션,2026-06-29
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -04.00,누수규격,2026-07-02
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -04.00,접착,2026-07-01
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -04.00,하이드레이션,2026-06-29
@@ -52,112 +42,38 @@ A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -04.25,하이드레이션,202
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -04.50,누수규격,2026-07-02
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -04.50,접착,2026-07-01
 A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -04.50,하이드레이션,2026-06-29
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -05.25,누수규격,2026-07-02
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -05.25,접착,2026-07-01
-A관(1공장),FRP_Color_Sph,Advance_EO_소사각 + -05.25,하이드레이션,2026-06-29
+A관(1공장),FRP_Color_Sph,Advance_EO_은캡 + -01.75,누수규격,2026-07-02
+A관(1공장),FRP_Color_Sph,Advance_EO_은캡 + -01.75,접착,2026-07-01
 A관(1공장),FRP_Color_Sph,Advance_EO_은캡 + -02.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Advance_EO_은캡 + -02.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Advance_EO_은캡 + -02.50,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -00.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -00.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -00.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -01.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -02.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -02.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -02.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -02.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -02.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -02.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -04.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -04.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -04.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -04.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -04.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -04.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_Moon_14.5_(중) + -05.75,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -00.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -00.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -00.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -01.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -01.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -01.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -01.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -01.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -01.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -02.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -02.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -02.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -04.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -04.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -04.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -05.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -05.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -05.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -05.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -05.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -05.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -06.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -06.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,BELLA M_SATURN_14.5_(중) + -06.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + +01.50,누수규격,2026-06-11
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + +01.50,접착,2026-06-10
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + +01.50,하이드레이션,2026-06-08
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -00.00,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -00.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -00.00,하이드레이션,2026-06-19
+A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -00.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.00,누수규격,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.00,접착,2026-06-27
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.00,하이드레이션,2026-06-25
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.50,누수규격,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.50,접착,2026-06-27
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.50,하이드레이션,2026-06-25
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.75,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.75,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -01.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.00,누수규격,2026-06-23
+A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.00,누수규격,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.00,접착,2026-06-27
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.00,하이드레이션,2026-06-25
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.25,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.25,접착,2026-06-21
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.25,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.50,누수규격,2026-06-23
+A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.50,누수규격,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.50,접착,2026-06-27
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -02.50,하이드레이션,2026-06-25
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -03.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -03.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -03.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -03.75,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -03.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -04.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -04.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -04.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -04.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -04.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -04.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -05.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -05.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -05.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -07.00,누수규격,2026-06-23
-A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -07.00,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -07.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -07.50,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella Diamond_14.5_중사각 + -07.50,하이드레이션,2026-06-20
@@ -166,62 +82,35 @@ A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -00.00,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -00.00,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -04.00,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -04.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -04.00,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -05.00,누수규격,2026-06-23
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -05.00,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -05.00,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -06.00,누수규격,2026-06-11
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -06.00,접착,2026-06-10
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -06.00,하이드레이션,2026-06-08
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -06.50,누수규격,2026-06-23
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -06.50,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella Glow_중사각 + -06.50,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + +04.00,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + +04.00,접착,2026-06-21
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + +04.00,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -00.00,누수규격,2026-06-23
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -00.00,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.00,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.50,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.50,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.75,누수규격,2026-06-23
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.75,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -01.75,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.00,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.00,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.25,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.25,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.25,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.50,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.50,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.50,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.75,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.75,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -02.75,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.00,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.00,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.50,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.50,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.75,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.75,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -03.75,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -04.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -04.00,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -04.00,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -04.75,누수규격,2026-06-23
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -04.75,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -04.75,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -05.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -05.00,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -05.00,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -05.50,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -05.50,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -05.50,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -06.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -06.00,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Contour_중사각 + -06.50,누수규격,2026-06-25
@@ -232,18 +121,18 @@ A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +01.00,하이드레이�
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +01.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +01.50,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +01.50,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +03.75,누수규격,2026-06-11
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +03.75,접착,2026-06-10
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +03.75,하이드레이션,2026-06-08
+A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +02.00,누수규격,2026-06-22
+A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +02.00,접착,2026-06-21
+A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +02.00,하이드레이션,2026-06-19
+A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +03.50,누수규격,2026-06-22
+A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +03.50,접착,2026-06-21
+A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +03.50,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +04.00,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +04.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +04.00,하이드레이션,2026-06-20
+A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + +04.00,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -00.00,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -00.00,접착,2026-06-21
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -00.00,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -00.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -00.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -00.50,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.00,누수규격,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.00,접착,2026-06-27
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.00,하이드레이션,2026-06-25
@@ -253,36 +142,18 @@ A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.25,하이드레이�
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.50,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.50,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -01.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -02.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -02.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -02.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -02.25,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -02.25,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -02.25,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -03.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -03.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -03.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -03.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -03.50,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -03.50,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -04.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -04.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -04.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -04.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -04.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -04.50,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -05.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -05.00,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -05.00,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -05.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -05.50,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -05.50,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -06.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -06.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -06.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -06.50,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -06.50,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Elite_14.5_중사각 + -06.50,하이드레이션,2026-06-20
@@ -301,9 +172,6 @@ A관(1공장),FRP_Color_Sph,Bella-Natural_중사각 + -00.00,하이드레이션,
 A관(1공장),FRP_Color_Sph,Bella-Natural_중사각 + -00.75,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,Bella-Natural_중사각 + -00.75,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,Bella-Natural_중사각 + -00.75,하이드레이션,2026-06-20
-A관(1공장),FRP_Color_Sph,Bella-Natural_중사각 + -04.75,누수규격,2026-06-11
-A관(1공장),FRP_Color_Sph,Bella-Natural_중사각 + -04.75,접착,2026-06-10
-A관(1공장),FRP_Color_Sph,Bella-Natural_중사각 + -04.75,하이드레이션,2026-06-08
 A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -00.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -00.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -00.00,하이드레이션,2026-06-28
@@ -313,18 +181,6 @@ A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -01.50,하이드레이
 A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -03.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -03.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -03.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -04.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -04.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -04.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -05.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -05.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -05.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -06.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -06.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_원형 + -06.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_중사각 + -09.00,누수규격,2026-06-25
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_중사각 + -09.00,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,Bella-SnowWhite_14.5_중사각 + -09.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -00.00,누수규격,2026-06-29
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -00.00,접착,2026-06-28
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -00.00,하이드레이션,2026-06-26
@@ -334,126 +190,66 @@ A관(1공장),FRP_Color_Sph,CLC-10_원형 + -01.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -02.75,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -02.75,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -02.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -03.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -03.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -03.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -04.75,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -05.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -06.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -06.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,CLC-10_원형 + -06.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -00.00,누수규격,2026-07-06
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -00.00,접착,2026-07-05
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -00.00,하이드레이션,2026-07-03
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.00,누수규격,2026-07-06
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.00,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.00,하이드레이션,2026-07-03
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.25,누수규격,2026-07-06
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.25,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.25,하이드레이션,2026-07-03
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.50,누수규격,2026-07-06
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.50,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -01.50,하이드레이션,2026-07-03
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -02.00,누수규격,2026-07-06
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -02.00,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -02.00,하이드레이션,2026-07-03
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -03.00,누수규격,2026-07-06
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -03.00,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -03.00,하이드레이션,2026-07-03
+A관(1공장),FRP_Color_Sph,CLC-30_원형 + -02.75,누수규격,2026-07-06
+A관(1공장),FRP_Color_Sph,CLC-30_원형 + -02.75,접착,2026-07-05
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -03.75,누수규격,2026-07-06
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -03.75,접착,2026-07-05
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -03.75,하이드레이션,2026-07-03
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.00,누수규격,2026-07-06
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.00,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.00,하이드레이션,2026-07-03
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.25,누수규격,2026-07-06
 A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.25,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.25,하이드레이션,2026-07-03
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -05.50,누수규격,2026-07-06
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -05.50,접착,2026-07-05
-A관(1공장),FRP_Color_Sph,CLC-30_원형 + -05.50,하이드레이션,2026-07-03
+A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.75,누수규격,2026-07-06
+A관(1공장),FRP_Color_Sph,CLC-30_원형 + -04.75,접착,2026-07-05
+A관(1공장),FRP_Color_Sph,CLC-30_원형 + -06.00,누수규격,2026-07-06
+A관(1공장),FRP_Color_Sph,CLC-30_원형 + -06.00,접착,2026-07-05
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -02.50,누수규격,2026-06-16
-A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -02.50,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -02.50,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -02.75,누수규격,2026-06-16
-A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -02.75,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -02.75,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -03.00,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -03.00,접착,2026-06-15
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -03.00,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -04.50,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -04.50,접착,2026-06-15
 A관(1공장),FRP_Color_Sph,Clalen Iris_BRW_3304_원형 + -04.50,하이드레이션,2026-06-13
-A관(1공장),FRP_Color_Sph,Clalen Iris_GRA_2902_원형 + -03.00,누수규격,2026-06-16
-A관(1공장),FRP_Color_Sph,Clalen Iris_GRA_2902_원형 + -03.00,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,Clalen Iris_GRA_2902_원형 + -03.00,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,Crazy_원형 + -00.00,누수규격,2026-06-29
 A관(1공장),FRP_Color_Sph,Crazy_원형 + -00.00,접착,2026-06-28
 A관(1공장),FRP_Color_Sph,Crazy_원형 + -00.00,하이드레이션,2026-06-26
+A관(1공장),FRP_Color_Sph,Festival-II-Color_원형 + -10.00,누수규격,2026-07-06
+A관(1공장),FRP_Color_Sph,Festival-II-Color_원형 + -10.00,접착,2026-07-05
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -00.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -00.00,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -00.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -00.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -00.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -00.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -01.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.75,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.75,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -02.75,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -03.75,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -04.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -04.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -04.00,하이드레이션,2026-06-28
@@ -466,54 +262,33 @@ A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -04.50,하이드�
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -04.75,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -04.75,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -04.75,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -05.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -05.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -05.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -05.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -05.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -05.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -06.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -06.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Bam Brown_Dear Deer_(중) + -06.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -00.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -00.00,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -00.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -00.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -00.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -00.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.50,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.75,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.75,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -01.75,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.50,누수규격,2026-06-13
+A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -02.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -03.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -03.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -03.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -03.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -04.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -04.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -04.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -04.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -04.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -04.25,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -05.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -05.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -05.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -05.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_First Love Kristin + -06.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -00.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -00.00,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -00.00,하이드레이션,2026-06-23
@@ -529,9 +304,6 @@ A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -01.25,하이드레이
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -01.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -01.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -01.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -01.75,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -01.75,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -01.75,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.00,누수규격,2026-06-13
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.00,접착,2026-06-12
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.00,하이드레이션,2026-06-10
@@ -541,24 +313,12 @@ A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.25,하이드레이
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.75,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.75,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -02.75,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.00,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.25,누수규격,2026-06-13
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.25,접착,2026-06-12
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.25,하이드레이션,2026-06-10
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.50,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.50,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.75,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.75,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -03.75,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.25,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.25,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.25,하이드레이션,2026-06-23
@@ -568,15 +328,6 @@ A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.50,하이드레이
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.75,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.75,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -04.75,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -05.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -05.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -05.00,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -05.50,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -05.50,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -05.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -06.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -06.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Glazed Kristin_Choco + -06.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -00.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -00.00,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -00.00,하이드레이션,2026-06-23
@@ -589,54 +340,24 @@ A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -01.25,하이드레
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -01.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -01.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -01.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -01.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -01.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -01.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -02.75,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.00,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.25,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.25,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.25,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -03.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.00,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.25,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.25,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -04.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -05.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -05.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -05.00,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -05.50,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -05.50,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -05.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -06.00,누수규격,2026-06-26
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -06.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,Hapa M_Gray_First Love Kristin + -06.00,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.00,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.00,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.25,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.25,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.25,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.75,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.75,접착,2026-06-22
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -01.75,하이드레이션,2026-06-20
@@ -644,94 +365,43 @@ A관(1공장),FRP_Color_Sph,KBS-C_원형 + -02.25,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -02.25,접착,2026-06-21
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -02.25,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -03.25,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -03.25,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -03.25,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -03.75,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -03.75,접착,2026-06-21
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -04.00,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -04.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -04.00,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -04.75,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -04.75,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -04.75,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.00,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.00,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.25,누수규격,2026-06-23
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.25,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.25,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.50,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.50,접착,2026-06-21
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -05.50,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -06.00,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -06.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -06.00,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -06.50,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -06.50,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -06.50,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -07.00,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -07.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -07.00,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -08.00,누수규격,2026-06-23
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -08.00,접착,2026-06-22
-A관(1공장),FRP_Color_Sph,KBS-C_원형 + -08.00,하이드레이션,2026-06-20
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -08.50,누수규격,2026-06-22
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -08.50,접착,2026-06-21
 A관(1공장),FRP_Color_Sph,KBS-C_원형 + -08.50,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -01.00,누수규격,2026-06-16
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -01.00,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -01.00,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -02.75,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -02.75,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -02.75,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -03.25,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -03.25,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -03.25,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -03.75,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -03.75,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -03.75,하이드레이션,2026-06-13
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.00,누수규격,2026-06-16
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.00,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.00,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.25,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.25,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.25,하이드레이션,2026-06-13
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.75,누수규격,2026-06-16
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.75,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -04.75,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -06.00,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -06.00,접착,2026-06-15
 A관(1공장),FRP_Color_Sph,MG M_Perfect Brown_GLAM_(중) + -06.00,하이드레이션,2026-06-13
 A관(1공장),FRP_Color_Sph,MG M_Russian Brown_GLAM_(중) + -04.75,누수규격,2026-06-16
 A관(1공장),FRP_Color_Sph,MG M_Russian Brown_GLAM_(중) + -04.75,접착,2026-06-15
-A관(1공장),FRP_Color_Sph,MG M_Russian Brown_GLAM_(중) + -04.75,하이드레이션,2026-06-13
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -05.50,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -05.50,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -05.50,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -06.00,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -06.00,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -06.00,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -06.50,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -06.50,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -06.50,하이드레이션,2026-06-19
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -07.50,누수규격,2026-06-22
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -07.50,접착,2026-06-21
-A관(1공장),FRP_Color_Sph,Meido DK Color_원형 + -07.50,하이드레이션,2026-06-19
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -00.00,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -00.00,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -00.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.00,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.00,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.25,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.25,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.25,하이드레이션,2026-06-22
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.50,누수규격,2026-06-25
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.50,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.50,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.75,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.75,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -01.75,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.00,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.00,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.00,하이드레이션,2026-06-22
@@ -740,13 +410,8 @@ A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.25,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.25,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.50,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.50,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.50,하이드레이션,2026-06-22
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.75,누수규격,2026-06-25
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.75,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -02.75,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.00,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.00,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.25,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.25,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.25,하이드레이션,2026-06-22
@@ -755,19 +420,13 @@ A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.50,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.50,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.75,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.75,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -03.75,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -04.00,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -04.00,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -04.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -04.50,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -04.50,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -04.50,하이드레이션,2026-06-22
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.00,누수규격,2026-06-25
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.00,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.25,누수규격,2026-06-25
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.25,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.25,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.50,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.50,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.50,하이드레이션,2026-06-22
@@ -776,24 +435,19 @@ A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.75,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -05.75,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -06.00,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -06.00,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -06.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -06.50,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -06.50,접착,2026-06-24
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -06.50,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -07.00,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -07.00,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -07.00,하이드레이션,2026-06-22
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -07.50,누수규격,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -07.50,접착,2026-06-24
-A관(1공장),FRP_Color_Sph,NewFusion_소사각 + -07.50,하이드레이션,2026-06-22
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + +01.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +01.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +01.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +01.50,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +02.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +02.00,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +02.00,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + +02.25,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +02.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +02.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + +02.50,하이드레이션,2026-06-23
@@ -812,21 +466,16 @@ A관(1공장),FRP_Color_Sph,NewFusion_원형 + -01.25,하이드레이션,2026-06
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -01.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -01.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -01.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -01.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -01.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -01.75,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.00,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.00,접착,2026-06-25
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.00,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.25,누수규격,2026-06-21
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.25,접착,2026-06-20
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.25,하이드레이션,2026-06-18
+A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.00,하이드레이션,2026-06-28
+A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.25,누수규격,2026-07-01
+A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.25,접착,2026-06-30
+A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.50,하이드레이션,2026-06-23
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.75,누수규격,2026-06-21
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.75,접착,2026-06-20
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -02.75,하이드레이션,2026-06-18
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.00,하이드레이션,2026-06-28
@@ -836,10 +485,7 @@ A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.25,하이드레이션,2026-06
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.50,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.75,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.75,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -03.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.00,누수규격,2026-06-26
+A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.00,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.00,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.00,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.25,누수규격,2026-07-01
@@ -851,12 +497,6 @@ A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.50,하이드레이션,2026-06
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.75,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.75,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -04.75,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.00,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.00,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.00,하이드레이션,2026-06-28
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.25,누수규격,2026-07-01
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.25,접착,2026-06-30
-A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.25,하이드레이션,2026-06-28
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.50,누수규격,2026-07-01
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.50,접착,2026-06-30
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -05.50,하이드레이션,2026-06-28
@@ -875,14 +515,7 @@ A관(1공장),FRP_Color_Sph,NewFusion_원형 + -07.00,하이드레이션,2026-06
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -08.50,누수규격,2026-06-26
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -08.50,접착,2026-06-25
 A관(1공장),FRP_Color_Sph,NewFusion_원형 + -08.50,하이드레이션,2026-06-23
-A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +01.25,누수규격,2026-06-21
-A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +01.25,접착,2026-06-20
-A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +01.25,하이드레이션,2026-06-18
 A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +02.00,누수규격,2026-06-21
-A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +02.00,접착,2026-06-20
-A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +02.00,하이드레이션,2026-06-18
-A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +02.50,누수규격,2026-06-21
-A관(1공장),FRP_Color_Sph,NewFusion_중사각 + +02.50,접착,2026-06-20
 A관(1공장),FRP_Color_Sph,Sincere M_Little Brown_ITFAM_UV_38% 14.2 중사각 + -02.75,누수규격,2026-07-13
 A관(1공장),FRP_Color_Sph,Sincere M_Little Brown_ITFAM_UV_38% 14.2 중사각 + -02.75,접착,2026-07-12
 A관(1공장),FRP_Color_Sph,Sincere M_Little Brown_ITFAM_UV_38% 14.2 중사각 + -02.75,하이드레이션,2026-07-10
@@ -892,16 +525,9 @@ A관(1공장),FRP_Color_Sph,Sincere M_Little Brown_ITFAM_UV_38% 14.2 중사각 +
 A관(1공장),FRP_Color_Sph,Sincere M_Little Brown_ITFAM_UV_38% 14.2 중사각 + -06.00,누수규격,2026-07-13
 A관(1공장),FRP_Color_Sph,Sincere M_Little Brown_ITFAM_UV_38% 14.2 중사각 + -06.00,접착,2026-07-12
 A관(1공장),FRP_Color_Sph,Sincere M_Little Brown_ITFAM_UV_38% 14.2 중사각 + -06.00,하이드레이션,2026-07-10
-A관(1공장),FRP_M/F,HD-X38_스크류 + +06.00,분리,2026-06-23
 A관(1공장),FRP_M/F,HD-X38_은캡 + +06.00,누수규격,2026-06-27
-A관(1공장),FRP_M/F,HD-X38_은캡 + +06.00,접착,2026-06-26
-A관(1공장),FRP_M/F,HD-X38_은캡 + +06.00,하이드레이션,2026-06-24
 A관(1공장),FRP_M/F,HD-X38_은캡 + +06.25,누수규격,2026-06-27
-A관(1공장),FRP_M/F,HD-X38_은캡 + +06.25,접착,2026-06-26
-A관(1공장),FRP_M/F,HD-X38_은캡 + +06.25,하이드레이션,2026-06-24
 A관(1공장),FRP_M/F,HD-X38_은캡 + +07.00,누수규격,2026-06-27
-A관(1공장),FRP_M/F,HD-X38_은캡 + +07.00,접착,2026-06-26
-A관(1공장),FRP_M/F,HD-X38_은캡 + +07.00,하이드레이션,2026-06-24
 A관(1공장),FRP_Sph,(NEW)S38-Dry-14.2 + -02.75,분리,
 A관(1공장),FRP_Sph,(NEW)S38-Dry-14.2 + -02.75,사출,
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + +02.25,분리,
@@ -912,10 +538,6 @@ A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + +03.25,분리,
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + +03.25,사출,
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -00.00,분리,2026-06-18
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -00.00,사출,2026-06-17
-A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -00.50,분리,
-A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -00.50,사출,
-A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -01.75,분리,
-A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -01.75,사출,
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -02.50,분리,2026-06-18
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -02.50,사출,2026-06-17
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.2 + -05.00,분리,
@@ -934,25 +556,15 @@ A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.4 + -07.00,분리,
 A관(1공장),FRP_Sph,(NEW)S43-HD-Dry-14.4 + -07.00,사출,
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -00.75,누수규격,2026-08-02
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -00.75,접착,2026-08-01
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -02.00,누수규격,2026-08-02
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -02.25,누수규격,2026-08-02
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -02.25,접착,2026-08-01
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -02.50,누수규격,2026-08-02
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -02.50,접착,2026-08-01
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -03.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -03.50,접착,2026-08-01
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -03.50,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -04.50,누수규격,2026-08-02
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -04.50,접착,2026-08-01
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -04.50,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -04.75,누수규격,2026-08-02
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -04.75,접착,2026-08-01
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -05.00,누수규격,2026-08-02
-A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -05.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -11.00,누수규격,2026-08-02
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -11.00,접착,2026-08-01
 A관(1공장),FRP_Sph,(UV)CS30_원형_8.60 + -11.00,하이드레이션,2026-07-30
-A관(1공장),FRP_Sph,(UV_NEW)CS30_8.60 + -03.50,분리,2026-07-29
 A관(1공장),FRP_Sph,(UV_NEW)CS30_8.60 + -11.00,분리,2026-07-29
 A관(1공장),FRP_Sph,(UV_NEW)CS30_8.60 + -11.00,사출,2026-07-28
 A관(1공장),FRP_Sph,Metha + -01.50,분리,2026-07-29
@@ -970,17 +582,12 @@ A관(1공장),FRP_Sph,Metha_55 + -09.00,사출,2026-07-28
 A관(1공장),FRP_Sph,Metha_55_소사각 + -01.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,Metha_55_소사각 + -01.50,접착,2026-08-01
 A관(1공장),FRP_Sph,Metha_55_소사각 + -01.50,하이드레이션,2026-07-30
-A관(1공장),FRP_Sph,Metha_55_소사각 + -03.00,누수규격,2026-08-02
-A관(1공장),FRP_Sph,Metha_55_소사각 + -03.00,접착,2026-08-01
-A관(1공장),FRP_Sph,Metha_55_소사각 + -03.25,누수규격,2026-08-02
 A관(1공장),FRP_Sph,Metha_55_소사각 + -03.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,Metha_55_소사각 + -03.50,접착,2026-08-01
 A관(1공장),FRP_Sph,Metha_55_소사각 + -04.00,누수규격,2026-08-02
 A관(1공장),FRP_Sph,Metha_55_소사각 + -04.00,접착,2026-08-01
-A관(1공장),FRP_Sph,Metha_55_소사각 + -04.00,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,Metha_55_소사각 + -04.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,Metha_55_소사각 + -04.50,접착,2026-08-01
-A관(1공장),FRP_Sph,Metha_55_소사각 + -04.50,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,Metha_55_소사각 + -05.75,누수규격,2026-08-02
 A관(1공장),FRP_Sph,Metha_55_소사각 + -05.75,접착,2026-08-01
 A관(1공장),FRP_Sph,Metha_55_소사각 + -05.75,하이드레이션,2026-07-30
@@ -996,18 +603,13 @@ A관(1공장),FRP_Sph,Metha_55_소사각 + -08.00,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,Metha_55_소사각 + -09.00,누수규격,2026-08-02
 A관(1공장),FRP_Sph,Metha_55_소사각 + -09.00,접착,2026-08-01
 A관(1공장),FRP_Sph,Metha_55_소사각 + -09.00,하이드레이션,2026-07-30
-A관(1공장),FRP_Sph,Metha_55_원형 + -02.25,누수규격,2026-08-02
-A관(1공장),FRP_Sph,Metha_55_원형 + -02.25,접착,2026-08-01
-A관(1공장),FRP_Sph,Metha_55_원형 + -03.00,누수규격,2026-08-02
-A관(1공장),FRP_Sph,Metha_55_원형 + -03.50,누수규격,2026-08-02
-A관(1공장),FRP_Sph,Metha_55_원형 + -03.50,접착,2026-08-01
-A관(1공장),FRP_Sph,Metha_55_원형 + -04.50,누수규격,2026-08-02
-A관(1공장),FRP_Sph,Metha_55_원형 + -04.50,접착,2026-08-01
 A관(1공장),FRP_Sph,S38-2_Blue + -10.00,분리,2026-07-29
 A관(1공장),FRP_Sph,S38-2_원형(Blue) + -10.00,누수규격,2026-08-02
 A관(1공장),FRP_Sph,S38-2_원형(Blue) + -10.00,접착,2026-08-01
 A관(1공장),FRP_Sph,S38-2_원형(Blue) + -10.00,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,S55 + +00.50,분리,2026-06-28
+A관(1공장),FRP_Sph,S55 + +00.75,분리,2026-06-29
+A관(1공장),FRP_Sph,S55 + +01.00,분리,2026-07-29
 A관(1공장),FRP_Sph,S55 + +02.00,분리,2026-07-29
 A관(1공장),FRP_Sph,S55 + +02.50,분리,2026-07-05
 A관(1공장),FRP_Sph,S55 + +02.75,분리,2026-07-05
@@ -1019,6 +621,7 @@ A관(1공장),FRP_Sph,S55 + -01.00,분리,2026-07-05
 A관(1공장),FRP_Sph,S55 + -01.25,분리,2026-07-29
 A관(1공장),FRP_Sph,S55 + -01.50,분리,2026-07-29
 A관(1공장),FRP_Sph,S55 + -01.75,분리,2026-07-29
+A관(1공장),FRP_Sph,S55 + -02.00,분리,2026-07-29
 A관(1공장),FRP_Sph,S55 + -02.25,분리,2026-07-29
 A관(1공장),FRP_Sph,S55 + -02.50,분리,2026-07-29
 A관(1공장),FRP_Sph,S55 + -02.75,분리,2026-07-29
@@ -1044,14 +647,14 @@ A관(1공장),FRP_Sph,S55-Dry + -04.00,분리,
 A관(1공장),FRP_Sph,S55-Dry + -04.00,사출,
 A관(1공장),FRP_Sph,S55-Dry + -09.00,분리,
 A관(1공장),FRP_Sph,S55-Dry + -09.00,사출,
-A관(1공장),FRP_Sph,S55_8.60 + +00.50,사출,2026-06-27
+A관(1공장),FRP_Sph,S55_8.60 + +00.50,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + +02.00,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + +02.50,사출,2026-07-04
 A관(1공장),FRP_Sph,S55_8.60 + +02.75,사출,2026-07-04
 A관(1공장),FRP_Sph,S55_8.60 + +03.50,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + +04.50,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + -00.00,사출,2026-07-28
-A관(1공장),FRP_Sph,S55_8.60 + -00.50,사출,2026-07-01
+A관(1공장),FRP_Sph,S55_8.60 + -00.50,사출,2026-07-04
 A관(1공장),FRP_Sph,S55_8.60 + -01.00,사출,2026-07-04
 A관(1공장),FRP_Sph,S55_8.60 + -01.25,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + -01.50,사출,2026-07-28
@@ -1072,12 +675,22 @@ A관(1공장),FRP_Sph,S55_8.60 + -09.50,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + -10.00,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + -14.00,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.60 + -17.00,사출,2026-07-28
-A관(1공장),FRP_Sph,S55_8.80 + +00.50,사출,2026-07-28
+A관(1공장),FRP_Sph,S55_8.80 + +00.75,사출,2026-06-28
+A관(1공장),FRP_Sph,S55_8.80 + +01.00,사출,2026-07-28
+A관(1공장),FRP_Sph,S55_8.80 + -02.00,사출,2026-07-28
 A관(1공장),FRP_Sph,S55_8.80 + -05.00,사출,2026-07-28
-A관(1공장),FRP_Sph,S55_소사각 + +00.50,누수규격,2026-06-25
-A관(1공장),FRP_Sph,S55_소사각 + +00.50,접착,2026-06-24
+A관(1공장),FRP_Sph,S55_소사각 + +00.25,누수규격,2026-08-02
+A관(1공장),FRP_Sph,S55_소사각 + +00.25,접착,2026-08-01
+A관(1공장),FRP_Sph,S55_소사각 + +00.25,하이드레이션,2026-07-30
+A관(1공장),FRP_Sph,S55_소사각 + +00.50,누수규격,2026-07-02
+A관(1공장),FRP_Sph,S55_소사각 + +00.50,접착,2026-07-01
 A관(1공장),FRP_Sph,S55_소사각 + +00.50,하이드레이션,2026-06-29
+A관(1공장),FRP_Sph,S55_소사각 + +00.75,누수규격,2026-07-03
+A관(1공장),FRP_Sph,S55_소사각 + +00.75,접착,2026-07-02
+A관(1공장),FRP_Sph,S55_소사각 + +00.75,하이드레이션,2026-06-30
 A관(1공장),FRP_Sph,S55_소사각 + +01.00,누수규격,2026-08-02
+A관(1공장),FRP_Sph,S55_소사각 + +01.00,접착,2026-08-01
+A관(1공장),FRP_Sph,S55_소사각 + +01.00,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,S55_소사각 + +02.00,누수규격,2026-08-02
 A관(1공장),FRP_Sph,S55_소사각 + +02.00,접착,2026-08-01
 A관(1공장),FRP_Sph,S55_소사각 + +02.00,하이드레이션,2026-07-30
@@ -1090,7 +703,6 @@ A관(1공장),FRP_Sph,S55_소사각 + +02.75,하이드레이션,2026-07-06
 A관(1공장),FRP_Sph,S55_소사각 + +03.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,S55_소사각 + +03.50,접착,2026-08-01
 A관(1공장),FRP_Sph,S55_소사각 + +03.50,하이드레이션,2026-07-30
-A관(1공장),FRP_Sph,S55_소사각 + +04.25,누수규격,2026-08-02
 A관(1공장),FRP_Sph,S55_소사각 + +04.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,S55_소사각 + +04.50,접착,2026-08-01
 A관(1공장),FRP_Sph,S55_소사각 + +04.50,하이드레이션,2026-07-30
@@ -1112,6 +724,9 @@ A관(1공장),FRP_Sph,S55_소사각 + -01.50,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,S55_소사각 + -01.75,누수규격,2026-08-02
 A관(1공장),FRP_Sph,S55_소사각 + -01.75,접착,2026-08-01
 A관(1공장),FRP_Sph,S55_소사각 + -01.75,하이드레이션,2026-07-30
+A관(1공장),FRP_Sph,S55_소사각 + -02.00,누수규격,2026-08-02
+A관(1공장),FRP_Sph,S55_소사각 + -02.00,접착,2026-08-01
+A관(1공장),FRP_Sph,S55_소사각 + -02.00,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,S55_소사각 + -02.25,누수규격,2026-08-02
 A관(1공장),FRP_Sph,S55_소사각 + -02.25,접착,2026-08-01
 A관(1공장),FRP_Sph,S55_소사각 + -02.25,하이드레이션,2026-07-30
@@ -1172,27 +787,20 @@ A관(1공장),FRP_Sph,US55-2(M) + +05.00,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -01.25,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -01.25,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -01.50,분리,2026-07-29
-A관(1공장),FRP_Sph,US55-2(M) + -01.50,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -01.75,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -01.75,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -02.00,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -02.00,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -02.25,분리,2026-07-29
-A관(1공장),FRP_Sph,US55-2(M) + -02.25,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -02.50,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -02.75,분리,2026-07-29
-A관(1공장),FRP_Sph,US55-2(M) + -02.75,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -03.00,분리,2026-07-29
-A관(1공장),FRP_Sph,US55-2(M) + -03.00,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -03.25,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -03.50,분리,2026-07-29
-A관(1공장),FRP_Sph,US55-2(M) + -03.50,사출,2026-07-28
-A관(1공장),FRP_Sph,US55-2(M) + -03.75,분리,2026-07-14
 A관(1공장),FRP_Sph,US55-2(M) + -04.00,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -04.00,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M) + -05.00,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -05.00,사출,2026-07-28
-A관(1공장),FRP_Sph,US55-2(M) + -05.50,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -06.00,분리,2026-07-29
 A관(1공장),FRP_Sph,US55-2(M) + -06.00,사출,2026-07-28
 A관(1공장),FRP_Sph,US55-2(M)_소사각 + +05.00,누수규격,2026-08-02
@@ -1204,8 +812,8 @@ A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.25,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.50,누수규격,2026-08-02
 A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.50,접착,2026-08-01
 A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.50,하이드레이션,2026-07-30
-A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.75,누수규격,2026-06-22
-A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.75,접착,2026-06-21
+A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.75,누수규격,2026-08-02
+A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.75,접착,2026-08-01
 A관(1공장),FRP_Sph,US55-2(M)_소사각 + -01.75,하이드레이션,2026-07-30
 A관(1공장),FRP_Sph,US55-2(M)_소사각 + -02.00,누수규격,2026-08-02
 A관(1공장),FRP_Sph,US55-2(M)_소사각 + -02.00,접착,2026-08-01
@@ -1261,11 +869,9 @@ A관(1공장),FRP_Toric,T38_(UV포함) + -03.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -03.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T38_(UV포함) + -03.25,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -03.25,사출,2026-07-28
-A관(1공장),FRP_Toric,T38_(UV포함) + -04.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -04.25,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -04.25,사출,2026-07-28
 A관(1공장),FRP_Toric,T38_(UV포함) + -04.50,분리,2026-07-29
-A관(1공장),FRP_Toric,T38_(UV포함) + -04.75,분리,2026-06-12
 A관(1공장),FRP_Toric,T38_(UV포함) + -05.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -05.50,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -05.50,사출,2026-07-28
@@ -1273,10 +879,9 @@ A관(1공장),FRP_Toric,T38_(UV포함) + -06.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -06.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T38_(UV포함) + -07.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -07.00,사출,2026-07-28
-A관(1공장),FRP_Toric,T38_(UV포함) + -08.00,분리,2026-06-12
 A관(1공장),FRP_Toric,T38_(UV포함) + -08.50,분리,2026-07-29
-A관(1공장),FRP_Toric,T38_(UV포함) + -09.00,분리,2026-06-12
-A관(1공장),FRP_Toric,T38_(UV포함) + -09.00,사출,2026-06-11
+A관(1공장),FRP_Toric,T38_(UV포함) + -09.00,분리,2026-07-29
+A관(1공장),FRP_Toric,T38_(UV포함) + -09.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T38_(UV포함) + -10.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T38_(UV포함) + -10.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -01.25,누수규격,2026-08-02
@@ -1304,8 +909,8 @@ A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.00,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.00,접착,2026-08-01
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.00,하이드레이션,2026-07-30
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.25,누수규격,2026-06-16
-A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.25,접착,2026-06-15
-A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.25,하이드레이션,2026-06-13
+A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.25,접착,2026-08-01
+A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.25,하이드레이션,2026-07-30
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.50,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.50,접착,2026-08-01
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -04.50,하이드레이션,2026-07-30
@@ -1336,39 +941,39 @@ A관(1공장),FRP_Toric,T38_금캡(UV포함) + -09.00,하이드레이션,2026-06
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -10.00,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -10.00,접착,2026-08-01
 A관(1공장),FRP_Toric,T38_금캡(UV포함) + -10.00,하이드레이션,2026-07-30
-A관(1공장),FRP_Toric,T55_소사각 + +00.25,누수규격,2026-06-22
-A관(1공장),FRP_Toric,T55_소사각 + +00.25,분리,2026-06-18
-A관(1공장),FRP_Toric,T55_소사각 + +00.25,사출,2026-06-17
-A관(1공장),FRP_Toric,T55_소사각 + +00.25,접착,2026-06-21
-A관(1공장),FRP_Toric,T55_소사각 + +00.25,하이드레이션,2026-06-19
+A관(1공장),FRP_Toric,T55_소사각 + +00.25,누수규격,2026-06-25
+A관(1공장),FRP_Toric,T55_소사각 + +00.25,분리,2026-06-21
+A관(1공장),FRP_Toric,T55_소사각 + +00.25,사출,2026-06-20
+A관(1공장),FRP_Toric,T55_소사각 + +00.25,접착,2026-06-24
+A관(1공장),FRP_Toric,T55_소사각 + +00.25,하이드레이션,2026-06-22
 A관(1공장),FRP_Toric,T55_소사각 + +00.50,누수규격,2026-06-25
 A관(1공장),FRP_Toric,T55_소사각 + +00.50,분리,2026-06-21
 A관(1공장),FRP_Toric,T55_소사각 + +00.50,사출,2026-06-20
 A관(1공장),FRP_Toric,T55_소사각 + +00.50,접착,2026-06-24
 A관(1공장),FRP_Toric,T55_소사각 + +00.50,하이드레이션,2026-06-22
-A관(1공장),FRP_Toric,T55_소사각 + +00.75,누수규격,2026-08-02
-A관(1공장),FRP_Toric,T55_소사각 + +00.75,분리,2026-07-29
-A관(1공장),FRP_Toric,T55_소사각 + +00.75,접착,2026-08-01
-A관(1공장),FRP_Toric,T55_소사각 + +00.75,하이드레이션,2026-07-30
+A관(1공장),FRP_Toric,T55_소사각 + +00.75,누수규격,2026-07-03
+A관(1공장),FRP_Toric,T55_소사각 + +00.75,분리,2026-06-29
+A관(1공장),FRP_Toric,T55_소사각 + +00.75,접착,2026-07-02
+A관(1공장),FRP_Toric,T55_소사각 + +00.75,하이드레이션,2026-06-30
 A관(1공장),FRP_Toric,T55_소사각 + +01.25,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T55_소사각 + +01.25,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + +01.25,접착,2026-08-01
 A관(1공장),FRP_Toric,T55_소사각 + +01.25,하이드레이션,2026-07-30
-A관(1공장),FRP_Toric,T55_소사각 + +01.50,누수규격,2026-06-22
-A관(1공장),FRP_Toric,T55_소사각 + +01.50,분리,2026-06-18
-A관(1공장),FRP_Toric,T55_소사각 + +01.50,사출,2026-06-17
-A관(1공장),FRP_Toric,T55_소사각 + +01.50,접착,2026-06-21
-A관(1공장),FRP_Toric,T55_소사각 + +01.50,하이드레이션,2026-06-19
+A관(1공장),FRP_Toric,T55_소사각 + +01.50,누수규격,2026-08-02
+A관(1공장),FRP_Toric,T55_소사각 + +01.50,분리,2026-07-29
+A관(1공장),FRP_Toric,T55_소사각 + +01.50,사출,2026-07-28
+A관(1공장),FRP_Toric,T55_소사각 + +01.50,접착,2026-08-01
+A관(1공장),FRP_Toric,T55_소사각 + +01.50,하이드레이션,2026-07-30
 A관(1공장),FRP_Toric,T55_소사각 + +01.75,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T55_소사각 + +01.75,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + +01.75,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + +01.75,접착,2026-08-01
 A관(1공장),FRP_Toric,T55_소사각 + +01.75,하이드레이션,2026-07-30
-A관(1공장),FRP_Toric,T55_소사각 + +02.00,누수규격,2026-08-02
-A관(1공장),FRP_Toric,T55_소사각 + +02.00,분리,2026-07-29
-A관(1공장),FRP_Toric,T55_소사각 + +02.00,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + +02.00,접착,2026-08-01
-A관(1공장),FRP_Toric,T55_소사각 + +02.00,하이드레이션,2026-07-30
+A관(1공장),FRP_Toric,T55_소사각 + +02.00,누수규격,2026-07-04
+A관(1공장),FRP_Toric,T55_소사각 + +02.00,분리,2026-06-30
+A관(1공장),FRP_Toric,T55_소사각 + +02.00,사출,2026-06-29
+A관(1공장),FRP_Toric,T55_소사각 + +02.00,접착,2026-07-03
+A관(1공장),FRP_Toric,T55_소사각 + +02.00,하이드레이션,2026-07-01
 A관(1공장),FRP_Toric,T55_소사각 + +02.25,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T55_소사각 + +02.25,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + +02.25,사출,2026-07-28
@@ -1410,22 +1015,22 @@ A관(1공장),FRP_Toric,T55_소사각 + -00.00,분리,2026-07-23
 A관(1공장),FRP_Toric,T55_소사각 + -00.00,사출,2026-07-22
 A관(1공장),FRP_Toric,T55_소사각 + -00.00,접착,2026-07-26
 A관(1공장),FRP_Toric,T55_소사각 + -00.00,하이드레이션,2026-07-24
-A관(1공장),FRP_Toric,T55_소사각 + -00.25,누수규격,2026-07-09
-A관(1공장),FRP_Toric,T55_소사각 + -00.25,분리,2026-07-05
-A관(1공장),FRP_Toric,T55_소사각 + -00.25,사출,2026-07-04
-A관(1공장),FRP_Toric,T55_소사각 + -00.25,접착,2026-07-08
-A관(1공장),FRP_Toric,T55_소사각 + -00.25,하이드레이션,2026-07-06
+A관(1공장),FRP_Toric,T55_소사각 + -00.25,누수규격,2026-08-02
+A관(1공장),FRP_Toric,T55_소사각 + -00.25,분리,2026-07-29
+A관(1공장),FRP_Toric,T55_소사각 + -00.25,사출,2026-07-28
+A관(1공장),FRP_Toric,T55_소사각 + -00.25,접착,2026-08-01
+A관(1공장),FRP_Toric,T55_소사각 + -00.25,하이드레이션,2026-07-30
 A관(1공장),FRP_Toric,T55_소사각 + -00.50,누수규격,2026-06-25
 A관(1공장),FRP_Toric,T55_소사각 + -00.50,분리,2026-06-21
 A관(1공장),FRP_Toric,T55_소사각 + -00.50,사출,2026-06-20
 A관(1공장),FRP_Toric,T55_소사각 + -00.50,접착,2026-06-24
 A관(1공장),FRP_Toric,T55_소사각 + -00.50,하이드레이션,2026-06-22
-A관(1공장),FRP_Toric,T55_소사각 + -00.75,누수규격,2026-08-02
+A관(1공장),FRP_Toric,T55_소사각 + -00.75,누수규격,2026-07-03
 A관(1공장),FRP_Toric,T55_소사각 + -00.75,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -00.75,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + -00.75,접착,2026-08-01
+A관(1공장),FRP_Toric,T55_소사각 + -00.75,접착,2026-07-02
 A관(1공장),FRP_Toric,T55_소사각 + -00.75,하이드레이션,2026-07-30
-A관(1공장),FRP_Toric,T55_소사각 + -01.00,누수규격,2026-07-04
+A관(1공장),FRP_Toric,T55_소사각 + -01.00,누수규격,2026-07-03
 A관(1공장),FRP_Toric,T55_소사각 + -01.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -01.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -01.00,접착,2026-08-01
@@ -1435,26 +1040,26 @@ A관(1공장),FRP_Toric,T55_소사각 + -01.25,분리,2026-06-30
 A관(1공장),FRP_Toric,T55_소사각 + -01.25,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -01.25,접착,2026-07-03
 A관(1공장),FRP_Toric,T55_소사각 + -01.25,하이드레이션,2026-07-01
-A관(1공장),FRP_Toric,T55_소사각 + -01.50,누수규격,2026-07-09
+A관(1공장),FRP_Toric,T55_소사각 + -01.50,누수규격,2026-07-13
 A관(1공장),FRP_Toric,T55_소사각 + -01.50,분리,2026-07-09
 A관(1공장),FRP_Toric,T55_소사각 + -01.50,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -01.50,접착,2026-07-12
 A관(1공장),FRP_Toric,T55_소사각 + -01.50,하이드레이션,2026-07-10
-A관(1공장),FRP_Toric,T55_소사각 + -01.75,누수규격,2026-07-09
-A관(1공장),FRP_Toric,T55_소사각 + -01.75,분리,2026-07-05
+A관(1공장),FRP_Toric,T55_소사각 + -01.75,누수규격,2026-07-03
+A관(1공장),FRP_Toric,T55_소사각 + -01.75,분리,2026-06-29
 A관(1공장),FRP_Toric,T55_소사각 + -01.75,사출,2026-07-04
-A관(1공장),FRP_Toric,T55_소사각 + -01.75,접착,2026-07-08
-A관(1공장),FRP_Toric,T55_소사각 + -01.75,하이드레이션,2026-07-06
+A관(1공장),FRP_Toric,T55_소사각 + -01.75,접착,2026-07-02
+A관(1공장),FRP_Toric,T55_소사각 + -01.75,하이드레이션,2026-06-30
 A관(1공장),FRP_Toric,T55_소사각 + -02.00,누수규격,2026-07-09
 A관(1공장),FRP_Toric,T55_소사각 + -02.00,분리,2026-07-05
 A관(1공장),FRP_Toric,T55_소사각 + -02.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -02.00,접착,2026-07-08
 A관(1공장),FRP_Toric,T55_소사각 + -02.00,하이드레이션,2026-07-06
-A관(1공장),FRP_Toric,T55_소사각 + -02.25,누수규격,2026-08-02
+A관(1공장),FRP_Toric,T55_소사각 + -02.25,누수규격,2026-07-03
 A관(1공장),FRP_Toric,T55_소사각 + -02.25,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -02.25,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + -02.25,접착,2026-08-01
-A관(1공장),FRP_Toric,T55_소사각 + -02.25,하이드레이션,2026-07-30
+A관(1공장),FRP_Toric,T55_소사각 + -02.25,접착,2026-07-02
+A관(1공장),FRP_Toric,T55_소사각 + -02.25,하이드레이션,2026-06-30
 A관(1공장),FRP_Toric,T55_소사각 + -02.50,누수규격,2026-07-09
 A관(1공장),FRP_Toric,T55_소사각 + -02.50,분리,2026-07-05
 A관(1공장),FRP_Toric,T55_소사각 + -02.50,사출,2026-07-04
@@ -1465,41 +1070,41 @@ A관(1공장),FRP_Toric,T55_소사각 + -02.75,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -02.75,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -02.75,접착,2026-08-01
 A관(1공장),FRP_Toric,T55_소사각 + -02.75,하이드레이션,2026-07-30
-A관(1공장),FRP_Toric,T55_소사각 + -03.00,누수규격,2026-07-09
-A관(1공장),FRP_Toric,T55_소사각 + -03.00,분리,2026-07-05
+A관(1공장),FRP_Toric,T55_소사각 + -03.00,누수규격,2026-07-03
+A관(1공장),FRP_Toric,T55_소사각 + -03.00,분리,2026-06-29
 A관(1공장),FRP_Toric,T55_소사각 + -03.00,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + -03.00,접착,2026-07-08
-A관(1공장),FRP_Toric,T55_소사각 + -03.00,하이드레이션,2026-07-06
+A관(1공장),FRP_Toric,T55_소사각 + -03.00,접착,2026-07-02
+A관(1공장),FRP_Toric,T55_소사각 + -03.00,하이드레이션,2026-06-30
 A관(1공장),FRP_Toric,T55_소사각 + -03.25,누수규격,2026-07-09
 A관(1공장),FRP_Toric,T55_소사각 + -03.25,분리,2026-07-05
 A관(1공장),FRP_Toric,T55_소사각 + -03.25,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -03.25,접착,2026-07-08
 A관(1공장),FRP_Toric,T55_소사각 + -03.25,하이드레이션,2026-07-06
-A관(1공장),FRP_Toric,T55_소사각 + -03.50,누수규격,2026-06-25
+A관(1공장),FRP_Toric,T55_소사각 + -03.50,누수규격,2026-07-04
 A관(1공장),FRP_Toric,T55_소사각 + -03.50,분리,2026-06-30
 A관(1공장),FRP_Toric,T55_소사각 + -03.50,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + -03.50,접착,2026-06-24
+A관(1공장),FRP_Toric,T55_소사각 + -03.50,접착,2026-07-03
 A관(1공장),FRP_Toric,T55_소사각 + -03.50,하이드레이션,2026-07-01
 A관(1공장),FRP_Toric,T55_소사각 + -03.75,누수규격,2026-07-09
 A관(1공장),FRP_Toric,T55_소사각 + -03.75,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -03.75,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + -03.75,접착,2026-07-08
-A관(1공장),FRP_Toric,T55_소사각 + -03.75,하이드레이션,2026-07-06
+A관(1공장),FRP_Toric,T55_소사각 + -03.75,접착,2026-08-01
+A관(1공장),FRP_Toric,T55_소사각 + -03.75,하이드레이션,2026-07-30
 A관(1공장),FRP_Toric,T55_소사각 + -04.00,누수규격,2026-07-09
 A관(1공장),FRP_Toric,T55_소사각 + -04.00,분리,2026-07-05
 A관(1공장),FRP_Toric,T55_소사각 + -04.00,사출,2026-07-04
 A관(1공장),FRP_Toric,T55_소사각 + -04.00,접착,2026-07-08
 A관(1공장),FRP_Toric,T55_소사각 + -04.00,하이드레이션,2026-07-06
-A관(1공장),FRP_Toric,T55_소사각 + -04.25,누수규격,2026-08-02
-A관(1공장),FRP_Toric,T55_소사각 + -04.25,분리,2026-07-29
-A관(1공장),FRP_Toric,T55_소사각 + -04.25,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + -04.25,접착,2026-08-01
-A관(1공장),FRP_Toric,T55_소사각 + -04.25,하이드레이션,2026-07-30
-A관(1공장),FRP_Toric,T55_소사각 + -04.50,누수규격,2026-08-02
-A관(1공장),FRP_Toric,T55_소사각 + -04.50,분리,2026-07-29
+A관(1공장),FRP_Toric,T55_소사각 + -04.25,누수규격,2026-07-04
+A관(1공장),FRP_Toric,T55_소사각 + -04.25,분리,2026-06-30
+A관(1공장),FRP_Toric,T55_소사각 + -04.25,사출,2026-06-29
+A관(1공장),FRP_Toric,T55_소사각 + -04.25,접착,2026-07-03
+A관(1공장),FRP_Toric,T55_소사각 + -04.25,하이드레이션,2026-07-01
+A관(1공장),FRP_Toric,T55_소사각 + -04.50,누수규격,2026-07-09
+A관(1공장),FRP_Toric,T55_소사각 + -04.50,분리,2026-07-05
 A관(1공장),FRP_Toric,T55_소사각 + -04.50,사출,2026-07-28
-A관(1공장),FRP_Toric,T55_소사각 + -04.50,접착,2026-08-01
-A관(1공장),FRP_Toric,T55_소사각 + -04.50,하이드레이션,2026-07-30
+A관(1공장),FRP_Toric,T55_소사각 + -04.50,접착,2026-07-08
+A관(1공장),FRP_Toric,T55_소사각 + -04.50,하이드레이션,2026-07-06
 A관(1공장),FRP_Toric,T55_소사각 + -04.75,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T55_소사각 + -04.75,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -04.75,사출,2026-07-28
@@ -1529,10 +1134,11 @@ A관(1공장),FRP_Toric,T55_소사각 + -06.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -06.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -06.00,접착,2026-08-01
 A관(1공장),FRP_Toric,T55_소사각 + -06.00,하이드레이션,2026-07-30
-A관(1공장),FRP_Toric,T55_소사각 + -06.25,누수규격,2026-08-02
-A관(1공장),FRP_Toric,T55_소사각 + -06.25,분리,2026-07-29
-A관(1공장),FRP_Toric,T55_소사각 + -06.25,접착,2026-08-01
-A관(1공장),FRP_Toric,T55_소사각 + -06.25,하이드레이션,2026-07-30
+A관(1공장),FRP_Toric,T55_소사각 + -06.25,누수규격,2026-07-03
+A관(1공장),FRP_Toric,T55_소사각 + -06.25,분리,2026-06-29
+A관(1공장),FRP_Toric,T55_소사각 + -06.25,사출,2026-06-28
+A관(1공장),FRP_Toric,T55_소사각 + -06.25,접착,2026-07-02
+A관(1공장),FRP_Toric,T55_소사각 + -06.25,하이드레이션,2026-06-30
 A관(1공장),FRP_Toric,T55_소사각 + -06.50,누수규격,2026-08-02
 A관(1공장),FRP_Toric,T55_소사각 + -06.50,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -06.50,사출,2026-07-28
@@ -1567,43 +1173,40 @@ A관(1공장),FRP_Toric,T55_소사각 + -10.00,분리,2026-07-29
 A관(1공장),FRP_Toric,T55_소사각 + -10.00,사출,2026-07-28
 A관(1공장),FRP_Toric,T55_소사각 + -10.00,접착,2026-08-01
 A관(1공장),FRP_Toric,T55_소사각 + -10.00,하이드레이션,2026-07-30
-A관(1공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMD + +01.50,분리,2026-07-23
-A관(1공장),Si_1-Day_Toric,O2O2 D_UV_Toric_SMD + -02.00,분리,2026-06-22
-A관(1공장),Si_1-Day_Toric,O2O2 D_UV_Toric_SMD + -03.50,분리,2026-07-05
-A관(1공장),Si_1-Day_Toric,O2O2 D_UV_Toric_SMD + -07.00,분리,2026-06-22
+A관(1공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMD + -02.25,분리,2026-06-29
+A관(1공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMD + -02.25,사출,2026-06-28
+A관(1공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMD + -04.50,분리,2026-06-29
 A관(1공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX_(중) + -02.75,누수규격,2026-06-16
 A관(1공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX_(중) + -02.75,접착,2026-06-15
 A관(1공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX_(중) + -02.75,하이드레이션,2026-06-13
 A관(1공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX_(중) + -05.50,누수규격,2026-06-16
 A관(1공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX_(중) + -05.50,접착,2026-06-15
 A관(1공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX_(중) + -05.50,하이드레이션,2026-06-13
-A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + +01.50,누수규격,2026-07-27
-A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + +01.50,접착,2026-07-26
-A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + +01.50,하이드레이션,2026-07-24
-A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + -00.00,누수규격,2026-06-29
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + +01.50,누수규격,2026-07-03
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + +01.50,접착,2026-07-02
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + +01.50,하이드레이션,2026-06-30
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + -02.25,누수규격,2026-07-03
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + -02.25,접착,2026-07-02
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + -02.25,하이드레이션,2026-06-30
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + -04.50,누수규격,2026-07-03
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + -04.50,접착,2026-07-02
+A관(1공장),Si_FRP_M/F,O2O2 M_Multifocal(Dk70)_K2_SMD_(소) + -04.50,하이드레이션,2026-06-30
+A관(1공장),Si_FRP_M/F,Silicone relax + +00.25,분리,2026-06-29
+A관(1공장),Si_FRP_M/F,Silicone relax + +00.25,사출,2026-06-28
+A관(1공장),Si_FRP_M/F,Silicone relax_소사각 + +00.25,누수규격,2026-07-03
+A관(1공장),Si_FRP_M/F,Silicone relax_소사각 + +00.25,접착,2026-07-02
+A관(1공장),Si_FRP_M/F,Silicone relax_소사각 + +00.25,하이드레이션,2026-06-30
+A관(1공장),Si_FRP_M/F,Silicone relax_소사각 + +00.75,누수규격,2026-07-03
+A관(1공장),Si_FRP_M/F,Silicone relax_소사각 + +00.75,접착,2026-07-02
+A관(1공장),Si_FRP_M/F,Silicone relax_소사각 + +00.75,하이드레이션,2026-06-30
 A관(1공장),Si_FRP_Sph,Keraband M_2weeks + -00.00,분리,2026-06-21
 A관(1공장),Si_FRP_Sph,Keraband M_2weeks + -00.00,사출,2026-06-20
 A관(1공장),Si_FRP_Sph,Keraband M_2weeks_(소) + -00.00,누수규격,2026-06-25
 A관(1공장),Si_FRP_Sph,Keraband M_2weeks_(소) + -00.00,접착,2026-06-24
 A관(1공장),Si_FRP_Sph,Keraband M_2weeks_(소) + -00.00,하이드레이션,2026-06-22
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -02.00,누수규격,2026-06-26
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -02.00,접착,2026-06-25
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -02.00,하이드레이션,2026-06-23
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -03.50,누수규격,2026-07-09
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -03.50,접착,2026-07-08
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -03.50,하이드레이션,2026-07-06
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -07.00,누수규격,2026-06-26
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -07.00,접착,2026-06-25
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_(소) + -07.00,하이드레이션,2026-06-23
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -01.25,누수규격,2026-06-22
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -01.25,접착,2026-06-21
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -01.25,하이드레이션,2026-06-19
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -02.00,누수규격,2026-08-18
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -02.00,접착,2026-08-17
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -02.00,하이드레이션,2026-08-15
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -03.50,누수규격,2026-08-18
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -03.50,접착,2026-08-17
-A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -03.50,하이드레이션,2026-08-15
+A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -02.00,누수규격,2026-07-26
+A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -02.00,접착,2026-07-25
+A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -02.00,하이드레이션,2026-07-23
 A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -07.00,누수규격,2026-07-02
 A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -07.00,접착,2026-07-01
 A관(1공장),Si_FRP_Toric,O2O2 M_UV_Toric_SMD_(소) + -07.00,하이드레이션,2026-06-29
@@ -1669,19 +1272,13 @@ C관(2공장),1-Day_Color_Sph,(NEW)Hapa D_Glazed Kristin_Choco + -07.50,접착,2
 C관(2공장),1-Day_Color_Sph,(NEW)Hapa D_Glazed Kristin_Choco + -07.50,하이드레이션,2026-07-08
 C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -01.25,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -01.25,사출,2026-07-11
-C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -01.50,분리,2026-06-27
-C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -01.50,사출,2026-06-26
-C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -03.25,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -04.25,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -04.25,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -10.00,분리,2026-06-27
 C관(2공장),1-Day_Color_Sph,1-Day_iris_JazzBlack + -10.00,사출,2026-06-26
 C관(2공장),1-Day_Color_Sph,1-Day_iris_Rhapsody + -02.75,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,1-Day_iris_Rhapsody + -02.75,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,1-Day_iris_SoulBrown + -01.25,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,1-Day_iris_SoulBrown + -05.50,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,1-Day_iris_SoulBrown + -06.00,분리,2026-06-28
-C관(2공장),1-Day_Color_Sph,1-Day_iris_SoulBrown + -07.50,분리,2026-07-12
+C관(2공장),1-Day_Color_Sph,1-Day_iris_SoulBrown + -01.25,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,1-Day_iris_Suzy Brown + -00.50,누수규격,2026-06-06
 C관(2공장),1-Day_Color_Sph,1-Day_iris_Suzy Brown + -00.50,접착,2026-06-05
 C관(2공장),1-Day_Color_Sph,1-Day_iris_Suzy Brown + -00.50,하이드레이션,2026-06-03
@@ -1694,25 +1291,19 @@ C관(2공장),1-Day_Color_Sph,ALICIA BROWN(근시) + -09.00,사출,2026-06-01
 C관(2공장),1-Day_Color_Sph,ALICIA BROWN(근시) + -09.00,접착,2026-06-05
 C관(2공장),1-Day_Color_Sph,ALICIA BROWN(근시) + -09.00,하이드레이션,2026-06-03
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -00.00,누수규격,2026-07-10
-C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -00.00,분리,2026-07-06
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -00.00,접착,2026-07-09
-C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -00.00,하이드레이션,2026-07-07
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -03.75,누수규격,2026-07-10
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -03.75,분리,2026-07-06
-C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -03.75,사출,2026-07-05
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -03.75,접착,2026-07-09
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -03.75,하이드레이션,2026-07-07
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.00,누수규격,2026-07-10
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.00,접착,2026-07-09
-C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.00,하이드레이션,2026-07-07
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.75,누수규격,2026-07-10
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.75,분리,2026-07-06
-C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.75,사출,2026-07-05
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.75,접착,2026-07-09
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -04.75,하이드레이션,2026-07-07
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -07.00,누수규격,2026-07-10
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -07.00,분리,2026-07-06
-C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -07.00,사출,2026-07-05
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -07.00,접착,2026-07-09
 C관(2공장),1-Day_Color_Sph,ANW D_Bitter Brown_Dopewink 38% + -07.00,하이드레이션,2026-07-07
 C관(2공장),1-Day_Color_Sph,ANW D_Dusk Beige_Dopewink 38% + -00.00,누수규격,2026-07-13
@@ -1768,7 +1359,6 @@ C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -01.00,사출,2026-
 C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -01.00,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -01.00,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -01.50,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -01.50,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -01.75,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -01.75,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,ANW D_Pink Opal_Dopewink 38% + -02.50,누수규격,2026-07-13
@@ -1880,7 +1470,6 @@ C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -00.00,접착,2026
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -02.00,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -02.00,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -02.25,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -02.25,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -03.50,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -03.50,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -04.00,누수규격,2026-07-13
@@ -1895,33 +1484,12 @@ C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -07.50,분리,2026
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -07.50,사출,2026-07-08
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -07.50,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,ANW D_Style Gray_Dopewink 38% + -07.50,하이드레이션,2026-07-10
-C관(2공장),1-Day_Color_Sph,Alcon D_Jewel Gold_W3(APAC) + -08.00,누수규격,2026-07-04
-C관(2공장),1-Day_Color_Sph,Alcon D_Jewel Gold_W3(APAC) + -08.00,접착,2026-07-03
-C관(2공장),1-Day_Color_Sph,Alcon D_Jewel Gold_W3(APAC) + -08.00,하이드레이션,2026-07-01
-C관(2공장),1-Day_Color_Sph,Alcon D_Satin Maple_W4C + -02.75,분리,2026-06-30
-C관(2공장),1-Day_Color_Sph,Alcon D_Satin Maple_W4C + -02.75,사출,2026-06-29
 C관(2공장),1-Day_Color_Sph,Alcon D_Satin Maple_W4C(APAC) + -02.75,누수규격,2026-07-04
 C관(2공장),1-Day_Color_Sph,Alcon D_Satin Maple_W4C(APAC) + -02.75,접착,2026-07-03
 C관(2공장),1-Day_Color_Sph,Alcon D_Satin Maple_W4C(APAC) + -02.75,하이드레이션,2026-07-01
 C관(2공장),1-Day_Color_Sph,BELLA D_EARTH 55% + -00.00,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_EARTH 55% + -00.00,접착,2026-06-22
-C관(2공장),1-Day_Color_Sph,BELLA D_EARTH 55% + -00.00,하이드레이션,2026-06-20
-C관(2공장),1-Day_Color_Sph,BELLA D_EARTH 55% + -01.75,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_MARS 55% + -00.00,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_MARS 55% + -00.00,접착,2026-06-22
-C관(2공장),1-Day_Color_Sph,BELLA D_MARS 55% + -04.50,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_MARS 55% + -04.50,접착,2026-06-22
-C관(2공장),1-Day_Color_Sph,BELLA D_Siren Bronze 55% + -00.00,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_Siren Bronze 55% + -00.00,접착,2026-06-22
-C관(2공장),1-Day_Color_Sph,BELLA D_VENUS 55% + -02.25,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_VENUS 55% + -02.25,접착,2026-06-22
-C관(2공장),1-Day_Color_Sph,BELLA D_VENUS 55% + -03.25,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_VENUS 55% + -03.25,접착,2026-06-22
-C관(2공장),1-Day_Color_Sph,BELLA D_VENUS 55% + -05.00,누수규격,2026-06-23
-C관(2공장),1-Day_Color_Sph,BELLA D_VENUS 55% + -05.00,접착,2026-06-22
 C관(2공장),1-Day_Color_Sph,Coastal_SoulBrown(신형리드지) + -06.00,누수규격,2026-07-02
 C관(2공장),1-Day_Color_Sph,Coastal_SoulBrown(신형리드지) + -06.00,접착,2026-07-01
-C관(2공장),1-Day_Color_Sph,Coastal_SoulBrown(신형리드지) + -06.00,하이드레이션,2026-06-29
 C관(2공장),1-Day_Color_Sph,Freedom380 + +02.50,분리,2026-06-27
 C관(2공장),1-Day_Color_Sph,Freedom380 + +02.50,사출,2026-06-26
 C관(2공장),1-Day_Color_Sph,Gemhour D_Greta Black_Keira + -00.00,누수규격,2026-07-24
@@ -2083,11 +1651,8 @@ C관(2공장),1-Day_Color_Sph,HOYA_Amber ash(Casual Ash) + -09.00,하이드레�
 C관(2공장),1-Day_Color_Sph,HOYA_Amber ash(Casual Ash) + -09.50,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_Amber ash(Casual Ash) + -09.50,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,HOYA_Amber ash(Casual Ash) + -09.50,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -00.00,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -01.75,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -02.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -02.00,사출,2026-07-11
-C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -03.75,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -04.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -04.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -04.25,분리,2026-07-12
@@ -2104,7 +1669,6 @@ C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -07.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -07.50,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -08.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -08.00,사출,2026-07-11
-C관(2공장),1-Day_Color_Sph,HOYA_Aurora Gray + -09.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Casual Ash + -00.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Casual Ash + -00.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Casual Ash + -01.00,분리,2026-07-12
@@ -2131,15 +1695,12 @@ C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -02.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -02.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -02.25,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -02.25,사출,2026-07-11
-C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -02.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -03.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -03.50,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -03.75,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -03.75,사출,2026-07-11
-C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -04.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -04.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -04.50,사출,2026-07-11
-C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -05.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -05.75,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -05.75,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Maquia Brown + -07.50,분리,2026-07-12
@@ -2149,10 +1710,9 @@ C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -00.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -00.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -01.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -01.50,사출,2026-07-11
-C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -03.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -03.25,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -03.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -04.00,분리,2026-07-12
+C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -04.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -04.25,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -04.25,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,HOYA_Noble Ash + -08.00,분리,2026-07-12
@@ -2167,13 +1727,11 @@ C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -01.50,접착,2026-07-
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -01.50,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.00,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.25,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.50,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.50,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -03.50,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -04.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -04.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,HOYA_Olive ash(Noble Ash) + -04.00,하이드레이션,2026-07-13
@@ -2233,10 +1791,8 @@ C관(2공장),1-Day_Color_Sph,HOYA_Ruby brown(Maquia Brown) + -10.00,접착,2026
 C관(2공장),1-Day_Color_Sph,HOYA_Ruby brown(Maquia Brown) + -10.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -00.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -00.00,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -00.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -01.75,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -01.75,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -01.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -02.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -02.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,HOYA_pearl black(Aurora Gray) + -02.00,하이드레이션,2026-07-13
@@ -2529,28 +2085,14 @@ C관(2공장),1-Day_Color_Sph,Hapakristin D_Quiet Kristin Glow Brown + -08.00,�
 C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -01.50,누수규격,2026-07-01
 C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -01.50,접착,2026-06-30
 C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -01.50,하이드레이션,2026-06-28
-C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -01.75,누수규격,2026-07-01
-C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -01.75,접착,2026-06-30
-C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -01.75,하이드레이션,2026-06-28
 C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -10.00,누수규격,2026-07-01
 C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -10.00,접착,2026-06-30
 C관(2공장),1-Day_Color_Sph,Layala_Jazz Black + -10.00,하이드레이션,2026-06-28
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -01.25,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -01.25,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -01.75,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -01.75,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -02.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -02.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -04.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -04.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -06.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -06.00,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -06.00,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -06.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -06.00,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -09.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -09.50,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph,MG D_Little Lady Brown_SISSE Marie + -09.50,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -00.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -00.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -00.00,사출,2026-07-11
@@ -2576,21 +2118,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -04.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -04.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -04.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -04.00,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -04.50,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -04.50,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -04.50,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -05.50,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -05.50,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -06.00,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -06.00,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -06.00,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -06.00,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -06.50,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -06.50,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -06.50,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -07.00,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -07.00,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Affogato_55% UV + -07.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Air Gray_55% UV + -01.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Air Gray_55% UV + -01.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Air Gray_55% UV + -01.00,사출,2026-07-11
@@ -3048,21 +2575,17 @@ C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -00.75,접착,2026-0
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -00.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.00,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.25,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.25,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.75,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.75,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.75,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.75,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -01.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -02.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -02.00,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -02.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -02.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -02.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -02.25,누수규격,2026-07-16
@@ -3097,7 +2620,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.00,접착,2026-0
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.25,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.25,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.25,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Chai Cafe_55% UV 14.2 + -04.75,누수규격,2026-07-16
@@ -3531,7 +3053,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -00.75,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -00.75,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -00.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -01.00,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -01.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -01.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -01.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -01.25,누수규격,2026-07-16
@@ -3615,12 +3136,10 @@ C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.50,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.50,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.50,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.75,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.75,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.75,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.75,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -05.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Date Topaz_38% UV + -06.00,누수규격,2026-07-16
@@ -4300,7 +3819,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.00,접착,2026-
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.25,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.25,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.25,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.50,누수규격,2026-07-16
@@ -4310,7 +3828,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.50,접착,2026-
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.50,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.75,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.75,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.75,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.75,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -01.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -02.00,누수규격,2026-07-16
@@ -4334,13 +3851,9 @@ C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -03.75,사출,2026-
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -03.75,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -03.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.00,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.00,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.25,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.25,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.25,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.50,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Maria Ring_55%_14.5 UV + -04.50,사출,2026-07-11
@@ -4910,12 +4423,10 @@ C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -00.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -00.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -00.75,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -00.75,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -00.75,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -00.75,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -00.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -01.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -01.00,분리,2026-07-12
-C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -01.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -01.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -01.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Oolong Tea_55% UV + -01.25,누수규격,2026-07-16
@@ -5413,11 +4924,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.00,분리,2026-07-
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.00,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.50,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.50,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.75,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.75,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -04.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -05.50,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -05.50,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -05.50,사출,2026-07-11
@@ -5433,8 +4939,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -07.00,분리,2026-07-
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -07.00,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -07.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -07.00,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -08.00,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Sakura Smore_55% UV + -08.00,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Skin Beige_14.2 + -00.00,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Skin Beige_14.2 + -00.00,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Skin Beige_14.2 + -00.00,사출,2026-07-11
@@ -5655,8 +5159,6 @@ C관(2공장),1-Day_Color_Sph,PIA D_Sugar Donut_38% UV + -03.50,분리,2026-07-1
 C관(2공장),1-Day_Color_Sph,PIA D_Sugar Donut_38% UV + -03.50,사출,2026-07-11
 C관(2공장),1-Day_Color_Sph,PIA D_Sugar Donut_38% UV + -03.50,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Sugar Donut_38% UV + -03.50,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA D_Sugar Pearl_55%_14.2 UV + -03.25,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA D_Sugar Pearl_55%_14.2 UV + -03.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA D_Sugar Pearl_55%_14.2 UV + -04.75,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA D_Sugar Pearl_55%_14.2 UV + -04.75,분리,2026-07-12
 C관(2공장),1-Day_Color_Sph,PIA D_Sugar Pearl_55%_14.2 UV + -04.75,사출,2026-07-11
@@ -6178,42 +5680,16 @@ C관(2공장),1-Day_Color_Sph,PIA_Hot Chocolate_55%_1-DAY + -06.00,하이드레�
 C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -01.25,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -01.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -01.25,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -02.75,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -02.75,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -02.75,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -04.25,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -04.25,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -04.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -05.50,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -05.50,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -05.50,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -06.50,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -06.50,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -06.50,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -07.50,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -07.50,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -07.50,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -08.00,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -08.00,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_KEOPI BROWN + -08.00,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_KR_1D 55%_feliamo_Tarte Tatin_10P + -01.50,누수규격,2026-06-26
-C관(2공장),1-Day_Color_Sph,PIA_KR_1D 55%_feliamo_Tarte Tatin_10P + -01.50,접착,2026-06-25
-C관(2공장),1-Day_Color_Sph,PIA_KR_1D 55%_feliamo_Tarte Tatin_10P + -04.00,누수규격,2026-06-26
-C관(2공장),1-Day_Color_Sph,PIA_KR_1D 55%_feliamo_Tarte Tatin_10P + -04.00,접착,2026-06-25
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -01.25,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -01.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -01.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -01.75,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -01.75,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -01.75,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -02.00,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -02.00,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -02.00,하이드레이션,2026-07-13
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -03.25,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -03.25,접착,2026-07-15
-C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -03.25,하이드레이션,2026-07-13
-C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -03.75,누수규격,2026-07-16
-C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -03.75,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -04.25,누수규격,2026-07-16
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -04.25,접착,2026-07-15
 C관(2공장),1-Day_Color_Sph,PIA_LILY BLACK + -04.25,하이드레이션,2026-07-13
@@ -6727,27 +6203,13 @@ C관(2공장),1-Day_Color_Sph,REAL SOME CHOCO(NOBLE MYSTIC) + -08.00,분리,2026
 C관(2공장),1-Day_Color_Sph,REAL SOME CHOCO(NOBLE MYSTIC) + -08.00,사출,2026-07-17
 C관(2공장),1-Day_Color_Sph,REAL SOME CHOCO(NOBLE MYSTIC) + -08.00,접착,2026-07-21
 C관(2공장),1-Day_Color_Sph,REAL SOME CHOCO(NOBLE MYSTIC) + -08.00,하이드레이션,2026-07-19
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -01.00,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -01.00,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -01.75,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -01.75,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -02.75,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -02.75,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -02.75,하이드레이션,2026-07-10
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -03.50,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -03.50,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -03.50,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -04.75,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -04.75,분리,2026-07-09
 C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -04.75,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -04.75,하이드레이션,2026-07-10
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -05.00,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -05.00,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -06.00,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -06.00,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -06.00,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -07.00,누수규격,2026-07-13
+C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -07.00,분리,2026-07-09
+C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -07.00,사출,2026-07-08
 C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -07.00,접착,2026-07-12
+C관(2공장),1-Day_Color_Sph,Sincere D_Air Beige_ITFA_38% UV + -07.00,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -00.00,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -00.00,분리,2026-07-09
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -00.00,사출,2026-07-08
@@ -6768,8 +6230,6 @@ C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.00,분�
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.00,사출,2026-07-08
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.00,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.00,하이드레이션,2026-07-10
-C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.25,누수규격,2026-07-13
-C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.25,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.75,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.75,분리,2026-07-09
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.75,사출,2026-07-08
@@ -6777,17 +6237,14 @@ C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.75,접�
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -03.75,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.00,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.00,분리,2026-07-09
-C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.00,사출,2026-07-08
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.00,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.00,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.50,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.50,분리,2026-07-09
-C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.50,사출,2026-07-08
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.50,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.50,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.75,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.75,분리,2026-07-09
-C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.75,사출,2026-07-08
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.75,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,Sincere D_Neutral Brown_UV_38% 14.2 + -05.75,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -02.00,누수규격,2026-07-13
@@ -6816,6 +6273,7 @@ C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -03.25,�
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -03.25,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -03.50,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -03.50,분리,2026-07-09
+C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -03.50,사출,2026-07-08
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -03.50,접착,2026-07-12
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -03.50,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -04.25,누수규격,2026-07-13
@@ -6835,7 +6293,6 @@ C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -05.00,�
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -05.00,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -06.50,누수규격,2026-07-13
 C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -06.50,접착,2026-07-12
-C관(2공장),1-Day_Color_Sph,Sincere D_Venus Belt_UV_FAP 3T 38% 14.5 + -06.50,하이드레이션,2026-07-10
 C관(2공장),1-Day_Color_Sph_Fix,Clalen D_Ash brown_55%(중국_축고정) + -00.00,누수규격,2026-07-03
 C관(2공장),1-Day_Color_Sph_Fix,Clalen D_Ash brown_55%(중국_축고정) + -00.00,분리,2026-06-29
 C관(2공장),1-Day_Color_Sph_Fix,Clalen D_Ash brown_55%(중국_축고정) + -00.00,사출,2026-06-28
@@ -8123,31 +7580,29 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -00.7
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -00.75,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.50,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.50,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.50,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.75,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.75,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.75,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.75,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.75,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -01.75,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -02.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -02.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -02.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -02.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -02.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -02.00,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.00,누수규격,2026-06-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.00,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.00,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.00,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.00,하이드레이션,2026-07-24
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.25,누수규격,2026-07-27
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.25,접착,2026-07-26
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.25,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.50,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.50,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.50,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.50,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.50,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.50,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.50,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.75,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.75,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.75,사출,2026-06-17
@@ -8155,17 +7610,17 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.7
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -03.75,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.25,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.25,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.25,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.25,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.25,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.25,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.50,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.50,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.50,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -04.75,누수규격,2026-06-22
@@ -8195,17 +7650,15 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -06.5
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -06.50,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.50,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.50,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -07.50,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -08.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -08.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -08.00,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -08.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Berry Float_55% UV 14.5 + -08.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -00.00,누수규격,2026-07-27
@@ -8219,10 +7672,10 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.00
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.00,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.75,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.75,분리,2026-06-18
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.75,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.75,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.75,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.75,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -01.75,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -02.25,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -02.25,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -02.25,사출,2026-07-22
@@ -8244,8 +7697,8 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -03.75
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -03.75,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -03.75,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.00,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.25,누수규격,2026-06-22
@@ -8263,8 +7716,6 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.75
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.75,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.75,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -04.75,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -05.00,누수규격,2026-07-27
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -05.00,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -05.50,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -05.50,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -05.50,사출,2026-06-17
@@ -8280,10 +7731,6 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -06.50
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -06.50,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -06.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -06.50,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -07.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -07.50,접착,2026-07-26
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -08.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Luna Cream_55% UV 14.5 + -08.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.00,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.00,사출,2026-06-17
@@ -8291,7 +7738,7 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.0
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.75,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.75,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.75,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.75,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.75,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -00.75,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -01.50,누수규격,2026-07-27
@@ -8304,7 +7751,7 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -01.7
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -01.75,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -01.75,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -01.75,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.25,누수규격,2026-06-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.25,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.25,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.25,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.25,접착,2026-07-26
@@ -8314,26 +7761,19 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.5
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.50,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.50,하이드레이션,2026-07-24
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.75,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.75,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.75,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.75,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.75,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -02.75,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.00,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.00,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.25,하이드레이션,2026-07-24
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,누수규격,2026-07-27
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.50,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.75,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.75,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -03.75,사출,2026-06-17
@@ -8345,28 +7785,19 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.0
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.00,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.25,누수규격,2026-07-27
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.25,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.25,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.25,접착,2026-07-26
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.25,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.50,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.50,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.50,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.75,누수규격,2026-07-27
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.75,접착,2026-07-26
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -04.75,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.00,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.50,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.50,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.50,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.50,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.50,누수규격,2026-07-27
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -05.50,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -06.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -06.00,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -06.00,사출,2026-06-17
@@ -8382,18 +7813,15 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.0
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.00,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.00,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,사출,2026-06-17
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,누수규격,2026-07-27
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,사출,2026-07-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -07.50,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -08.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -08.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -08.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Molten Puff_55% UV 14.5 + -08.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -00.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -00.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -00.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -00.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -00.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -00.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -01.00,누수규격,2026-07-27
@@ -8412,60 +7840,51 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.00,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,분리,2026-06-18
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.25,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.50,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.50,사출,2026-07-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.50,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.50,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.75,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.75,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.75,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.75,하이드레이션,2026-07-24
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,누수규격,2026-06-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -02.75,누수규격,2026-07-27
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,누수규격,2026-06-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.00,하이드레이션,2026-07-24
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.50,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.75,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.75,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.75,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.75,접착,2026-07-26
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.75,하이드레이션,2026-07-24
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.75,접착,2026-06-21
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -03.75,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.25,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.25,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.25,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.25,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.25,하이드레이션,2026-07-24
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.50,누수규격,2026-06-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.50,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.50,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.50,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.50,하이드레이션,2026-07-24
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.75,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.75,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.75,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.00,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.00,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.00,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -04.75,누수규격,2026-07-27
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.00,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.50,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.50,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -05.50,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.00,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.50,누수규격,2026-07-27
@@ -8473,11 +7892,13 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.50,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -06.50,하이드레이션,2026-07-24
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -07.50,누수규격,2026-07-27
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -07.50,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -07.50,사출,2026-07-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -07.50,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -07.50,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -08.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -08.00,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -08.00,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -08.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Silver Bagel_55% UV 14.5 + -08.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -00.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -00.00,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -00.00,사출,2026-06-17
@@ -8489,50 +7910,44 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -00
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -00.75,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -00.75,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.00,분리,2026-06-18
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.00,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.00,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,분리,2026-06-18
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.25,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,분리,2026-06-18
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,사출,2026-07-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -01.75,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.00,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.00,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.00,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.25,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.25,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.25,접착,2026-07-26
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.25,하이드레이션,2026-07-24
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.25,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.50,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.50,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.50,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.50,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.00,누수규격,2026-07-27
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.00,접착,2026-07-26
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.00,하이드레이션,2026-07-24
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.25,누수규격,2026-06-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -02.75,하이드레이션,2026-07-24
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.25,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.25,분리,2026-07-23
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.25,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.25,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.25,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.50,사출,2026-06-17
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.50,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.50,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.50,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -03.75,누수규격,2026-06-22
@@ -8555,8 +7970,9 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -04
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -04.75,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -04.75,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -04.75,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -05.00,누수규격,2026-06-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -05.00,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -05.00,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -05.00,사출,2026-07-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -05.00,접착,2026-07-26
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -05.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -05.50,누수규격,2026-06-22
@@ -8571,18 +7987,15 @@ C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06.00,하이드레이션,2026-06-19
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06.50,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06.50,사출,2026-07-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06.50,사출,2026-06-17
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06.50,접착,2026-06-21
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -06.50,하이드레이션,2026-06-19
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.00,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.00,분리,2026-07-23
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.00,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.00,하이드레이션,2026-07-24
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.00,누수규격,2026-07-27
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,누수규격,2026-06-22
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,분리,2026-06-18
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,사출,2026-06-17
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,접착,2026-06-21
-C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,하이드레이션,2026-06-19
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,분리,2026-07-23
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,사출,2026-07-22
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,접착,2026-07-26
+C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -07.50,하이드레이션,2026-07-24
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -08.00,누수규격,2026-06-22
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -08.00,분리,2026-06-18
 C관(2공장),1-Day_Color_Sph_Fix,PIA(CoFANCY) D_Stellar Gummy_55% UV 14.5 + -08.00,사출,2026-06-17
@@ -8834,9 +8247,6 @@ C관(2공장),1-Day_Sph,1-DAY58_Micure + -01.75,하이드레이션,2026-07-13
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.00,누수규격,2026-07-16
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.00,접착,2026-07-15
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.00,하이드레이션,2026-07-13
-C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.25,누수규격,2026-07-16
-C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.25,접착,2026-07-15
-C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.50,누수규격,2026-07-16
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.50,접착,2026-07-15
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -02.50,하이드레이션,2026-07-13
@@ -8855,17 +8265,11 @@ C관(2공장),1-Day_Sph,1-DAY58_Micure + -04.25,하이드레이션,2026-07-13
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -11.00,누수규격,2026-06-20
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -11.00,접착,2026-06-19
 C관(2공장),1-Day_Sph,1-DAY58_Micure + -11.00,하이드레이션,2026-06-17
-C관(2공장),1-Day_Sph,1-DAY_58_공용_MD로고 + -02.25,누수규격,2026-07-18
-C관(2공장),1-Day_Sph,1-DAY_58_공용_MD로고 + -02.25,접착,2026-07-17
 C관(2공장),1-Day_Sph,1-DAY_58_공용_MD로고 + -02.75,누수규격,2026-07-30
 C관(2공장),1-Day_Sph,1-DAY_58_공용_MD로고 + -02.75,접착,2026-07-29
 C관(2공장),1-Day_Sph,1-DAY_58_공용_MD로고 + -02.75,하이드레이션,2026-07-27
-C관(2공장),1-Day_Sph,1-DAY_58_폴란드 FML Oviso_Hioxi + -02.00,누수규격,2026-06-19
 C관(2공장),1-Day_Sph,1-Day_58(NEW) + -01.50,누수규격,2026-07-02
 C관(2공장),1-Day_Sph,1-Day_58(NEW) + -01.50,접착,2026-07-01
-C관(2공장),1-Day_Sph,1-Day_58(NEW) + -01.50,하이드레이션,2026-06-29
-C관(2공장),1-Day_Sph,1-Day_58(NEW) + -02.00,누수규격,2026-07-02
-C관(2공장),1-Day_Sph,1-Day_58(NEW) + -02.00,접착,2026-07-01
 C관(2공장),1-Day_Sph,1-Day_58(NEW) + -04.50,누수규격,2026-07-02
 C관(2공장),1-Day_Sph,1-Day_58(NEW) + -04.50,접착,2026-07-01
 C관(2공장),1-Day_Sph,1-Day_58(NEW) + -04.50,하이드레이션,2026-06-29
@@ -8887,9 +8291,6 @@ C관(2공장),1-Day_Sph,1-Day_58_M + +04.50,하이드레이션,2026-07-16
 C관(2공장),1-Day_Sph,1-Day_58_M + -00.75,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -00.75,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -00.75,하이드레이션,2026-07-16
-C관(2공장),1-Day_Sph,1-Day_58_M + -01.00,누수규격,2026-07-19
-C관(2공장),1-Day_Sph,1-Day_58_M + -01.00,접착,2026-07-18
-C관(2공장),1-Day_Sph,1-Day_58_M + -01.00,하이드레이션,2026-07-16
 C관(2공장),1-Day_Sph,1-Day_58_M + -01.25,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -01.25,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -01.25,하이드레이션,2026-07-16
@@ -8901,21 +8302,12 @@ C관(2공장),1-Day_Sph,1-Day_58_M + -01.75,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -01.75,하이드레이션,2026-07-16
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.00,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.00,접착,2026-07-18
-C관(2공장),1-Day_Sph,1-Day_58_M + -02.00,하이드레이션,2026-07-16
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.25,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.25,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.25,하이드레이션,2026-07-16
-C관(2공장),1-Day_Sph,1-Day_58_M + -02.50,누수규격,2026-07-19
-C관(2공장),1-Day_Sph,1-Day_58_M + -02.50,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.75,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.75,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -02.75,하이드레이션,2026-07-16
-C관(2공장),1-Day_Sph,1-Day_58_M + -03.50,누수규격,2026-07-19
-C관(2공장),1-Day_Sph,1-Day_58_M + -03.50,접착,2026-07-18
-C관(2공장),1-Day_Sph,1-Day_58_M + -03.50,하이드레이션,2026-07-16
-C관(2공장),1-Day_Sph,1-Day_58_M + -03.75,누수규격,2026-07-19
-C관(2공장),1-Day_Sph,1-Day_58_M + -03.75,접착,2026-07-18
-C관(2공장),1-Day_Sph,1-Day_58_M + -03.75,하이드레이션,2026-07-16
 C관(2공장),1-Day_Sph,1-Day_58_M + -04.25,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -04.25,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -04.25,하이드레이션,2026-07-16
@@ -8932,8 +8324,6 @@ C관(2공장),1-Day_Sph,1-Day_58_M + -06.50,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -06.50,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -06.50,하이드레이션,2026-07-16
 C관(2공장),1-Day_Sph,1-Day_58_M + -07.00,누수규격,2026-07-19
-C관(2공장),1-Day_Sph,1-Day_58_M + -07.00,접착,2026-07-18
-C관(2공장),1-Day_Sph,1-Day_58_M + -07.00,하이드레이션,2026-07-16
 C관(2공장),1-Day_Sph,1-Day_58_M + -07.50,누수규격,2026-07-19
 C관(2공장),1-Day_Sph,1-Day_58_M + -07.50,접착,2026-07-18
 C관(2공장),1-Day_Sph,1-Day_58_M + -07.50,하이드레이션,2026-07-16
@@ -8957,7 +8347,6 @@ C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -03.00,접착,2026-07
 C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -03.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -04.00,누수규격,2026-07-27
 C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -04.00,접착,2026-07-26
-C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -04.00,하이드레이션,2026-07-24
 C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -04.25,누수규격,2026-07-27
 C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -04.25,접착,2026-07-26
 C관(2공장),1-Day_Sph,1-Day_Contakt(유효기간_8년) + -04.25,하이드레이션,2026-07-24
@@ -8980,22 +8369,20 @@ C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + +02.00,분리,2026-07-15
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + +02.50,분리,2026-07-15
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + +04.50,분리,2026-07-15
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -00.75,분리,2026-07-15
-C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -01.00,분리,2026-07-15
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -01.25,분리,2026-07-15
-C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -01.50,분리,2026-06-28
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -01.75,분리,2026-07-12
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.00,분리,2026-07-12
+C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.25,분리,2026-07-15
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.50,분리,2026-07-12
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -02.75,분리,2026-07-26
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -03.50,분리,2026-07-12
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -03.75,분리,2026-07-12
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -04.25,분리,2026-07-12
-C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -04.50,분리,2026-07-15
+C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -04.50,분리,2026-06-28
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -05.00,분리,2026-07-15
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -05.50,분리,2026-07-15
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -06.00,분리,2026-07-23
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -06.50,분리,2026-07-15
-C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -11.00,분리,2026-06-16
 C관(2공장),1-Day_Sph,1-day_58_Kontaktni-HA + -12.00,분리,2026-06-28
 C관(2공장),FRP_Color_Sph,Affogato_PIA_M(Y) + -02.25,분리,2026-06-22
 C관(2공장),FRP_Color_Sph,Affogato_PIA_M(Y) + -02.25,사출,2026-06-21
@@ -9225,33 +8612,14 @@ S관(3공장),1-Day_Color_Sph,DYE D_LAVA + -00.00,접착,2026-06-22
 S관(3공장),1-Day_Color_Sph,DYE D_LAVA + -00.00,하이드레이션,2026-06-20
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -00.50,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -00.50,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -00.50,하이드레이션,2026-06-19
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -00.75,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -00.75,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.00,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.00,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.25,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.25,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.50,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.50,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.75,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -01.75,접착,2026-06-21
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.00,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.00,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.25,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.25,접착,2026-06-21
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.50,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.50,접착,2026-06-21
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.75,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.75,분리,2026-06-18
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.75,사출,2026-06-17
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.75,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -02.75,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.00,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.00,분리,2026-06-18
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.00,사출,2026-06-17
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.00,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.00,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.25,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.25,접착,2026-06-21
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.50,누수규격,2026-06-22
@@ -9261,59 +8629,36 @@ S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.50,접착,2026-06-2
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.50,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.75,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.75,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -03.75,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.00,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.00,분리,2026-06-18
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.00,사출,2026-06-17
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.00,접착,2026-06-21
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.00,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.25,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.25,분리,2026-06-18
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.25,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.25,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.50,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.50,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.50,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.75,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.75,분리,2026-06-18
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.75,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -04.75,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.00,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.00,분리,2026-06-18
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.00,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.00,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.50,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.50,분리,2026-06-18
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.50,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -05.50,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -06.00,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -06.00,분리,2026-06-18
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -06.00,사출,2026-06-17
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -06.00,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -06.00,하이드레이션,2026-06-19
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -07.00,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -07.00,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -08.00,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -08.00,접착,2026-06-21
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -09.00,누수규격,2026-06-22
-S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -09.00,접착,2026-06-21
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -09.50,누수규격,2026-06-22
 S관(3공장),1-Day_Color_Sph,MG D_PoPo Milk Tea_SISSE + -09.50,접착,2026-06-21
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.25,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.25,접착,2026-06-14
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.75,누수규격,2026-06-13
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.75,분리,2026-06-11
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.75,사출,2026-06-10
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.75,접착,2026-06-12
+S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.75,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.75,접착,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -02.75,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -04.25,누수규격,2026-06-13
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -04.25,접착,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Mute Brown_45% + -04.25,하이드레이션,2026-06-12
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.25,누수규격,2026-06-13
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.25,접착,2026-06-12
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.50,누수규격,2026-06-15
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.75,누수규격,2026-06-13
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.75,접착,2026-06-21
+S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.25,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.25,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -01.75,누수규격,2026-06-22
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -02.00,누수규격,2026-06-13
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -02.00,분리,2026-06-09
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -02.00,사출,2026-06-08
@@ -9327,7 +8672,6 @@ S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -03.25,분리,20
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -03.25,사출,2026-06-10
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -03.25,접착,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -03.25,하이드레이션,2026-06-12
-S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -04.75,누수규격,2026-06-13
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -06.50,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -06.50,분리,2026-06-11
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -06.50,사출,2026-06-10
@@ -9335,13 +8679,15 @@ S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -06.50,접착,20
 S관(3공장),Si_1-Day_Color_Sph,Clalen O2O2 D_Pale Choco_45% + -06.50,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -00.50,누수규격,2026-06-18
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -00.50,분리,2026-06-14
-S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -00.50,사출,2026-06-13
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -00.50,접착,2026-06-17
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -00.50,하이드레이션,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -01.50,누수규격,2026-06-18
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -01.50,분리,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -01.50,접착,2026-06-17
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -01.50,하이드레이션,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -02.25,누수규격,2026-06-18
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -02.25,분리,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -02.25,사출,2026-06-13
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -02.25,접착,2026-06-17
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -02.25,하이드레이션,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.00,누수규격,2026-06-18
@@ -9354,16 +8700,35 @@ S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.25,분리,2026-06-11
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.25,사출,2026-06-10
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.25,접착,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.25,하이드레이션,2026-06-12
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.50,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.50,분리,2026-06-11
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.50,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.50,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.75,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.75,분리,2026-06-11
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.75,사출,2026-06-10
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.75,접착,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -03.75,하이드레이션,2026-06-12
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -04.25,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -04.25,분리,2026-06-11
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -04.25,사출,2026-06-10
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -04.25,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -04.25,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -05.50,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -05.50,분리,2026-06-11
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -05.50,사출,2026-06-10
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -05.50,접착,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -05.50,하이드레이션,2026-06-12
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -06.00,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -06.00,분리,2026-06-11
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -06.00,사출,2026-06-10
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -06.00,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -06.00,하이드레이션,2026-06-12
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -07.00,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -07.00,분리,2026-06-11
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -07.00,사출,2026-06-10
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -07.00,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -07.00,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -09.50,누수규격,2026-06-18
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -09.50,분리,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Brown EX + -09.50,사출,2026-06-13
@@ -9393,11 +8758,19 @@ S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Gray EX + -08.50,분리,2026-06-28
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Gray EX + -08.50,사출,2026-06-27
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Gray EX + -08.50,접착,2026-07-01
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Ash Gray EX + -08.50,하이드레이션,2026-06-29
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -00.00,누수규격,2026-06-13
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -00.00,분리,2026-06-09
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -00.00,사출,2026-06-08
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -00.00,접착,2026-06-12
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -00.00,하이드레이션,2026-06-10
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.00,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.00,접착,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.00,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.25,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.25,분리,2026-06-11
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.25,사출,2026-06-10
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.25,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.25,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.50,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.75,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -01.75,분리,2026-06-11
@@ -9413,6 +8786,10 @@ S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.25,분리,2026-06-1
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.25,사출,2026-06-10
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.25,접착,2026-06-14
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.25,하이드레이션,2026-06-12
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.50,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.50,분리,2026-06-11
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.50,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -02.50,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -03.50,누수규격,2026-06-15
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -03.50,분리,2026-06-11
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -03.50,사출,2026-06-10
@@ -9438,6 +8815,11 @@ S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -05.50,분리,2026-06-0
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -05.50,사출,2026-06-08
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -05.50,접착,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -05.50,하이드레이션,2026-06-10
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -06.00,누수규격,2026-06-15
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -06.00,분리,2026-06-11
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -06.00,사출,2026-06-10
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -06.00,접착,2026-06-14
+S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -06.00,하이드레이션,2026-06-12
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -07.00,누수규격,2026-06-13
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -07.00,분리,2026-06-09
 S관(3공장),Si_1-Day_Color_Sph,O2O2 D_Sepia Choco EX + -07.00,사출,2026-06-08
@@ -9500,8 +8882,8 @@ S관(3공장),Si_1-Day_M/F,O2O2 D_Multifocal_FGC + -01.75,접착,2026-07-08
 S관(3공장),Si_1-Day_M/F,O2O2 D_Multifocal_FGC + -01.75,하이드레이션,2026-07-06
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.25,분리,2026-07-29
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.25,사출,2026-07-28
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.50,분리,2026-07-29
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.50,사출,2026-07-28
+S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.50,분리,2026-06-29
+S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.50,사출,2026-06-28
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.75,분리,2026-07-05
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +00.75,사출,2026-07-04
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + +01.00,분리,2026-07-29
@@ -9530,20 +8912,15 @@ S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -00.00,분리,2026-07-06
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -00.00,사출,2026-07-05
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -00.25,분리,2026-07-29
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -00.25,사출,2026-07-28
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -00.75,분리,2026-07-29
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -00.75,사출,2026-07-28
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.00,분리,2026-07-29
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.00,사출,2026-07-28
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.25,분리,2026-06-17
+S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.25,분리,2026-07-29
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.25,사출,2026-07-28
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.50,분리,2026-06-17
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.50,사출,2026-06-16
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.75,분리,2026-06-17
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -01.75,사출,2026-06-16
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -02.00,분리,2026-06-17
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -02.00,사출,2026-06-16
+S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -02.00,사출,2026-07-28
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -02.25,분리,2026-05-29
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -02.25,사출,2026-05-28
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -02.75,분리,2026-06-17
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -02.75,사출,2026-07-28
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -03.00,분리,2026-06-17
@@ -9560,7 +8937,6 @@ S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -04.25,분리,2026-06-17
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -04.25,사출,2026-06-16
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -04.50,분리,2026-06-17
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -04.50,사출,2026-07-28
-S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -05.00,분리,2026-06-17
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -05.50,분리,2026-06-17
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -05.50,사출,2026-06-16
 S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -06.00,분리,2026-06-17
@@ -9578,9 +8954,9 @@ S관(3공장),Si_1-Day_M/F,O2O2 Multifocal(DK70)_SMHL + -09.50,사출,2026-06-16
 S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.25,누수규격,2026-08-02
 S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.25,접착,2026-08-01
 S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.25,하이드레이션,2026-07-30
-S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.50,누수규격,2026-08-02
-S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.50,접착,2026-08-01
-S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.50,하이드레이션,2026-07-30
+S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.50,누수규격,2026-07-03
+S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.50,접착,2026-07-02
+S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.50,하이드레이션,2026-06-30
 S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.75,누수규격,2026-08-02
 S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.75,접착,2026-08-01
 S관(3공장),Si_1-Day_M/F,O2O2_Multifocal_K2_SMDH_WHITE_OPHTALMIC + +00.75,하이드레이션,2026-07-30
@@ -9740,8 +9116,6 @@ S관(3공장),Si_1-Day_M/F,ZOOM D_ADD+1.00 + -10.00,하이드레이션,2026-06-1
 S관(3공장),Si_1-Day_M/F,ZOOM D_ADD+1.00 + -10.50,누수규격,2026-06-21
 S관(3공장),Si_1-Day_M/F,ZOOM D_ADD+1.00 + -10.50,접착,2026-06-20
 S관(3공장),Si_1-Day_M/F,ZOOM D_ADD+1.00 + -10.50,하이드레이션,2026-06-18
-S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_Marshal + -01.50,누수규격,2026-06-29
-S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_Marshal + -01.50,접착,2026-06-28
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_Esoform + -01.00,누수규격,2026-07-09
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_Esoform + -01.00,접착,2026-07-08
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_Esoform + -01.00,하이드레이션,2026-07-06
@@ -9794,16 +9168,13 @@ S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_Esoform + -05.50,누수
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_Esoform + -05.50,접착,2026-07-08
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_Esoform + -05.50,하이드레이션,2026-07-06
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + +02.00,누수규격,2026-06-18
-S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + +02.00,접착,2026-06-17
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + +04.50,누수규격,2026-06-18
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + +04.50,접착,2026-06-17
-S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + +06.50,누수규격,2026-06-18
-S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + +06.50,접착,2026-06-17
+S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + -00.75,누수규격,2026-06-18
+S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + -00.75,접착,2026-06-17
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + -07.00,누수규격,2026-06-18
-S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical(DK70)_SMH_OKVision + -07.00,접착,2026-06-17
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -01.50,누수규격,2026-07-09
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -01.50,접착,2026-07-08
-S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -01.50,하이드레이션,2026-07-06
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -02.25,누수규격,2026-07-09
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -02.25,접착,2026-07-08
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -04.00,누수규격,2026-07-09
@@ -9814,12 +9185,10 @@ S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -04.25,접착,2026-07-08
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -07.00,누수규격,2026-07-09
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -07.00,접착,2026-07-08
 S관(3공장),Si_1-Day_Sph,O2O2 D_UV_Spherical_FGC + -07.00,하이드레이션,2026-07-06
-S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +01.50,분리,2026-07-29
-S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +01.50,사출,2026-07-28
 S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +01.75,분리,2026-07-29
 S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +01.75,사출,2026-07-28
-S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +02.00,분리,2026-07-29
-S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +02.00,사출,2026-07-28
+S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +02.00,분리,2026-06-29
+S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +02.00,사출,2026-06-28
 S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +02.50,분리,2026-07-29
 S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +02.50,사출,2026-07-28
 S관(3공장),Si_1-Day_Sph,O2O2 Sph(DK70)_SMHL + +02.75,분리,2026-07-29
@@ -9859,9 +9228,9 @@ S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +01.50,하�
 S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +01.75,누수규격,2026-08-02
 S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +01.75,접착,2026-08-01
 S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +01.75,하이드레이션,2026-07-30
-S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.00,누수규격,2026-08-02
-S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.00,접착,2026-08-01
-S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.00,하이드레이션,2026-07-30
+S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.00,누수규격,2026-07-03
+S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.00,접착,2026-07-02
+S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.00,하이드레이션,2026-06-30
 S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.50,누수규격,2026-08-02
 S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.50,접착,2026-08-01
 S관(3공장),Si_1-Day_Sph,O2O2 Spherical_K2-SMDH_WHITE_OPHTALMIC + +02.50,하이드레이션,2026-07-30
@@ -10019,22 +9388,8 @@ S관(3공장),Si_1-Day_Toric,O2O2 D_UV_Toric_SMD_White + -09.00,접착,2026-06-2
 S관(3공장),Si_1-Day_Toric,O2O2 D_UV_Toric_SMD_White + -09.00,하이드레이션,2026-06-19
 S관(3공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX + -05.50,분리,2026-06-12
 S관(3공장),Si_FRP_Color_Sph,O2O2 M_Natural Chocolat EX + -05.50,사출,2026-06-11
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + +04.25,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + +04.75,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + +05.00,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + +05.00,접착,2026-06-17
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -00.50,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -03.75,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -05.50,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -05.75,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -05.75,접착,2026-06-17
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -05.75,하이드레이션,2026-06-15
 S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -06.00,누수규격,2026-06-18
 S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -06.00,접착,2026-06-17
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -06.00,하이드레이션,2026-06-15
 S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -09.00,누수규격,2026-06-18
 S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -09.00,접착,2026-06-17
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -09.00,하이드레이션,2026-06-15
 S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -10.00,누수규격,2026-06-18
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -10.00,접착,2026-06-17
-S관(3공장),Si_FRP_M/F,O2O2 M_Multifocal(DK70)_SMHL + -10.00,하이드레이션,2026-06-15
