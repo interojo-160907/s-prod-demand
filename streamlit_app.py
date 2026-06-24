@@ -2150,11 +2150,15 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
         site = out["포장공장"].astype("string").fillna("").astype(str).str.strip()
         out = out.loc[site.ne("") & (~site.isin(["총합계", "총합", "종합계"]))].copy()
     out["포장 부족수량"] = pd.to_numeric(out["포장 부족수량"], errors="coerce").fillna(0).astype(int)
+    out["_포장공정 부족수량"] = out["포장 부족수량"].astype(int)
     if "[80]누수/규격검사" in out.columns:
         leak_qty = pd.to_numeric(out["[80]누수/규격검사"], errors="coerce").fillna(0).astype(int)
+        out["_누수규격 부족수량"] = leak_qty
         # If the packing column is empty/zero but production is short at 누수규격,
         # show the 누수규격 shortage as the packing-facing shortage quantity.
         out["포장 부족수량"] = out["포장 부족수량"].where(out["포장 부족수량"].gt(0), leak_qty)
+    else:
+        out["_누수규격 부족수량"] = 0
     out = out.loc[out["포장 부족수량"].gt(0)].copy()
     if out.empty:
         return pd.DataFrame()
@@ -6164,7 +6168,22 @@ def main() -> None:
             placeholder="예: HW0327, SEPIA, P1000A-03.50",
             key=f"packing_{code_key}_search",
         )
+
+        exclude_init_key = f"packing_{code_key}_exclude_dom_safe"
+        workable_key = f"packing_{code_key}_workable_only"
+        st.session_state.setdefault(exclude_init_key, False)
+        st.session_state.setdefault(workable_key, False)
+        exclude_dom_safe = bool(st.session_state.get(exclude_init_key, False))
+        workable_only = bool(st.session_state.get(workable_key, False))
+
         view_show = _filter_by_any_contains_all_terms(packing, ["이니셜", "품명", "제품코드", "수주번호"], search_raw)
+        if exclude_dom_safe and "이니셜" in view_show.columns:
+            init_s = view_show["이니셜"].astype("string").fillna("").astype(str)
+            view_show = view_show.loc[~init_s.str.contains("국내|안전", case=False, regex=True, na=False)].copy()
+        if workable_only:
+            pack_raw = pd.to_numeric(view_show.get("_포장공정 부족수량"), errors="coerce").fillna(0)
+            prod_short = pd.to_numeric(view_show.get("생산 부족분"), errors="coerce").fillna(0)
+            view_show = view_show.loc[pack_raw.gt(0) & prod_short.eq(0)].copy()
         if view_show is None or view_show.empty:
             st.caption("검색 조건에 해당하는 포장 부족수량이 없습니다.")
             return
@@ -6177,6 +6196,11 @@ def main() -> None:
         except Exception:
             view_show = view_show.reset_index(drop=True)
         view_show["우선순위"] = range(1, len(view_show) + 1)
+
+        num_view = view_show.copy()
+        for c in ["생산 부족분", "포장 부족수량"]:
+            if c in num_view.columns:
+                num_view[c] = pd.to_numeric(num_view[c], errors="coerce").fillna(0).astype(int)
 
         base_cols = [
             "우선순위",
@@ -6205,13 +6229,49 @@ def main() -> None:
         view_show = view_show[show_cols].copy()
 
         try:
-            packing_sum = int(pd.to_numeric(view_show.get("포장 부족수량"), errors="coerce").fillna(0).sum())
+            packing_sum = int(pd.to_numeric(num_view.get("포장 부족수량"), errors="coerce").fillna(0).sum())
         except Exception:
             packing_sum = 0
         try:
-            production_short_sum = int(pd.to_numeric(view_show.get("생산 부족분"), errors="coerce").fillna(0).sum())
+            production_short_sum = int(pd.to_numeric(num_view.get("생산 부족분"), errors="coerce").fillna(0).sum())
         except Exception:
             production_short_sum = 0
+
+        summary_base = num_view.copy()
+        if "납기일" in summary_base.columns:
+            summary_base["_due_date"] = pd.to_datetime(summary_base["납기일"], errors="coerce").dt.date
+        else:
+            summary_base["_due_date"] = pd.NaT
+        summary_group = [c for c in ["포장공장", "이니셜", "수주번호"] if c in summary_base.columns]
+        if (_is_all_codes(codes_selected) or len(codes_selected) > 1) and new_code_col in summary_base.columns:
+            summary_group = [c for c in [*summary_group, new_code_col] if c in summary_base.columns]
+        if not summary_group:
+            summary_group = ["수주번호"] if "수주번호" in summary_base.columns else []
+
+        work = summary_base.copy()
+        work["품목수"] = work["제품코드"] if "제품코드" in work.columns else 1
+        work["납기일"] = work["_due_date"]
+        summary_agg = {
+            "품목수": "nunique" if "제품코드" in work.columns else "sum",
+            "납기일": "min",
+            "생산 부족분": "sum",
+            "포장 부족수량": "sum",
+        }
+        summary_df = work.groupby(summary_group, dropna=False, as_index=False).agg(summary_agg) if summary_group else pd.DataFrame()
+        if not summary_df.empty:
+            sort_cols = [c for c in ["납기일", "포장공장", new_code_col, "이니셜", "수주번호"] if c in summary_df.columns]
+            if sort_cols:
+                summary_df = summary_df.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+            summary_df.insert(0, "우선순위", range(1, len(summary_df) + 1))
+            for c in ["품목수", "생산 부족분", "포장 부족수량"]:
+                if c in summary_df.columns:
+                    summary_df[c] = pd.to_numeric(summary_df[c], errors="coerce").fillna(0).astype(int)
+
+        summary_base_cols = ["우선순위", "포장공장", "이니셜", "수주번호"]
+        if _is_all_codes(codes_selected) or len(codes_selected) > 1:
+            summary_base_cols.append(new_code_col)
+        summary_base_cols += ["품목수", "납기일", "생산 부족분", "포장 부족수량"]
+        summary_cols = [c for c in summary_base_cols if c in summary_df.columns]
 
         export_df = view_show.copy()
         for c in ["포장 부족수량", "생산 부족분"]:
@@ -6225,6 +6285,8 @@ def main() -> None:
             str(selected_plant or ""),
             tuple(codes_selected or []),
             str(search_raw or ""),
+            bool(exclude_dom_safe),
+            bool(workable_only),
             str(st.session_state.get("packing_due_quick", "해제")),
             str(st.session_state.get("packing_due_end", "")),
             tuple(show_cols),
@@ -6235,20 +6297,40 @@ def main() -> None:
         packing_xlsx_key = f"packing_{code_key}_xlsx_cache"
         packing_xlsx_cache = st.session_state.get(packing_xlsx_key)
         if not isinstance(packing_xlsx_cache, dict) or packing_xlsx_cache.get("sig") != packing_xlsx_sig:
+            summary_xlsx = _reorder_cols_for_export(summary_df[summary_cols] if summary_cols else pd.DataFrame(), summary_cols)
+            detail_xlsx = _reorder_cols_for_export(export_df, show_cols)
             packing_xlsx_cache = {
                 "sig": packing_xlsx_sig,
-                "xlsx": _to_excel_bytes(_reorder_cols_for_export(export_df, show_cols), sheet_name="포장현황"),
+                "xlsx": _to_excel_bytes_multi([
+                    ("포장요약", summary_xlsx),
+                    ("포장상세", detail_xlsx),
+                ]),
             }
             st.session_state[packing_xlsx_key] = packing_xlsx_cache
         xlsx_bytes = packing_xlsx_cache.get("xlsx", b"") if isinstance(packing_xlsx_cache, dict) else b""
 
-        st.download_button(
-            "다운로드(포장)",
-            data=xlsx_bytes,
-            file_name=f"포장현황_{code_label}_{_today_kst().isoformat()}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"packing_{code_key}_download",
-        )
+        dl_col, cb_col = st.columns([3, 2], gap="small")
+        with dl_col:
+            st.download_button(
+                "다운로드(포장)",
+                data=xlsx_bytes,
+                file_name=f"포장현황_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"packing_{code_key}_download",
+            )
+        with cb_col:
+            st.checkbox(
+                "국내/안전 제외",
+                value=exclude_dom_safe,
+                key=exclude_init_key,
+                help="이니셜에 '국내' 또는 '안전'이 포함된 항목을 제외합니다.",
+            )
+            st.checkbox(
+                "작업가능만",
+                value=workable_only,
+                key=workable_key,
+                help="원본 [85]포장 수량이 있고 생산 부족분이 0인 항목만 표시합니다.",
+            )
         st.markdown(
             f"<div style='margin: 8px 0 8px 0; padding: 4px 8px;'>"
             f"<span style='margin-right: 20px; font-size: 15px;'>포장 부족수량: "
@@ -6258,6 +6340,36 @@ def main() -> None:
             f"</div>",
             unsafe_allow_html=True,
         )
+
+        if not summary_df.empty and summary_cols:
+            summary_show = summary_df[summary_cols].copy()
+            summary_cfg: dict[str, object] = {
+                "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
+                "포장공장": st.column_config.TextColumn(width="small"),
+                "이니셜": st.column_config.TextColumn(width="small"),
+                "수주번호": st.column_config.TextColumn(width="medium"),
+                "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
+                "품목수": st.column_config.NumberColumn(format="%d", width="small"),
+                "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
+                "생산 부족분": st.column_config.NumberColumn(format="localized", width="small"),
+                "포장 부족수량": st.column_config.NumberColumn(format="localized", width="small"),
+            }
+            summary_cfg = {k: v for k, v in summary_cfg.items() if k in summary_cols}
+            summary_show2, summary_capped = _cap_df_for_display(summary_show, max_rows=MAX_DF_ROWS_DISPLAY)
+            if summary_capped:
+                st.caption(f"표시 성능을 위해 포장 요약 표는 상위 {MAX_DF_ROWS_DISPLAY:,}행만 표시합니다. (전체는 엑셀 다운로드로 확인)")
+            summary_h = _table_height_for_rows(len(summary_show2), min_height=260, max_height=520)
+            _render_dataframe_with_copy(
+                _style_dataframe_like_dashboard(summary_show2),
+                summary_show2,
+                key=f"packing_{code_key}_summary_table",
+                use_container_width=True,
+                height=summary_h,
+                hide_index=True,
+                column_config=summary_cfg,
+            )
+
+        st.divider()
 
         try:
             if "납기일" in view_show.columns:
