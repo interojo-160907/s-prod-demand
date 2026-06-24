@@ -2108,12 +2108,12 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
     if raw is None or raw.empty or "[85]포장" not in raw.columns:
         return pd.DataFrame()
 
-    group_key_raw = ["이니셜", "수주번호", "신규분류 요약코드", "수요 제품 이름", "납기일"]
-    group_key = ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"]
+    group_key_raw = ["이니셜", "수주번호", "신규분류 요약코드", "납기일"]
+    group_key = ["이니셜", "수주번호", "신규분류 요약코드", "납기일"]
     leak_map = pd.DataFrame()
     if all(c in raw.columns for c in [*group_key_raw, "설비 사이트 코드", "[80]누수/규격검사"]):
         leak_src = raw[[*group_key_raw, "설비 사이트 코드", "[80]누수/규격검사"]].copy()
-        for c in ["이니셜", "수주번호", "신규분류 요약코드", "수요 제품 이름"]:
+        for c in ["이니셜", "수주번호", "신규분류 요약코드"]:
             leak_src[c] = leak_src[c].astype("string").fillna("").astype(str).str.strip()
         leak_src["납기일"] = pd.to_datetime(leak_src["납기일"], errors="coerce")
         leak_src["설비 사이트 코드"] = leak_src["설비 사이트 코드"].astype("string").fillna("").astype(str).str.strip()
@@ -2121,7 +2121,6 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
         leak_src = leak_src.loc[
             leak_src["이니셜"].ne("")
             & leak_src["수주번호"].ne("")
-            & leak_src["수요 제품 이름"].ne("")
             & leak_src["[80]누수/규격검사"].gt(0)
         ].copy()
         if not leak_src.empty:
@@ -2129,11 +2128,9 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
                 leak_src.groupby(group_key_raw, dropna=False)
                 .agg(
                     생산부족_묶음합계=("[80]누수/규격검사", "sum"),
-                    생산공장=("설비 사이트 코드", lambda s: ", ".join(sorted(set([str(x).strip() for x in s if str(x).strip()])))),
                 )
                 .reset_index()
             )
-            leak_map = leak_map.rename(columns={"수요 제품 이름": "품명"})
 
     out = raw.copy()
     out = out.rename(
@@ -2160,10 +2157,7 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
         out = out.merge(leak_map, on=group_key, how="left")
     if "생산부족_묶음합계" not in out.columns:
         out["생산부족_묶음합계"] = 0
-    if "생산공장" not in out.columns:
-        out["생산공장"] = ""
     out["생산부족_묶음합계"] = pd.to_numeric(out["생산부족_묶음합계"], errors="coerce").fillna(0).astype(int)
-    out["생산공장"] = out["생산공장"].astype("string").fillna("").astype(str).str.strip()
     out["생산 부족분"] = 0
     try:
         for _, idx in out.groupby(group_key, dropna=False).groups.items():
@@ -6182,7 +6176,6 @@ def main() -> None:
         base_cols = [
             "우선순위",
             "포장공장",
-            "생산공장",
             "이니셜",
             "수주번호",
             "신규분류 요약코드",
@@ -6221,7 +6214,28 @@ def main() -> None:
                 export_df[c] = pd.to_numeric(export_df[c], errors="coerce").fillna(0).astype(int)
         if "납기일" in export_df.columns:
             export_df["납기일"] = pd.to_datetime(export_df["납기일"], errors="coerce").dt.date
-        xlsx_bytes = _to_excel_bytes(_reorder_cols_for_export(export_df, show_cols), sheet_name="포장현황")
+
+        packing_xlsx_sig = (
+            float(_excel_version_mtime(excel_path)),
+            str(selected_plant or ""),
+            tuple(codes_selected or []),
+            str(search_raw or ""),
+            str(st.session_state.get("packing_due_quick", "해제")),
+            str(st.session_state.get("packing_due_end", "")),
+            tuple(show_cols),
+            int(len(export_df)),
+            int(packing_sum),
+            int(production_short_sum),
+        )
+        packing_xlsx_key = f"packing_{code_key}_xlsx_cache"
+        packing_xlsx_cache = st.session_state.get(packing_xlsx_key)
+        if not isinstance(packing_xlsx_cache, dict) or packing_xlsx_cache.get("sig") != packing_xlsx_sig:
+            packing_xlsx_cache = {
+                "sig": packing_xlsx_sig,
+                "xlsx": _to_excel_bytes(_reorder_cols_for_export(export_df, show_cols), sheet_name="포장현황"),
+            }
+            st.session_state[packing_xlsx_key] = packing_xlsx_cache
+        xlsx_bytes = packing_xlsx_cache.get("xlsx", b"") if isinstance(packing_xlsx_cache, dict) else b""
 
         st.download_button(
             "다운로드(포장)",
@@ -6252,10 +6266,14 @@ def main() -> None:
                 except Exception:
                     pass
 
-        table_h = _table_height_for_rows(len(view_show), min_height=320, max_height=780)
+        view_display, packing_capped = _cap_df_for_display(view_show, max_rows=MAX_DF_ROWS_DISPLAY)
+        if packing_capped:
+            st.caption(f"표시 성능을 위해 포장 현황 표는 상위 {MAX_DF_ROWS_DISPLAY:,}행만 표시합니다. (전체는 엑셀 다운로드로 확인)")
+
+        table_h = _table_height_for_rows(len(view_display), min_height=320, max_height=780)
         _render_dataframe_with_copy(
-            _style_dataframe_like_dashboard(view_show),
-            view_show,
+            _style_dataframe_like_dashboard(view_display),
+            view_display,
             key=f"packing_{code_key}_table",
             use_container_width=True,
             height=table_h,
