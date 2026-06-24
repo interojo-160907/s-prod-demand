@@ -6207,7 +6207,6 @@ def main() -> None:
 
         base_cols = [
             "우선순위",
-            "공장",
             "이니셜",
             "수주번호",
             "신규분류 요약코드",
@@ -6245,7 +6244,7 @@ def main() -> None:
             summary_base["_due_date"] = pd.to_datetime(summary_base["납기일"], errors="coerce").dt.date
         else:
             summary_base["_due_date"] = pd.NaT
-        summary_group = [c for c in ["공장", "이니셜", "수주번호"] if c in summary_base.columns]
+        summary_group = [c for c in ["이니셜", "수주번호"] if c in summary_base.columns]
         if (_is_all_codes(codes_selected) or len(codes_selected) > 1) and new_code_col in summary_base.columns:
             summary_group = [c for c in [*summary_group, new_code_col] if c in summary_base.columns]
         if not summary_group:
@@ -6262,7 +6261,7 @@ def main() -> None:
         }
         summary_df = work.groupby(summary_group, dropna=False, as_index=False).agg(summary_agg) if summary_group else pd.DataFrame()
         if not summary_df.empty:
-            sort_cols = [c for c in ["납기일", "공장", new_code_col, "이니셜", "수주번호"] if c in summary_df.columns]
+            sort_cols = [c for c in ["납기일", new_code_col, "이니셜", "수주번호"] if c in summary_df.columns]
             if sort_cols:
                 summary_df = summary_df.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
             summary_df.insert(0, "우선순위", range(1, len(summary_df) + 1))
@@ -6270,7 +6269,7 @@ def main() -> None:
                 if c in summary_df.columns:
                     summary_df[c] = pd.to_numeric(summary_df[c], errors="coerce").fillna(0).astype(int)
 
-        summary_base_cols = ["우선순위", "공장", "이니셜", "수주번호"]
+        summary_base_cols = ["우선순위", "이니셜", "수주번호"]
         if _is_all_codes(codes_selected) or len(codes_selected) > 1:
             summary_base_cols.append(new_code_col)
         summary_base_cols += ["품목수", "납기일", "생산 부족분", "포장 부족수량"]
@@ -6348,7 +6347,6 @@ def main() -> None:
             summary_show = summary_df[summary_cols].copy()
             summary_cfg: dict[str, object] = {
                 "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
-                "공장": st.column_config.TextColumn(width="small"),
                 "이니셜": st.column_config.TextColumn(width="small"),
                 "수주번호": st.column_config.TextColumn(width="medium"),
                 "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
