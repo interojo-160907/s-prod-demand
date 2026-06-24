@@ -6252,10 +6252,10 @@ def main() -> None:
             summary_group = ["수주번호"] if "수주번호" in summary_base.columns else []
 
         work = summary_base.copy()
-        work["품목수"] = work["제품코드"] if "제품코드" in work.columns else 1
+        work["품목수"] = work["품명"] if "품명" in work.columns else (work["제품코드"] if "제품코드" in work.columns else 1)
         work["납기일"] = work["_due_date"]
         summary_agg = {
-            "품목수": "nunique" if "제품코드" in work.columns else "sum",
+            "품목수": "nunique" if ("품명" in work.columns or "제품코드" in work.columns) else "sum",
             "납기일": "min",
             "생산 부족분": "sum",
             "포장 부족수량": "sum",
