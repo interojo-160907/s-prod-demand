@@ -2135,19 +2135,19 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
     out = raw.copy()
     out = out.rename(
         columns={
-            "설비 사이트 코드": "포장공장",
+            "설비 사이트 코드": "공장",
             "수요 제품 이름": "품명",
             "제품 코드": "제품코드",
             "[85]포장": "포장 부족수량",
         }
     )
-    for c in ["포장공장", "고객 이름", "이니셜", "수주번호", "신규분류 요약코드", "품명", "제품코드"]:
+    for c in ["공장", "고객 이름", "이니셜", "수주번호", "신규분류 요약코드", "품명", "제품코드"]:
         if c in out.columns:
             out[c] = out[c].astype("string").fillna("").astype(str).str.strip()
     if "납기일" in out.columns:
         out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
-    if "포장공장" in out.columns:
-        site = out["포장공장"].astype("string").fillna("").astype(str).str.strip()
+    if "공장" in out.columns:
+        site = out["공장"].astype("string").fillna("").astype(str).str.strip()
         out = out.loc[site.ne("") & (~site.isin(["총합계", "총합", "종합계"]))].copy()
     out["포장 부족수량"] = pd.to_numeric(out["포장 부족수량"], errors="coerce").fillna(0).astype(int)
     out["_포장공정 부족수량"] = out["포장 부족수량"].astype(int)
@@ -6207,7 +6207,7 @@ def main() -> None:
 
         base_cols = [
             "우선순위",
-            "포장공장",
+            "공장",
             "이니셜",
             "수주번호",
             "신규분류 요약코드",
@@ -6245,7 +6245,7 @@ def main() -> None:
             summary_base["_due_date"] = pd.to_datetime(summary_base["납기일"], errors="coerce").dt.date
         else:
             summary_base["_due_date"] = pd.NaT
-        summary_group = [c for c in ["포장공장", "이니셜", "수주번호"] if c in summary_base.columns]
+        summary_group = [c for c in ["공장", "이니셜", "수주번호"] if c in summary_base.columns]
         if (_is_all_codes(codes_selected) or len(codes_selected) > 1) and new_code_col in summary_base.columns:
             summary_group = [c for c in [*summary_group, new_code_col] if c in summary_base.columns]
         if not summary_group:
@@ -6262,7 +6262,7 @@ def main() -> None:
         }
         summary_df = work.groupby(summary_group, dropna=False, as_index=False).agg(summary_agg) if summary_group else pd.DataFrame()
         if not summary_df.empty:
-            sort_cols = [c for c in ["납기일", "포장공장", new_code_col, "이니셜", "수주번호"] if c in summary_df.columns]
+            sort_cols = [c for c in ["납기일", "공장", new_code_col, "이니셜", "수주번호"] if c in summary_df.columns]
             if sort_cols:
                 summary_df = summary_df.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
             summary_df.insert(0, "우선순위", range(1, len(summary_df) + 1))
@@ -6270,7 +6270,7 @@ def main() -> None:
                 if c in summary_df.columns:
                     summary_df[c] = pd.to_numeric(summary_df[c], errors="coerce").fillna(0).astype(int)
 
-        summary_base_cols = ["우선순위", "포장공장", "이니셜", "수주번호"]
+        summary_base_cols = ["우선순위", "공장", "이니셜", "수주번호"]
         if _is_all_codes(codes_selected) or len(codes_selected) > 1:
             summary_base_cols.append(new_code_col)
         summary_base_cols += ["품목수", "납기일", "생산 부족분", "포장 부족수량"]
@@ -6348,7 +6348,7 @@ def main() -> None:
             summary_show = summary_df[summary_cols].copy()
             summary_cfg: dict[str, object] = {
                 "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
-                "포장공장": st.column_config.TextColumn(width="small"),
+                "공장": st.column_config.TextColumn(width="small"),
                 "이니셜": st.column_config.TextColumn(width="small"),
                 "수주번호": st.column_config.TextColumn(width="medium"),
                 "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
