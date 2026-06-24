@@ -2150,6 +2150,11 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
         site = out["포장공장"].astype("string").fillna("").astype(str).str.strip()
         out = out.loc[site.ne("") & (~site.isin(["총합계", "총합", "종합계"]))].copy()
     out["포장 부족수량"] = pd.to_numeric(out["포장 부족수량"], errors="coerce").fillna(0).astype(int)
+    if "[80]누수/규격검사" in out.columns:
+        leak_qty = pd.to_numeric(out["[80]누수/규격검사"], errors="coerce").fillna(0).astype(int)
+        # If the packing column is empty/zero but production is short at 누수규격,
+        # show the 누수규격 shortage as the packing-facing shortage quantity.
+        out["포장 부족수량"] = out["포장 부족수량"].where(out["포장 부족수량"].gt(0), leak_qty)
     out = out.loc[out["포장 부족수량"].gt(0)].copy()
     if out.empty:
         return pd.DataFrame()
