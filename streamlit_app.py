@@ -2076,6 +2076,79 @@ def _load_plant_options_from_excel(path: str, mtime: float) -> list[str]:
     return sorted(vals)
 
 
+@st.cache_data(show_spinner=False)
+def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
+    """
+    Load packing shortage rows directly from the raw `이니셜별` sheet.
+
+    The generated out/*.csv snapshots intentionally keep the core process columns
+    only, so `[85]포장` is read from the workbook for the 포장현황 tab.
+    """
+    _ = mtime  # cache-buster
+    if not path or not os.path.exists(path):
+        return pd.DataFrame()
+    wanted = [
+        "설비 사이트 코드",
+        "고객 이름",
+        "이니셜",
+        "수주번호",
+        "신규분류 요약코드",
+        "수요 제품 이름",
+        "제품 코드",
+        "납기일",
+        "[85]포장",
+        "생산 수량",
+    ]
+    try:
+        header = pd.read_excel(path, sheet_name="이니셜별", nrows=0)
+        present = [c for c in wanted if c in header.columns]
+        raw = pd.read_excel(path, sheet_name="이니셜별", usecols=present) if present else pd.read_excel(path, sheet_name="이니셜별")
+    except Exception:
+        return pd.DataFrame()
+    if raw is None or raw.empty or "[85]포장" not in raw.columns:
+        return pd.DataFrame()
+
+    out = raw.copy()
+    out = out.rename(
+        columns={
+            "수요 제품 이름": "품명",
+            "제품 코드": "제품코드",
+            "[85]포장": "포장 부족수량",
+            "생산 수량": "생산수량",
+        }
+    )
+    for c in ["설비 사이트 코드", "고객 이름", "이니셜", "수주번호", "신규분류 요약코드", "품명", "제품코드"]:
+        if c in out.columns:
+            out[c] = out[c].astype("string").fillna("").astype(str).str.strip()
+    if "설비 사이트 코드" in out.columns:
+        site = out["설비 사이트 코드"].astype("string").fillna("").astype(str).str.strip()
+        out = out.loc[site.ne("") & (~site.isin(["총합계", "총합", "종합계"]))].copy()
+    out["포장 부족수량"] = pd.to_numeric(out["포장 부족수량"], errors="coerce").fillna(0).astype(int)
+    out = out.loc[out["포장 부족수량"].gt(0)].copy()
+    if out.empty:
+        return pd.DataFrame()
+    if "생산수량" in out.columns:
+        out["생산수량"] = pd.to_numeric(out["생산수량"], errors="coerce").fillna(0).astype(int)
+    if "납기일" in out.columns:
+        out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
+
+    if "POWER" not in out.columns:
+        out["POWER"] = ""
+    if "제품코드" in out.columns:
+        code_s = out["제품코드"].astype("string").fillna("").astype(str)
+        power = code_s.str.extract(r"([+-]\d+\.\d{2})", expand=False)
+        out["POWER"] = power.fillna("").map(lambda x: _normalize_signed_2dp(x, zero_sign="+") if str(x).strip() else "")
+    out = _fill_spec_from_item_code(out.rename(columns={"제품코드": "제품코드"}))
+
+    for c in ["CP", "AXIS", "ADD"]:
+        if c not in out.columns:
+            out[c] = ""
+    sort_cols = [c for c in ["납기일", "신규분류 요약코드", "품명", "POWER", "CP", "AXIS", "ADD"] if c in out.columns]
+    if sort_cols:
+        out = out.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last")
+    return out.reset_index(drop=True)
+
+
 def _filter_by_plant(df: pd.DataFrame | None, plant: str | None) -> pd.DataFrame | None:
     if df is None or df.empty:
         return df
@@ -5496,7 +5569,7 @@ def main() -> None:
         render(df, ui_key_prefix="all")
         return
 
-    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크", "사출 계획", "재작업리스트"]
+    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크", "사출 계획", "재작업리스트", "포장현황"]
     _pre_widget_single_select_fix(key="view_mode", default="납기별 상세", options=view_options)
     view_mode_raw = st.segmented_control(
         "보기",
@@ -5538,6 +5611,11 @@ def main() -> None:
             st.session_state["rework_due_quick"] = "해제"
             st.session_state["rework_due_end"] = _today_kst()
             st.session_state["_prev_rework_due_quick"] = "해제"
+        if view_mode == "포장현황":
+            # Reset due-date filter when entering packing view.
+            st.session_state["packing_due_quick"] = "해제"
+            st.session_state["packing_due_end"] = _today_kst()
+            st.session_state["_prev_packing_due_quick"] = "해제"
         st.session_state["_prev_view_mode"] = view_mode
 
     process_only = None
@@ -5612,6 +5690,43 @@ def main() -> None:
             value=st.session_state.get("rework_due_end", rework_default_end),
             key="rework_due_end",
             disabled=(rework_due_quick == "해제"),
+        )
+
+    packing_end_date = None
+    if view_mode == "포장현황":
+        # Due date end quick-picks for packing view (same UX as due/process tabs).
+        packing_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
+        _pre_widget_single_select_fix(key="packing_due_quick", default="해제", options=packing_quick_options)
+        packing_due_quick_raw = st.pills(
+            "납기일 종료 (빠른 선택)",
+            options=packing_quick_options,
+            default="해제",
+            key="packing_due_quick",
+            selection_mode="single",
+            on_change=_on_change_single_select,
+            args=("packing_due_quick", "해제", packing_quick_options),
+            label_visibility="collapsed",
+        )
+        packing_due_quick = _coerce_single_value(packing_due_quick_raw, default="해제", options=packing_quick_options)
+        if packing_due_quick == "당월":
+            packing_default_end = _end_of_month(_today_kst())
+        elif packing_due_quick == "+7일":
+            packing_default_end = _today_kst() + timedelta(days=7)
+        elif packing_due_quick == "+14일":
+            packing_default_end = _today_kst() + timedelta(days=14)
+        else:
+            packing_default_end = _today_kst()
+
+        prev_packing_quick = st.session_state.get("_prev_packing_due_quick")
+        if prev_packing_quick != packing_due_quick:
+            st.session_state["packing_due_end"] = packing_default_end
+            st.session_state["_prev_packing_due_quick"] = packing_due_quick
+
+        packing_end_date = st.date_input(
+            "납기일 종료",
+            value=st.session_state.get("packing_due_end", packing_default_end),
+            key="packing_due_end",
+            disabled=(packing_due_quick == "해제"),
         )
 
     if view_mode == "공정별 보기":
@@ -5841,6 +5956,16 @@ def main() -> None:
                             continue
                         totals_base[code_s] = float(totals_base.get(code_s, 0.0)) + float(qty)
                         total_all += float(qty)
+        elif view_mode == "포장현황":
+            p = _load_packing_shortage_from_excel(excel_path, _excel_version_mtime(excel_path)) if bool(excel_path) else pd.DataFrame()
+            p = _filter_by_plant(p, selected_plant)
+            if p is not None and (not p.empty):
+                if st.session_state.get("packing_due_quick", "해제") != "해제":
+                    p = _apply_due_date_end_filter(p, st.session_state.get("packing_due_end", _today_kst()))
+                if p is not None and (not p.empty) and (new_code_col in p.columns) and ("포장 부족수량" in p.columns):
+                    p["포장 부족수량"] = pd.to_numeric(p["포장 부족수량"], errors="coerce").fillna(0)
+                    totals_base = p.groupby(new_code_col, dropna=False)["포장 부족수량"].sum(numeric_only=True).to_dict()
+                    total_all = float(p["포장 부족수량"].sum())
         else:
             due_end_for_totals: date | None = None
             if view_mode == "수주별 현황" and st.session_state.get("order_due_quick", "해제") != "해제":
@@ -5948,6 +6073,124 @@ def main() -> None:
 
     code_label = _codes_label(codes_selected)
     code_key = _codes_key(codes_selected)
+
+    if view_mode == "포장현황":
+        st.subheader("포장 현황")
+        if not excel_path:
+            st.caption("엑셀 파일을 찾지 못했습니다.")
+            return
+
+        packing = _load_packing_shortage_from_excel(excel_path, _excel_version_mtime(excel_path))
+        packing = _filter_by_plant(packing, selected_plant)
+        if packing is None or packing.empty:
+            st.caption("포장 부족수량이 없습니다.")
+            return
+        if st.session_state.get("packing_due_quick", "해제") != "해제":
+            packing = _apply_due_date_end_filter(packing, st.session_state.get("packing_due_end", _today_kst()))
+        if packing is None or packing.empty:
+            st.caption("현재 필터 조건에 해당하는 포장 부족수량이 없습니다.")
+            return
+        if (not _is_all_codes(codes_selected)) and (new_code_col in packing.columns):
+            packing = packing.loc[packing[new_code_col].astype("string").isin(list(codes_selected))].copy()
+        if packing is None or packing.empty:
+            st.caption("선택한 분류 조건에 해당하는 포장 부족수량이 없습니다.")
+            return
+
+        search_raw = st.text_input(
+            "검색 (이니셜/품명/제품코드/수주번호)",
+            placeholder="예: HW0327, SEPIA, P1000A-03.50",
+            key=f"packing_{code_key}_search",
+        )
+        view_show = _filter_by_any_contains_all_terms(packing, ["이니셜", "품명", "제품코드", "수주번호"], search_raw)
+        if view_show is None or view_show.empty:
+            st.caption("검색 조건에 해당하는 포장 부족수량이 없습니다.")
+            return
+
+        try:
+            view_show["납기일"] = pd.to_datetime(view_show.get("납기일"), errors="coerce")
+            sort_cols = [c for c in ["납기일", "이니셜", "수주번호", "제품코드"] if c in view_show.columns]
+            if sort_cols:
+                view_show = view_show.sort_values(sort_cols, ascending=[True] * len(sort_cols), na_position="last").reset_index(drop=True)
+        except Exception:
+            view_show = view_show.reset_index(drop=True)
+        view_show["우선순위"] = range(1, len(view_show) + 1)
+
+        base_cols = [
+            "우선순위",
+            "설비 사이트 코드",
+            "이니셜",
+            "수주번호",
+            "신규분류 요약코드",
+            "품명",
+            "제품코드",
+            "POWER",
+            "CP",
+            "AXIS",
+            "ADD",
+            "납기일",
+            "포장 부족수량",
+            "생산수량",
+        ]
+        # Hide empty optional spec columns to keep the table compact.
+        show_cols: list[str] = []
+        for c in base_cols:
+            if c not in view_show.columns:
+                continue
+            if c in ["CP", "AXIS", "ADD"] and view_show[c].astype("string").fillna("").astype(str).str.strip().eq("").all():
+                continue
+            show_cols.append(c)
+        view_show = view_show[show_cols].copy()
+
+        try:
+            packing_sum = int(pd.to_numeric(view_show.get("포장 부족수량"), errors="coerce").fillna(0).sum())
+        except Exception:
+            packing_sum = 0
+
+        export_df = view_show.copy()
+        for c in ["포장 부족수량", "생산수량"]:
+            if c in export_df.columns:
+                export_df[c] = pd.to_numeric(export_df[c], errors="coerce").fillna(0).astype(int)
+        if "납기일" in export_df.columns:
+            export_df["납기일"] = pd.to_datetime(export_df["납기일"], errors="coerce").dt.date
+        xlsx_bytes = _to_excel_bytes(_reorder_cols_for_export(export_df, show_cols), sheet_name="포장현황")
+
+        st.download_button(
+            "다운로드(포장)",
+            data=xlsx_bytes,
+            file_name=f"포장현황_{code_label}_{_today_kst().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key=f"packing_{code_key}_download",
+        )
+        st.markdown(
+            f"<div style='margin: 8px 0 8px 0; padding: 4px 8px;'>"
+            f"<span style='margin-right: 20px; font-size: 15px;'>포장 부족수량: "
+            f"<strong style='color: #0066cc;'>{_format_int(packing_sum)}</strong></span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+        try:
+            if "납기일" in view_show.columns:
+                view_show["납기일"] = pd.to_datetime(view_show["납기일"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
+        except Exception:
+            pass
+        for c in ["포장 부족수량", "생산수량"]:
+            if c in view_show.columns:
+                try:
+                    view_show[c] = view_show[c].map(_format_int)
+                except Exception:
+                    pass
+
+        table_h = _table_height_for_rows(len(view_show), min_height=320, max_height=780)
+        _render_dataframe_with_copy(
+            _style_dataframe_like_dashboard(view_show),
+            view_show,
+            key=f"packing_{code_key}_table",
+            use_container_width=True,
+            height=table_h,
+            hide_index=True,
+        )
+        return
 
     if view_mode == "수주별 현황":
         subset = (
