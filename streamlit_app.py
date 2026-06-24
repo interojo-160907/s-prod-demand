@@ -6182,8 +6182,11 @@ def main() -> None:
             view_show = view_show.loc[~init_s.str.contains("국내|안전", case=False, regex=True, na=False)].copy()
         if workable_only:
             pack_raw = pd.to_numeric(view_show.get("_포장공정 부족수량"), errors="coerce").fillna(0)
-            prod_short = pd.to_numeric(view_show.get("생산 부족분"), errors="coerce").fillna(0)
-            view_show = view_show.loc[pack_raw.gt(0) & prod_short.eq(0)].copy()
+            row_leak = pd.to_numeric(view_show.get("_누수규격 부족수량"), errors="coerce").fillna(0)
+            view_show = view_show.loc[pack_raw.gt(0) & row_leak.eq(0)].copy()
+            if not view_show.empty:
+                view_show["포장 부족수량"] = pd.to_numeric(view_show.get("_포장공정 부족수량"), errors="coerce").fillna(0).astype(int)
+                view_show["생산 부족분"] = 0
         if view_show is None or view_show.empty:
             st.caption("검색 조건에 해당하는 포장 부족수량이 없습니다.")
             return
@@ -6329,7 +6332,7 @@ def main() -> None:
                 "작업가능만",
                 value=workable_only,
                 key=workable_key,
-                help="원본 [85]포장 수량이 있고 생산 부족분이 0인 항목만 표시합니다.",
+                help="원본 [85]포장 수량이 있고 해당 규격의 누수규격 부족이 0인 항목만 표시합니다.",
             )
         st.markdown(
             f"<div style='margin: 8px 0 8px 0; padding: 4px 8px;'>"
