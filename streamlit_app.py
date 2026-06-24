@@ -2096,8 +2096,8 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
         "수요 제품 이름",
         "제품 코드",
         "납기일",
+        "[80]누수/규격검사",
         "[85]포장",
-        "생산 수량",
     ]
     try:
         header = pd.read_excel(path, sheet_name="이니셜별", nrows=0)
@@ -2108,27 +2108,62 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
     if raw is None or raw.empty or "[85]포장" not in raw.columns:
         return pd.DataFrame()
 
+    leak_map = pd.DataFrame()
+    if all(c in raw.columns for c in ["수주번호", "제품 코드", "설비 사이트 코드", "[80]누수/규격검사"]):
+        leak_src = raw[["수주번호", "제품 코드", "설비 사이트 코드", "[80]누수/규격검사"]].copy()
+        leak_src["수주번호"] = leak_src["수주번호"].astype("string").fillna("").astype(str).str.strip()
+        leak_src["제품 코드"] = leak_src["제품 코드"].astype("string").fillna("").astype(str).str.strip()
+        leak_src["설비 사이트 코드"] = leak_src["설비 사이트 코드"].astype("string").fillna("").astype(str).str.strip()
+        leak_src["[80]누수/규격검사"] = pd.to_numeric(leak_src["[80]누수/규격검사"], errors="coerce").fillna(0).astype(int)
+        leak_src = leak_src.loc[
+            leak_src["수주번호"].ne("")
+            & leak_src["제품 코드"].ne("")
+            & leak_src["[80]누수/규격검사"].gt(0)
+        ].copy()
+        if not leak_src.empty:
+            leak_map = (
+                leak_src.groupby(["수주번호", "제품 코드"], dropna=False)
+                .agg(
+                    생산_부족분=("[80]누수/규격검사", "sum"),
+                    생산공장=("설비 사이트 코드", lambda s: ", ".join(sorted(set([str(x).strip() for x in s if str(x).strip()])))),
+                )
+                .reset_index()
+            )
+
     out = raw.copy()
     out = out.rename(
         columns={
+            "설비 사이트 코드": "포장공장",
             "수요 제품 이름": "품명",
             "제품 코드": "제품코드",
             "[85]포장": "포장 부족수량",
-            "생산 수량": "생산수량",
         }
     )
-    for c in ["설비 사이트 코드", "고객 이름", "이니셜", "수주번호", "신규분류 요약코드", "품명", "제품코드"]:
+    for c in ["포장공장", "고객 이름", "이니셜", "수주번호", "신규분류 요약코드", "품명", "제품코드"]:
         if c in out.columns:
             out[c] = out[c].astype("string").fillna("").astype(str).str.strip()
-    if "설비 사이트 코드" in out.columns:
-        site = out["설비 사이트 코드"].astype("string").fillna("").astype(str).str.strip()
+    if "포장공장" in out.columns:
+        site = out["포장공장"].astype("string").fillna("").astype(str).str.strip()
         out = out.loc[site.ne("") & (~site.isin(["총합계", "총합", "종합계"]))].copy()
     out["포장 부족수량"] = pd.to_numeric(out["포장 부족수량"], errors="coerce").fillna(0).astype(int)
     out = out.loc[out["포장 부족수량"].gt(0)].copy()
     if out.empty:
         return pd.DataFrame()
-    if "생산수량" in out.columns:
-        out["생산수량"] = pd.to_numeric(out["생산수량"], errors="coerce").fillna(0).astype(int)
+    if not leak_map.empty and all(c in out.columns for c in ["수주번호", "제품코드"]):
+        out = out.merge(
+            leak_map.rename(columns={"제품 코드": "제품코드"}),
+            on=["수주번호", "제품코드"],
+            how="left",
+        )
+    out = out.rename(columns={"생산_부족분": "생산 부족분"})
+    if "생산 부족분" not in out.columns:
+        out["생산 부족분"] = 0
+    if "생산공장" not in out.columns:
+        out["생산공장"] = ""
+    out["생산 부족분"] = pd.to_numeric(out["생산 부족분"], errors="coerce").fillna(0).astype(int)
+    out["생산공장"] = out["생산공장"].astype("string").fillna("").astype(str).str.strip()
+    if "[80]누수/규격검사" in out.columns:
+        out = out.drop(columns=["[80]누수/규격검사"])
     if "납기일" in out.columns:
         out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
 
@@ -2154,7 +2189,11 @@ def _filter_by_plant(df: pd.DataFrame | None, plant: str | None) -> pd.DataFrame
         return df
     if not plant or plant == "전체":
         return df
-    col = "설비 사이트 코드" if "설비 사이트 코드" in df.columns else ("공장" if "공장" in df.columns else None)
+    col = (
+        "설비 사이트 코드"
+        if "설비 사이트 코드" in df.columns
+        else ("포장공장" if "포장공장" in df.columns else ("공장" if "공장" in df.columns else None))
+    )
     if col is None:
         return df
     s = df[col].astype("string").fillna("").astype(str).str.strip()
@@ -6117,7 +6156,8 @@ def main() -> None:
 
         base_cols = [
             "우선순위",
-            "설비 사이트 코드",
+            "포장공장",
+            "생산공장",
             "이니셜",
             "수주번호",
             "신규분류 요약코드",
@@ -6129,7 +6169,7 @@ def main() -> None:
             "ADD",
             "납기일",
             "포장 부족수량",
-            "생산수량",
+            "생산 부족분",
         ]
         # Hide empty optional spec columns to keep the table compact.
         show_cols: list[str] = []
@@ -6145,9 +6185,13 @@ def main() -> None:
             packing_sum = int(pd.to_numeric(view_show.get("포장 부족수량"), errors="coerce").fillna(0).sum())
         except Exception:
             packing_sum = 0
+        try:
+            production_short_sum = int(pd.to_numeric(view_show.get("생산 부족분"), errors="coerce").fillna(0).sum())
+        except Exception:
+            production_short_sum = 0
 
         export_df = view_show.copy()
-        for c in ["포장 부족수량", "생산수량"]:
+        for c in ["포장 부족수량", "생산 부족분"]:
             if c in export_df.columns:
                 export_df[c] = pd.to_numeric(export_df[c], errors="coerce").fillna(0).astype(int)
         if "납기일" in export_df.columns:
@@ -6165,6 +6209,8 @@ def main() -> None:
             f"<div style='margin: 8px 0 8px 0; padding: 4px 8px;'>"
             f"<span style='margin-right: 20px; font-size: 15px;'>포장 부족수량: "
             f"<strong style='color: #0066cc;'>{_format_int(packing_sum)}</strong></span>"
+            f"<span style='margin-right: 20px; font-size: 15px;'>생산 부족분: "
+            f"<strong style='color: #0066cc;'>{_format_int(production_short_sum)}</strong></span>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -6174,7 +6220,7 @@ def main() -> None:
                 view_show["납기일"] = pd.to_datetime(view_show["납기일"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
         except Exception:
             pass
-        for c in ["포장 부족수량", "생산수량"]:
+        for c in ["포장 부족수량", "생산 부족분"]:
             if c in view_show.columns:
                 try:
                     view_show[c] = view_show[c].map(_format_int)
