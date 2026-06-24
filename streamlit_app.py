@@ -2108,27 +2108,32 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
     if raw is None or raw.empty or "[85]포장" not in raw.columns:
         return pd.DataFrame()
 
+    group_key_raw = ["이니셜", "수주번호", "신규분류 요약코드", "수요 제품 이름", "납기일"]
+    group_key = ["이니셜", "수주번호", "신규분류 요약코드", "품명", "납기일"]
     leak_map = pd.DataFrame()
-    if all(c in raw.columns for c in ["수주번호", "제품 코드", "설비 사이트 코드", "[80]누수/규격검사"]):
-        leak_src = raw[["수주번호", "제품 코드", "설비 사이트 코드", "[80]누수/규격검사"]].copy()
-        leak_src["수주번호"] = leak_src["수주번호"].astype("string").fillna("").astype(str).str.strip()
-        leak_src["제품 코드"] = leak_src["제품 코드"].astype("string").fillna("").astype(str).str.strip()
+    if all(c in raw.columns for c in [*group_key_raw, "설비 사이트 코드", "[80]누수/규격검사"]):
+        leak_src = raw[[*group_key_raw, "설비 사이트 코드", "[80]누수/규격검사"]].copy()
+        for c in ["이니셜", "수주번호", "신규분류 요약코드", "수요 제품 이름"]:
+            leak_src[c] = leak_src[c].astype("string").fillna("").astype(str).str.strip()
+        leak_src["납기일"] = pd.to_datetime(leak_src["납기일"], errors="coerce")
         leak_src["설비 사이트 코드"] = leak_src["설비 사이트 코드"].astype("string").fillna("").astype(str).str.strip()
         leak_src["[80]누수/규격검사"] = pd.to_numeric(leak_src["[80]누수/규격검사"], errors="coerce").fillna(0).astype(int)
         leak_src = leak_src.loc[
-            leak_src["수주번호"].ne("")
-            & leak_src["제품 코드"].ne("")
+            leak_src["이니셜"].ne("")
+            & leak_src["수주번호"].ne("")
+            & leak_src["수요 제품 이름"].ne("")
             & leak_src["[80]누수/규격검사"].gt(0)
         ].copy()
         if not leak_src.empty:
             leak_map = (
-                leak_src.groupby(["수주번호", "제품 코드"], dropna=False)
+                leak_src.groupby(group_key_raw, dropna=False)
                 .agg(
-                    생산_부족분=("[80]누수/규격검사", "sum"),
+                    생산부족_묶음합계=("[80]누수/규격검사", "sum"),
                     생산공장=("설비 사이트 코드", lambda s: ", ".join(sorted(set([str(x).strip() for x in s if str(x).strip()])))),
                 )
                 .reset_index()
             )
+            leak_map = leak_map.rename(columns={"수요 제품 이름": "품명"})
 
     out = raw.copy()
     out = out.rename(
@@ -2142,6 +2147,8 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
     for c in ["포장공장", "고객 이름", "이니셜", "수주번호", "신규분류 요약코드", "품명", "제품코드"]:
         if c in out.columns:
             out[c] = out[c].astype("string").fillna("").astype(str).str.strip()
+    if "납기일" in out.columns:
+        out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
     if "포장공장" in out.columns:
         site = out["포장공장"].astype("string").fillna("").astype(str).str.strip()
         out = out.loc[site.ne("") & (~site.isin(["총합계", "총합", "종합계"]))].copy()
@@ -2149,23 +2156,41 @@ def _load_packing_shortage_from_excel(path: str, mtime: float) -> pd.DataFrame:
     out = out.loc[out["포장 부족수량"].gt(0)].copy()
     if out.empty:
         return pd.DataFrame()
-    if not leak_map.empty and all(c in out.columns for c in ["수주번호", "제품코드"]):
-        out = out.merge(
-            leak_map.rename(columns={"제품 코드": "제품코드"}),
-            on=["수주번호", "제품코드"],
-            how="left",
-        )
-    out = out.rename(columns={"생산_부족분": "생산 부족분"})
-    if "생산 부족분" not in out.columns:
-        out["생산 부족분"] = 0
+    if not leak_map.empty and all(c in out.columns for c in group_key):
+        out = out.merge(leak_map, on=group_key, how="left")
+    if "생산부족_묶음합계" not in out.columns:
+        out["생산부족_묶음합계"] = 0
     if "생산공장" not in out.columns:
         out["생산공장"] = ""
-    out["생산 부족분"] = pd.to_numeric(out["생산 부족분"], errors="coerce").fillna(0).astype(int)
+    out["생산부족_묶음합계"] = pd.to_numeric(out["생산부족_묶음합계"], errors="coerce").fillna(0).astype(int)
     out["생산공장"] = out["생산공장"].astype("string").fillna("").astype(str).str.strip()
+    out["생산 부족분"] = 0
+    try:
+        for _, idx in out.groupby(group_key, dropna=False).groups.items():
+            idx_list = list(idx)
+            if not idx_list:
+                continue
+            total_need = int(pd.to_numeric(out.loc[idx_list, "생산부족_묶음합계"], errors="coerce").fillna(0).max())
+            pack_sum = int(pd.to_numeric(out.loc[idx_list, "포장 부족수량"], errors="coerce").fillna(0).sum())
+            if total_need <= 0 or pack_sum <= 0:
+                continue
+            total_need = min(total_need, pack_sum)
+            raw_alloc = (pd.to_numeric(out.loc[idx_list, "포장 부족수량"], errors="coerce").fillna(0) * float(total_need)) / float(pack_sum)
+            floors = raw_alloc.astype(int)
+            remain = int(total_need - int(floors.sum()))
+            alloc = floors.copy()
+            if remain > 0:
+                remainders = (raw_alloc - floors).sort_values(ascending=False)
+                for ix in remainders.index[:remain]:
+                    alloc.loc[ix] = int(alloc.loc[ix]) + 1
+            out.loc[idx_list, "생산 부족분"] = alloc.astype(int)
+    except Exception:
+        out["생산 부족분"] = pd.to_numeric(out["생산부족_묶음합계"], errors="coerce").fillna(0).astype(int)
+    out["생산 부족분"] = pd.to_numeric(out["생산 부족분"], errors="coerce").fillna(0).astype(int)
+    if "생산부족_묶음합계" in out.columns:
+        out = out.drop(columns=["생산부족_묶음합계"])
     if "[80]누수/규격검사" in out.columns:
         out = out.drop(columns=["[80]누수/규격검사"])
-    if "납기일" in out.columns:
-        out["납기일"] = pd.to_datetime(out["납기일"], errors="coerce")
 
     if "POWER" not in out.columns:
         out["POWER"] = ""
@@ -6168,8 +6193,8 @@ def main() -> None:
             "AXIS",
             "ADD",
             "납기일",
-            "포장 부족수량",
             "생산 부족분",
+            "포장 부족수량",
         ]
         # Hide empty optional spec columns to keep the table compact.
         show_cols: list[str] = []
