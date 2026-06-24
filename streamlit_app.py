@@ -6299,26 +6299,24 @@ def main() -> None:
         packing_xlsx_key = f"packing_{code_key}_xlsx_cache"
         packing_xlsx_cache = st.session_state.get(packing_xlsx_key)
         if not isinstance(packing_xlsx_cache, dict) or packing_xlsx_cache.get("sig") != packing_xlsx_sig:
-            summary_xlsx = _reorder_cols_for_export(summary_df[summary_cols] if summary_cols else pd.DataFrame(), summary_cols)
-            detail_xlsx = _reorder_cols_for_export(export_df, show_cols)
             packing_xlsx_cache = {
                 "sig": packing_xlsx_sig,
-                "xlsx": _to_excel_bytes_multi([
-                    ("포장요약", summary_xlsx),
-                    ("포장상세", detail_xlsx),
-                ]),
+                "sum": None,
+                "det": None,
             }
             st.session_state[packing_xlsx_key] = packing_xlsx_cache
-        xlsx_bytes = packing_xlsx_cache.get("xlsx", b"") if isinstance(packing_xlsx_cache, dict) else b""
+        if not isinstance(packing_xlsx_cache.get("sum"), (bytes, bytearray)) or not packing_xlsx_cache.get("sum"):
+            summary_xlsx = _reorder_cols_for_export(summary_df[summary_cols] if summary_cols else pd.DataFrame(), summary_cols)
+            packing_xlsx_cache["sum"] = _to_excel_bytes(summary_xlsx, sheet_name="포장요약")
 
         dl_col, cb_col = st.columns([3, 2], gap="small")
         with dl_col:
             st.download_button(
-                "다운로드(포장)",
-                data=xlsx_bytes,
-                file_name=f"포장현황_{code_label}_{_today_kst().isoformat()}.xlsx",
+                "엑셀 다운로드(요약)",
+                data=packing_xlsx_cache["sum"],
+                file_name=f"포장요약_{code_label}_{_today_kst().isoformat()}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key=f"packing_{code_key}_download",
+                key=f"packing_{code_key}_download_sum",
             )
         with cb_col:
             st.checkbox(
@@ -6346,14 +6344,14 @@ def main() -> None:
         if not summary_df.empty and summary_cols:
             summary_show = summary_df[summary_cols].copy()
             summary_cfg: dict[str, object] = {
-                "우선순위": st.column_config.NumberColumn(format="%d", width="small"),
-                "이니셜": st.column_config.TextColumn(width="small"),
-                "수주번호": st.column_config.TextColumn(width="medium"),
-                "신규분류 요약코드": st.column_config.TextColumn(width="medium"),
-                "품목수": st.column_config.NumberColumn(format="%d", width="small"),
-                "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width="small"),
-                "생산 부족분": st.column_config.NumberColumn(format="localized", width="small"),
-                "포장 부족수량": st.column_config.NumberColumn(format="localized", width="small"),
+                "우선순위": st.column_config.NumberColumn(format="%d", width=76),
+                "이니셜": st.column_config.TextColumn(width=150),
+                "수주번호": st.column_config.TextColumn(width=170),
+                "신규분류 요약코드": st.column_config.TextColumn(width=220),
+                "품목수": st.column_config.NumberColumn(format="%d", width=90),
+                "납기일": st.column_config.DatetimeColumn(format="YYYY-MM-DD", width=120),
+                "생산 부족분": st.column_config.NumberColumn(format="localized", width=130),
+                "포장 부족수량": st.column_config.NumberColumn(format="localized", width=140),
             }
             summary_cfg = {k: v for k, v in summary_cfg.items() if k in summary_cols}
             summary_show2, summary_capped = _cap_df_for_display(summary_show, max_rows=MAX_DF_ROWS_DISPLAY)
@@ -6371,6 +6369,22 @@ def main() -> None:
             )
 
         st.divider()
+
+        packing_xlsx_cache = st.session_state.get(packing_xlsx_key)
+        det_bytes = packing_xlsx_cache.get("det") if isinstance(packing_xlsx_cache, dict) else None
+        if not isinstance(det_bytes, (bytes, bytearray)) or not det_bytes:
+            detail_xlsx = _reorder_cols_for_export(export_df, show_cols)
+            if isinstance(packing_xlsx_cache, dict):
+                packing_xlsx_cache["det"] = _to_excel_bytes(detail_xlsx, sheet_name="포장상세")
+                det_bytes = packing_xlsx_cache.get("det")
+        if isinstance(det_bytes, (bytes, bytearray)) and det_bytes:
+            st.download_button(
+                "엑셀 다운로드(상세)",
+                data=det_bytes,
+                file_name=f"포장상세_{code_label}_{_today_kst().isoformat()}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"packing_{code_key}_download_det",
+            )
 
         try:
             if "납기일" in view_show.columns:
