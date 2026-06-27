@@ -2259,7 +2259,7 @@ def _code_totals_from_due_csv_cached(
     value_col = "필요수량"
     if view_mode == "공정별 보기" and process_only and process_only in df.columns:
         value_col = process_only
-    elif view_mode == "사출 계획" and "사출" in df.columns:
+    elif view_mode == "사출계획" and "사출" in df.columns:
         value_col = "사출"
     elif view_mode in ("납기별 상세",) and "필요수량" in df.columns:
         value_col = "필요수량"
@@ -5636,7 +5636,16 @@ def main() -> None:
         render(df, ui_key_prefix="all")
         return
 
-    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "리스크", "사출 계획", "재작업리스트", "포장현황"]
+    view_options = ["납기별 상세", "공정별 보기", "수주별 현황", "포장 현황", "리스크", "사출계획", "재작업 리스트"]
+    view_label_aliases = {
+        "포장현황": "포장 현황",
+        "재작업리스트": "재작업 리스트",
+        "사출 계획": "사출계획",
+    }
+    if st.session_state.get("view_mode") in view_label_aliases:
+        st.session_state["view_mode"] = view_label_aliases[st.session_state["view_mode"]]
+    if st.session_state.get("_prev_view_mode") in view_label_aliases:
+        st.session_state["_prev_view_mode"] = view_label_aliases[st.session_state["_prev_view_mode"]]
     _pre_widget_single_select_fix(key="view_mode", default="납기별 상세", options=view_options)
     view_mode_raw = st.segmented_control(
         "보기",
@@ -5673,12 +5682,12 @@ def main() -> None:
             st.session_state["risk_due_end"] = _today_kst()
             st.session_state["_prev_risk_due_quick"] = "해제"
             st.session_state["risk_grade_pill"] = ["RED", "YELLOW"]
-        if view_mode == "재작업리스트":
+        if view_mode == "재작업 리스트":
             # Reset due-date filter when entering rework view.
             st.session_state["rework_due_quick"] = "해제"
             st.session_state["rework_due_end"] = _today_kst()
             st.session_state["_prev_rework_due_quick"] = "해제"
-        if view_mode == "포장현황":
+        if view_mode == "포장 현황":
             # Reset due-date filter when entering packing view.
             st.session_state["packing_due_quick"] = "해제"
             st.session_state["packing_due_end"] = _today_kst()
@@ -5723,7 +5732,7 @@ def main() -> None:
         )
 
     rework_end_date = None
-    if view_mode == "재작업리스트":
+    if view_mode == "재작업 리스트":
         # Due date end quick-picks for rework view (same UX as due/process tabs).
         rework_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
         _pre_widget_single_select_fix(key="rework_due_quick", default="해제", options=rework_quick_options)
@@ -5760,7 +5769,7 @@ def main() -> None:
         )
 
     packing_end_date = None
-    if view_mode == "포장현황":
+    if view_mode == "포장 현황":
         # Due date end quick-picks for packing view (same UX as due/process tabs).
         packing_quick_options = ["해제", "직접", "당월", "+7일", "+14일"]
         _pre_widget_single_select_fix(key="packing_due_quick", default="해제", options=packing_quick_options)
@@ -5848,7 +5857,7 @@ def main() -> None:
             disabled=(proc_quick == "해제"),
         )
 
-    # NOTE: 사출 계획은 항상 "현재 기준 5일 계획"을 보여주며,
+    # NOTE: 사출계획은 항상 "현재 기준 5일 계획"을 보여주며,
     # 납기일 종료 필터에 의해 계획이 바뀌는 구조가 아니므로 별도 필터 UI를 노출하지 않는다.
 
     # 분류 pills (view-mode별로 totals 계산 데이터가 다름)
@@ -5928,7 +5937,7 @@ def main() -> None:
             proc_quick_state = st.session_state.get("proc_due_quick", "해제")
             if proc_quick_state != "해제":
                 codes_src = _apply_due_date_end_filter(codes_src, st.session_state.get("proc_due_end", _today_kst()))
-        if view_mode == "사출 계획":
+        if view_mode == "사출계획":
             value_col = "사출" if "사출" in codes_src.columns else "누수규격"
         else:
             value_col = process_only if process_only else "누수규격"
@@ -5936,8 +5945,8 @@ def main() -> None:
     totals_base: dict[str, float] = {}
     total_all = 0.0
     try:
-        # 재작업리스트 탭은 "S관 접착 부족 라인" 기준으로 분류요약코드 pills를 만든다.
-        if view_mode == "재작업리스트":
+        # 재작업 리스트 탭은 "S관 접착 부족 라인" 기준으로 분류요약코드 pills를 만든다.
+        if view_mode == "재작업 리스트":
             ddf = _load_order_detail_prepared(detail_csv, os.path.getmtime(detail_csv))
             b = _filter_by_plant(ddf, "S관(3공장)")
             item_col = "제품 코드" if (b is not None and isinstance(b, pd.DataFrame) and "제품 코드" in b.columns) else "제품코드"
@@ -6023,7 +6032,7 @@ def main() -> None:
                             continue
                         totals_base[code_s] = float(totals_base.get(code_s, 0.0)) + float(qty)
                         total_all += float(qty)
-        elif view_mode == "포장현황":
+        elif view_mode == "포장 현황":
             p = _load_packing_shortage_from_excel(excel_path, _excel_version_mtime(excel_path)) if bool(excel_path) else pd.DataFrame()
             p = _filter_by_plant(p, selected_plant)
             if p is not None and (not p.empty):
@@ -6070,7 +6079,7 @@ def main() -> None:
 
     # For injection plan, show these as *informational chips* (not clickable filters).
     # Many users naturally click pills because they look interactive.
-    if view_mode == "사출 계획":
+    if view_mode == "사출계획":
         chips = []
         for c in code_all_options:
             chips.append(
@@ -6141,7 +6150,7 @@ def main() -> None:
     code_label = _codes_label(codes_selected)
     code_key = _codes_key(codes_selected)
 
-    if view_mode == "포장현황":
+    if view_mode == "포장 현황":
         st.subheader("포장 현황")
         if not excel_path:
             st.caption("엑셀 파일을 찾지 못했습니다.")
@@ -6904,7 +6913,7 @@ def main() -> None:
         )
         return
 
-    if view_mode == "재작업리스트":
+    if view_mode == "재작업 리스트":
         st.subheader("재작업 리스트 (S관 전용)")
         if selected_plant not in ("S관(3공장)", "전체"):
             st.info(f"재작업 리스트는 현재 `S관(3공장)`만 지원합니다. (현재 선택: `{selected_plant}`)")
@@ -7033,7 +7042,7 @@ def main() -> None:
                 insert_at = power_idx + 1
                 show_cols[insert_at:insert_at] = ["ADD"]
         view_show = need_alloc.copy()
-        # 재작업리스트 탭은 "재작업 가능" 라인 중심으로 보여준다.
+        # 재작업 리스트 탭은 "재작업 가능" 라인 중심으로 보여준다.
         if "재작업 가능수량" in view_show.columns:
             try:
                 view_show = view_show.loc[pd.to_numeric(view_show["재작업 가능수량"], errors="coerce").fillna(0).gt(0)].copy()
@@ -7191,7 +7200,7 @@ def main() -> None:
             )
             cache["xlsx"] = _to_excel_bytes_multi(
                 [
-                    ("재작업리스트", export_df_xlsx),
+                    ("재작업 리스트", export_df_xlsx),
                     ("로트배정상세", lot_assign_xlsx),
                     ("미배정상세", unassigned_xlsx),
                 ]
@@ -7294,10 +7303,10 @@ def main() -> None:
                 st.dataframe(u, use_container_width=True, hide_index=True)
         return
 
-    if view_mode == "사출 계획":
+    if view_mode == "사출계획":
         st.subheader("사출 스케줄 (자동 생성)")
         if selected_plant not in ("S관(3공장)", "전체"):
-            st.info(f"사출 계획은 현재 `S관(3공장)`만 지원합니다. (현재 선택: `{selected_plant}`)")
+            st.info(f"사출계획은 현재 `S관(3공장)`만 지원합니다. (현재 선택: `{selected_plant}`)")
             return
         # Fixed horizon + start date (planning is always shown from 'today').
         horizon_days = 5
