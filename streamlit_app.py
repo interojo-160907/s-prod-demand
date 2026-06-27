@@ -6176,6 +6176,20 @@ def main() -> None:
         exclude_dom_safe = bool(st.session_state.get(exclude_init_key, False))
         workable_only = bool(st.session_state.get(workable_key, False))
 
+        def _render_packing_filter_checkboxes() -> None:
+            st.checkbox(
+                "국내/안전 제외",
+                value=exclude_dom_safe,
+                key=exclude_init_key,
+                help="이니셜에 '국내' 또는 '안전'이 포함된 항목을 제외합니다.",
+            )
+            st.checkbox(
+                "작업가능만",
+                value=workable_only,
+                key=workable_key,
+                help="원본 [85]포장 수량이 있고 해당 규격의 누수규격 부족이 0인 항목만 표시합니다.",
+            )
+
         view_show = _filter_by_any_contains_all_terms(packing, ["이니셜", "품명", "제품코드", "수주번호"], search_raw)
         if exclude_dom_safe and "이니셜" in view_show.columns:
             init_s = view_show["이니셜"].astype("string").fillna("").astype(str)
@@ -6188,6 +6202,9 @@ def main() -> None:
                 view_show["포장 부족수량"] = pd.to_numeric(view_show.get("_포장공정 부족수량"), errors="coerce").fillna(0).astype(int)
                 view_show["생산 부족분"] = 0
         if view_show is None or view_show.empty:
+            _, cb_col = st.columns([3, 2], gap="small")
+            with cb_col:
+                _render_packing_filter_checkboxes()
             st.caption("검색 조건에 해당하는 포장 부족수량이 없습니다.")
             return
 
@@ -6319,18 +6336,7 @@ def main() -> None:
                 key=f"packing_{code_key}_download_sum",
             )
         with cb_col:
-            st.checkbox(
-                "국내/안전 제외",
-                value=exclude_dom_safe,
-                key=exclude_init_key,
-                help="이니셜에 '국내' 또는 '안전'이 포함된 항목을 제외합니다.",
-            )
-            st.checkbox(
-                "작업가능만",
-                value=workable_only,
-                key=workable_key,
-                help="원본 [85]포장 수량이 있고 해당 규격의 누수규격 부족이 0인 항목만 표시합니다.",
-            )
+            _render_packing_filter_checkboxes()
         st.markdown(
             f"<div style='margin: 8px 0 8px 0; padding: 4px 8px;'>"
             f"<span style='margin-right: 20px; font-size: 15px;'>포장 부족수량: "
