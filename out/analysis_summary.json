@@ -1,16 +1,16 @@
 {
   "file": "s관 부족수량.xlsx",
-  "generated_at": "2026-06-28T01:38:09",
+  "generated_at": "2026-06-28T23:47:06",
   "sheets": {
     "설비별": {
-      "rows": 26393,
+      "rows": 26004,
       "cols": 9,
       "outputs": [
         "out/설비별_공정_계획수량.csv"
       ]
     },
     "이니셜별": {
-      "rows": 30461,
+      "rows": 30173,
       "cols": 17,
       "process_cols": [
         "[10]사출조립",
@@ -32,7 +32,7 @@
   ],
   "due_process": {
     "enabled": true,
-    "rows": 21054,
+    "rows": 21007,
     "outputs": [
       "out/납기_제품군_공정별부족.csv",
       "out/이니셜별_수주상세.csv",
@@ -45,7 +45,7 @@
   },
   "prod_daily": {
     "enabled": true,
-    "rows": 417,
+    "rows": 433,
     "outputs": [
       "out/생산실적_공정별_일별양품.csv"
     ],
