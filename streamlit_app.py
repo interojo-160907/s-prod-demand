@@ -6204,12 +6204,9 @@ def main() -> None:
             init_s = view_show["이니셜"].astype("string").fillna("").astype(str)
             view_show = view_show.loc[~init_s.str.contains("국내|안전", case=False, regex=True, na=False)].copy()
         if workable_only:
-            pack_raw = pd.to_numeric(view_show.get("_포장공정 부족수량"), errors="coerce").fillna(0)
-            row_leak = pd.to_numeric(view_show.get("_누수규격 부족수량"), errors="coerce").fillna(0)
-            view_show = view_show.loc[pack_raw.gt(0) & row_leak.eq(0)].copy()
-            if not view_show.empty:
-                view_show["포장 부족수량"] = pd.to_numeric(view_show.get("_포장공정 부족수량"), errors="coerce").fillna(0).astype(int)
-                view_show["생산 부족분"] = 0
+            pack_qty = pd.to_numeric(view_show.get("포장 부족수량"), errors="coerce").fillna(0)
+            production_short = pd.to_numeric(view_show.get("생산 부족분"), errors="coerce").fillna(0)
+            view_show = view_show.loc[pack_qty.gt(0) & production_short.eq(0)].copy()
         if view_show is None or view_show.empty:
             _, cb_col = st.columns([3, 2], gap="small")
             with cb_col:
