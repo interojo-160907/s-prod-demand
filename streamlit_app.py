@@ -2241,7 +2241,7 @@ def _code_totals_from_due_csv_cached(
     process_only: str | None,
 ) -> tuple[dict[str, float], float]:
     _ = due_mtime  # cache-buster
-    usecols = ["설비 사이트 코드", "신규분류 요약코드", "납기일", *DEFAULT_STAGE_COLS]
+    usecols = ["설비 사이트 코드", "신규분류 요약코드", "납기일", "필요수량", *DEFAULT_STAGE_COLS]
     # Only keep columns that exist (older outputs).
     header = pd.read_csv(due_csv, nrows=0, encoding="utf-8-sig")
     usecols = [c for c in usecols if c in header.columns]
@@ -2257,7 +2257,9 @@ def _code_totals_from_due_csv_cached(
         return ({}, 0.0)
 
     value_col = "필요수량"
-    if view_mode == "공정별 보기" and process_only and process_only in df.columns:
+    if view_mode in ("수주별 현황", "리스크") and "누수규격" in df.columns:
+        value_col = "누수규격"
+    elif view_mode == "공정별 보기" and process_only and process_only in df.columns:
         value_col = process_only
     elif view_mode == "사출계획" and "사출" in df.columns:
         value_col = "사출"
