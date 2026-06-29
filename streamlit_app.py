@@ -2008,6 +2008,9 @@ def _load_order_detail_csv(path: str, mtime: float) -> pd.DataFrame:
         if c in header.columns:
             dtype[c] = "string"
     df = pd.read_csv(path, dtype=dtype if dtype else None, encoding="utf-8-sig")
+    for c in ["설비 사이트 코드", "이니셜", "수주번호", "신규분류 요약코드", "수요 제품 이름", "제품군", "제품 코드", "ADD", "CP", "AXIS"]:
+        if c in df.columns:
+            df[c] = df[c].astype("string").fillna("").astype(str).str.strip()
     if "납기일" in df.columns:
         df["납기일"] = pd.to_datetime(df["납기일"], errors="coerce")
     return df
@@ -6045,23 +6048,35 @@ def main() -> None:
                     totals_base = p.groupby(new_code_col, dropna=False)["포장 부족수량"].sum(numeric_only=True).to_dict()
                     total_all = float(p["포장 부족수량"].sum())
         else:
-            due_end_for_totals: date | None = None
-            if view_mode == "수주별 현황" and st.session_state.get("order_due_quick", "해제") != "해제":
-                due_end_for_totals = st.session_state.get("order_due_end", _today_kst())
-            if view_mode == "리스크" and st.session_state.get("risk_due_quick", "해제") != "해제":
-                due_end_for_totals = st.session_state.get("risk_due_end", _today_kst())
-            if view_mode == "납기별 상세" and st.session_state.get("due_due_quick", "해제") != "해제":
-                due_end_for_totals = st.session_state.get("due_due_end", _today_kst())
-            if view_mode == "공정별 보기" and st.session_state.get("proc_due_quick", "해제") != "해제":
-                due_end_for_totals = st.session_state.get("proc_due_end", _today_kst())
-            totals_base, total_all = _code_totals_from_due_csv_cached(
-                due_csv=due_csv,
-                due_mtime=float(os.path.getmtime(due_csv)),
-                plant=selected_plant,
-                view_mode=view_mode,
-                due_end=due_end_for_totals,
-                process_only=process_only,
-            )
+            if view_mode in ("수주별 현황", "리스크") and isinstance(codes_src, pd.DataFrame) and new_code_col in codes_src.columns:
+                # Keep the 신규분류 pills aligned with the order table source.
+                # The due/product aggregate can contain codes that do not produce order-table rows.
+                tmp = codes_src.copy()
+                stage_cols = [c for c in DEFAULT_STAGE_COLS if c in tmp.columns]
+                for c in stage_cols:
+                    tmp[c] = pd.to_numeric(tmp[c], errors="coerce").fillna(0)
+                if stage_cols:
+                    stage_sum = tmp[stage_cols].sum(axis=1)
+                    tmp = tmp.loc[stage_sum.gt(0)].copy()
+                value_for_order_pills = "누수규격" if "누수규격" in tmp.columns else (stage_cols[-1] if stage_cols else value_col)
+                if value_for_order_pills in tmp.columns and not tmp.empty:
+                    tmp[value_for_order_pills] = pd.to_numeric(tmp[value_for_order_pills], errors="coerce").fillna(0)
+                    totals_base = tmp.groupby(new_code_col, dropna=False)[value_for_order_pills].sum(numeric_only=True).to_dict()
+                    total_all = float(tmp[value_for_order_pills].sum())
+            else:
+                due_end_for_totals: date | None = None
+                if view_mode == "납기별 상세" and st.session_state.get("due_due_quick", "해제") != "해제":
+                    due_end_for_totals = st.session_state.get("due_due_end", _today_kst())
+                if view_mode == "공정별 보기" and st.session_state.get("proc_due_quick", "해제") != "해제":
+                    due_end_for_totals = st.session_state.get("proc_due_end", _today_kst())
+                totals_base, total_all = _code_totals_from_due_csv_cached(
+                    due_csv=due_csv,
+                    due_mtime=float(os.path.getmtime(due_csv)),
+                    plant=selected_plant,
+                    view_mode=view_mode,
+                    due_end=due_end_for_totals,
+                    process_only=process_only,
+                )
     except Exception:
         # Fallback (should be rare)
         if value_col in codes_src.columns:
