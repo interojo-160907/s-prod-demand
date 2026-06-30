@@ -2980,8 +2980,17 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
   font-weight:800;
   margin:18px 0 6px 0;
 }
-.erp-inj-plant-counts { color:#374151; font-size:13px; font-weight:600; }
-.erp-inj-plant-counts strong { color:#0b63ce; font-weight:800; }
+.erp-inj-plant-counts { display:inline-flex; align-items:center; gap:8px; color:#374151; font-size:13px; font-weight:600; }
+.erp-inj-plant-count {
+  display:inline-flex;
+  align-items:baseline;
+  gap:3px;
+  padding:3px 8px;
+  border:1px solid rgba(0,0,0,0.10);
+  border-radius:999px;
+  background:rgba(255,255,255,0.52);
+}
+.erp-inj-plant-count strong { color:#0b63ce; font-weight:800; }
 </style>
         """,
         unsafe_allow_html=True,
@@ -3010,7 +3019,11 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
                 f"""
 <div class="erp-inj-plant-title">
   <span>{plant}</span>
-  <span class="erp-inj-plant-counts">설비: <strong>{_format_int(plant_total)}</strong>대&nbsp;&nbsp;운영: <strong>{_format_int(plant_running)}</strong>대&nbsp;&nbsp;유휴: <strong>{_format_int(plant_idle)}</strong>대</span>
+  <span class="erp-inj-plant-counts">
+    <span class="erp-inj-plant-count">설비 <strong>{_format_int(plant_total)}</strong>대</span>
+    <span class="erp-inj-plant-count">운영 <strong>{_format_int(plant_running)}</strong>대</span>
+    <span class="erp-inj-plant-count">유휴 <strong>{_format_int(plant_idle)}</strong>대</span>
+  </span>
 </div>
                 """,
                 unsafe_allow_html=True,
