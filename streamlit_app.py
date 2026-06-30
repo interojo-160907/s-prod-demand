@@ -2875,6 +2875,151 @@ def _load_injection_sheet_cached(path: str, mtime: float) -> dict[str, pd.DataFr
 
 
 @st.cache_data(show_spinner=False)
+def _load_erp_injection_equipment_cached(path: str, mtime: float) -> dict[str, object]:
+    _ = mtime  # cache-buster when file changes
+    sheet_name = "erp운영설비"
+    try:
+        avail = sorted(list(_xlsx_sheet_names_cached(path, float(mtime))))
+    except Exception:
+        avail = []
+    if sheet_name not in avail:
+        return {"data": pd.DataFrame(), "sheet_name": None, "available_sheets": avail}
+
+    try:
+        raw = pd.read_excel(path, sheet_name=sheet_name)
+    except Exception:
+        return {"data": pd.DataFrame(), "sheet_name": sheet_name, "available_sheets": avail}
+    if raw is None or raw.empty:
+        return {"data": pd.DataFrame(), "sheet_name": sheet_name, "available_sheets": avail}
+
+    raw = raw.copy()
+    raw.columns = [" ".join(str(c or "").strip().split()) for c in raw.columns]
+    rename = {
+        "공장": "공장명",
+        "공장구분": "공장명",
+        "관": "공장명",
+        "호기": "호기명",
+        "설비명": "호기명",
+        "설비코드": "호기코드",
+        "제품": "제품명",
+        "생산 제품": "제품명",
+        "생산제품": "제품명",
+        "비고사항": "비고",
+    }
+    raw = raw.rename(columns={k: v for k, v in rename.items() if k in raw.columns})
+
+    keep = ["공장명", "호기코드", "호기명", "제품코드", "제품명", "비고", "수정일", "생성일"]
+    df = raw[[c for c in keep if c in raw.columns]].copy()
+    for c in ["공장명", "호기코드", "호기명", "제품코드", "제품명", "비고"]:
+        if c not in df.columns:
+            df[c] = ""
+        df[c] = df[c].astype("string").fillna("").astype(str).str.strip()
+    for c in ["수정일", "생성일"]:
+        if c not in df.columns:
+            df[c] = pd.NaT
+        df[c] = pd.to_datetime(df[c], errors="coerce")
+
+    df = df.loc[df["공장명"].ne("") | df["호기코드"].ne("") | df["호기명"].ne("")].copy()
+    if df.empty:
+        return {"data": df, "sheet_name": sheet_name, "available_sheets": avail}
+
+    df["일시"] = df["수정일"].where(df["수정일"].notna(), df["생성일"])
+    df["제품코드"] = df["제품코드"].str.upper()
+    df["운영상태"] = np.where(
+        df["제품코드"].ne("") | df["제품명"].ne(""),
+        "생산중",
+        np.where(df["비고"].ne(""), "비고", "공란"),
+    )
+
+    def _equip_sort_key(v: object) -> tuple[str, int, str]:
+        s = str(v or "").strip().upper()
+        m = re.match(r"^([A-Z]+)(\d+)$", s)
+        if not m:
+            return (s, 999999, s)
+        return (m.group(1), int(m.group(2)), s)
+
+    df["_sort"] = df["호기코드"].map(_equip_sort_key)
+    df = df.sort_values(["공장명", "_sort", "호기명"], na_position="last").drop(columns=["_sort"])
+    return {"data": df, "sheet_name": sheet_name, "available_sheets": avail}
+
+
+def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: str) -> None:
+    if equip_df is None or equip_df.empty:
+        st.info("erp운영설비 시트에서 표시할 설비 현황을 찾지 못했습니다.")
+        return
+
+    show = equip_df.copy()
+    if selected_plant != "전체" and "공장명" in show.columns:
+        show = show.loc[show["공장명"].astype("string").fillna("").astype(str).str.strip().eq(selected_plant)].copy()
+    if show.empty:
+        st.info(f"`{selected_plant}`에 해당하는 erp운영설비 데이터가 없습니다.")
+        return
+
+    total_cnt = int(len(show))
+    running_cnt = int((show["운영상태"] == "생산중").sum()) if "운영상태" in show.columns else 0
+    note_cnt = int(show["비고"].astype("string").fillna("").astype(str).str.strip().ne("").sum()) if "비고" in show.columns else 0
+    latest_dt = pd.to_datetime(show.get("일시"), errors="coerce").max()
+    latest_text = latest_dt.strftime("%Y-%m-%d %H:%M") if pd.notna(latest_dt) else "-"
+
+    st.markdown(
+        """
+<style>
+.erp-inj-metrics { display:flex; flex-wrap:wrap; gap:8px; margin: 2px 0 12px 0; }
+.erp-inj-metric {
+  border:1px solid rgba(0,0,0,0.14);
+  border-radius:8px;
+  background:rgba(255,255,255,0.58);
+  padding:8px 12px;
+  min-width:112px;
+}
+.erp-inj-metric .label { color:#6b7280; font-size:12px; line-height:1.1; }
+.erp-inj-metric .value { color:#111827; font-size:17px; font-weight:800; line-height:1.25; margin-top:3px; }
+.erp-inj-plant-title { font-size:18px; font-weight:800; margin:18px 0 6px 0; }
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"""
+<div class="erp-inj-metrics">
+  <div class="erp-inj-metric"><div class="label">기준 일시</div><div class="value">{latest_text}</div></div>
+  <div class="erp-inj-metric"><div class="label">설비</div><div class="value">{_format_int(total_cnt)}</div></div>
+  <div class="erp-inj-metric"><div class="label">생산제품 등록</div><div class="value">{_format_int(running_cnt)}</div></div>
+  <div class="erp-inj-metric"><div class="label">비고 있음</div><div class="value">{_format_int(note_cnt)}</div></div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    display_cols = ["공장명", "호기코드", "호기명", "제품코드", "제품명", "비고", "일시"]
+    display_cols = [c for c in display_cols if c in show.columns]
+    for plant in show["공장명"].drop_duplicates().tolist():
+        block = show.loc[show["공장명"].eq(plant), display_cols].copy()
+        if "일시" in block.columns:
+            block["일시"] = pd.to_datetime(block["일시"], errors="coerce")
+        if selected_plant == "전체":
+            st.markdown(f'<div class="erp-inj-plant-title">{plant}</div>', unsafe_allow_html=True)
+        cfg = {
+            "공장명": st.column_config.TextColumn("관", width="small"),
+            "호기코드": st.column_config.TextColumn("설비코드", width="small"),
+            "호기명": st.column_config.TextColumn("설비명", width="medium"),
+            "제품코드": st.column_config.TextColumn("제품코드", width="small"),
+            "제품명": st.column_config.TextColumn("제품명", width="large"),
+            "비고": st.column_config.TextColumn("비고사항", width="medium"),
+            "일시": st.column_config.DatetimeColumn("일시", format="YYYY-MM-DD", width="small"),
+        }
+        _render_dataframe_with_copy(
+            _style_dataframe_like_dashboard(block),
+            block,
+            key=f"erp_inj_{str(plant)}_{selected_plant}",
+            use_container_width=True,
+            height=_table_height_for_rows(len(block), min_height=180, max_height=420),
+            hide_index=True,
+            column_config={k: v for k, v in cfg.items() if k in block.columns},
+        )
+
+
+@st.cache_data(show_spinner=False)
 def _load_injection_machine_medians_cached(path: str, mtime: float) -> dict[str, object]:
     _ = mtime  # cache-buster when file changes
     try:
@@ -7318,10 +7463,25 @@ def main() -> None:
         return
 
     if view_mode == "사출계획":
-        st.subheader("사출 스케줄 (자동 생성)")
+        excel_mtime = _excel_version_mtime(excel_path)
+
+        st.subheader("사출 운영설비 현황")
+        erp_info = _load_erp_injection_equipment_cached(excel_path, excel_mtime)
+        erp_equip = erp_info.get("data", pd.DataFrame())
+        if erp_equip is None or erp_equip.empty:
+            avail = erp_info.get("available_sheets", None)
+            st.info("엑셀 `erp운영설비` 시트를 찾지 못했거나 표시할 데이터가 없습니다.")
+            if avail:
+                st.caption(f"감지된 시트: `{', '.join([str(x) for x in avail])}`")
+        else:
+            _render_erp_injection_overview(erp_equip, selected_plant=selected_plant)
+
         if selected_plant not in ("S관(3공장)", "전체"):
-            st.info(f"사출계획은 현재 `S관(3공장)`만 지원합니다. (현재 선택: `{selected_plant}`)")
+            st.info(f"자동 생성 스케줄은 현재 `S관(3공장)`만 지원합니다. 위 표는 `{selected_plant}`의 ERP 운영설비 기준 현황입니다.")
             return
+
+        st.divider()
+        st.subheader("사출 스케줄 (자동 생성)")
         # Fixed horizon + start date (planning is always shown from 'today').
         horizon_days = 5
         start_date = _today_kst()
@@ -7343,7 +7503,6 @@ def main() -> None:
             label_visibility="collapsed",
         )
 
-        excel_mtime = _excel_version_mtime(excel_path)
         base_df = _filter_by_plant(df, "S관(3공장)") if selected_plant == "전체" else df
 
         # NOTE: product-group pills are for *volume visibility* only.
