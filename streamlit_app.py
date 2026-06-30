@@ -2923,6 +2923,47 @@ def _load_erp_injection_equipment_cached(path: str, mtime: float) -> dict[str, o
     if df.empty:
         return {"data": df, "sheet_name": sheet_name, "available_sheets": avail}
 
+    plant_key = df["공장명"].astype("string").fillna("").astype(str).str.strip()
+    equip_name_key = (
+        df["호기명"]
+        .astype("string")
+        .fillna("")
+        .astype(str)
+        .str.replace(r"\s+", "", regex=True)
+    )
+    a_plant = plant_key.eq("A관(1공장)")
+    c_plant = plant_key.eq("C관(2공장)")
+    s_plant = plant_key.eq("S관(3공장)")
+    exclude_a_plant_pbt = a_plant & equip_name_key.eq("PBT조립1호기")
+    exclude_c_plant_inline_spare = c_plant & equip_name_key.eq("인라인조립2호기(예비실)")
+    exclude_s_plant_b_assembly = s_plant & equip_name_key.isin(["B형조립중합1호기", "B형조립중합2호기"])
+    df = df.loc[~(exclude_a_plant_pbt | exclude_c_plant_inline_spare | exclude_s_plant_b_assembly)].copy()
+    if df.empty:
+        return {"data": df, "sheet_name": sheet_name, "available_sheets": avail}
+
+    def _polymerization_method(row: pd.Series) -> str:
+        plant = str(row.get("공장명") or "").strip()
+        equip_name = str(row.get("호기명") or "").strip()
+        equip_key = re.sub(r"\s+", "", equip_name)
+
+        if plant == "A관(1공장)":
+            return "열중합"
+        if plant == "C관(2공장)":
+            m = re.search(r"조립(\d+)호기", equip_key)
+            if m:
+                n = int(m.group(1))
+                if 10 <= n <= 46:
+                    return "MIR"
+                if 47 <= n <= 59:
+                    return "NIR"
+        if plant == "S관(3공장)":
+            if re.match(r"[AD]형", equip_key):
+                return "열중합"
+            if re.match(r"[BC]형", equip_key):
+                return "NIR"
+        return ""
+
+    df["중합"] = df.apply(_polymerization_method, axis=1)
     df["일시"] = df["수정일"].where(df["수정일"].notna(), df["생성일"])
     df["제품코드"] = df["제품코드"].str.upper()
     df["운영상태"] = np.where(
@@ -3006,7 +3047,7 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
         unsafe_allow_html=True,
     )
 
-    display_cols = ["공장명", "호기명", "제품코드", "제품명", "비고"]
+    display_cols = ["공장명", "호기명", "중합", "제품코드", "제품명", "비고"]
     display_cols = [c for c in display_cols if c in show.columns]
 
     def _display_equip_sort_key(v: object) -> tuple[int, int, str]:
@@ -3046,6 +3087,7 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
         cfg = {
             "공장명": st.column_config.TextColumn("공장", width=120),
             "호기명": st.column_config.TextColumn("설비명", width=240),
+            "중합": st.column_config.TextColumn("중합", width=90),
             "제품코드": st.column_config.TextColumn("제품코드", width=110),
             "제품명": st.column_config.TextColumn("제품명", width="large"),
             "비고": st.column_config.TextColumn("비고사항", width=260),
