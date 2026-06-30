@@ -2957,7 +2957,7 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
 
     total_cnt = int(len(show))
     running_cnt = int((show["운영상태"] == "생산중").sum()) if "운영상태" in show.columns else 0
-    note_cnt = int(show["비고"].astype("string").fillna("").astype(str).str.strip().ne("").sum()) if "비고" in show.columns else 0
+    idle_cnt = max(0, total_cnt - running_cnt)
     st.markdown(
         """
 <style>
@@ -2971,7 +2971,17 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
 }
 .erp-inj-metric .label { color:#6b7280; font-size:12px; line-height:1.1; }
 .erp-inj-metric .value { color:#111827; font-size:17px; font-weight:800; line-height:1.25; margin-top:3px; }
-.erp-inj-plant-title { font-size:18px; font-weight:800; margin:18px 0 6px 0; }
+.erp-inj-plant-title {
+  display:flex;
+  align-items:baseline;
+  gap:14px;
+  flex-wrap:wrap;
+  font-size:18px;
+  font-weight:800;
+  margin:18px 0 6px 0;
+}
+.erp-inj-plant-counts { color:#374151; font-size:13px; font-weight:600; }
+.erp-inj-plant-counts strong { color:#0b63ce; font-weight:800; }
 </style>
         """,
         unsafe_allow_html=True,
@@ -2980,8 +2990,8 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
         f"""
 <div class="erp-inj-metrics">
   <div class="erp-inj-metric"><div class="label">설비</div><div class="value">{_format_int(total_cnt)}</div></div>
-  <div class="erp-inj-metric"><div class="label">생산제품 등록</div><div class="value">{_format_int(running_cnt)}</div></div>
-  <div class="erp-inj-metric"><div class="label">비고 있음</div><div class="value">{_format_int(note_cnt)}</div></div>
+  <div class="erp-inj-metric"><div class="label">운영</div><div class="value">{_format_int(running_cnt)}</div></div>
+  <div class="erp-inj-metric"><div class="label">유휴</div><div class="value">{_format_int(idle_cnt)}</div></div>
 </div>
         """,
         unsafe_allow_html=True,
@@ -2992,13 +3002,25 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
     for plant in show["공장명"].drop_duplicates().tolist():
         block = show.loc[show["공장명"].eq(plant), display_cols].copy()
         if selected_plant == "전체":
-            st.markdown(f'<div class="erp-inj-plant-title">{plant}</div>', unsafe_allow_html=True)
+            plant_src = show.loc[show["공장명"].eq(plant)].copy()
+            plant_total = int(len(plant_src))
+            plant_running = int((plant_src["운영상태"] == "생산중").sum()) if "운영상태" in plant_src.columns else 0
+            plant_idle = max(0, plant_total - plant_running)
+            st.markdown(
+                f"""
+<div class="erp-inj-plant-title">
+  <span>{plant}</span>
+  <span class="erp-inj-plant-counts">설비: <strong>{_format_int(plant_total)}</strong>대&nbsp;&nbsp;운영: <strong>{_format_int(plant_running)}</strong>대&nbsp;&nbsp;유휴: <strong>{_format_int(plant_idle)}</strong>대</span>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
         cfg = {
-            "공장명": st.column_config.TextColumn("관", width="small"),
-            "호기명": st.column_config.TextColumn("설비명", width="medium"),
-            "제품코드": st.column_config.TextColumn("제품코드", width="small"),
+            "공장명": st.column_config.TextColumn("공장", width=120),
+            "호기명": st.column_config.TextColumn("설비명", width=240),
+            "제품코드": st.column_config.TextColumn("제품코드", width=110),
             "제품명": st.column_config.TextColumn("제품명", width="large"),
-            "비고": st.column_config.TextColumn("비고사항", width="medium"),
+            "비고": st.column_config.TextColumn("비고사항", width=260),
         }
         _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(block),
