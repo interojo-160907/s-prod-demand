@@ -3008,8 +3008,23 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
 
     display_cols = ["공장명", "호기명", "제품코드", "제품명", "비고"]
     display_cols = [c for c in display_cols if c in show.columns]
+
+    def _display_equip_sort_key(v: object) -> tuple[int, int, str]:
+        s = str(v or "").strip()
+        if not s:
+            return (999, 999999, "")
+        type_rank_map = {"A": 0, "B": 1, "C": 2, "D": 3}
+        m_type = re.search(r"([A-D])\s*형", s, flags=re.IGNORECASE)
+        type_rank = type_rank_map.get((m_type.group(1).upper() if m_type else ""), 50)
+        m_num = re.search(r"(\d+)\s*호기", s)
+        n = int(m_num.group(1)) if m_num else 999999
+        return (type_rank, n, s)
+
     for plant in show["공장명"].drop_duplicates().tolist():
         block = show.loc[show["공장명"].eq(plant), display_cols].copy()
+        if "호기명" in block.columns:
+            block["_sort"] = block["호기명"].map(_display_equip_sort_key)
+            block = block.sort_values("_sort", kind="stable").drop(columns=["_sort"])
         if selected_plant == "전체":
             plant_src = show.loc[show["공장명"].eq(plant)].copy()
             plant_total = int(len(plant_src))
