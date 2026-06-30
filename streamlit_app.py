@@ -2958,9 +2958,6 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
     total_cnt = int(len(show))
     running_cnt = int((show["운영상태"] == "생산중").sum()) if "운영상태" in show.columns else 0
     note_cnt = int(show["비고"].astype("string").fillna("").astype(str).str.strip().ne("").sum()) if "비고" in show.columns else 0
-    latest_dt = pd.to_datetime(show.get("일시"), errors="coerce").max()
-    latest_text = latest_dt.strftime("%Y-%m-%d %H:%M") if pd.notna(latest_dt) else "-"
-
     st.markdown(
         """
 <style>
@@ -2982,7 +2979,6 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
     st.markdown(
         f"""
 <div class="erp-inj-metrics">
-  <div class="erp-inj-metric"><div class="label">기준 일시</div><div class="value">{latest_text}</div></div>
   <div class="erp-inj-metric"><div class="label">설비</div><div class="value">{_format_int(total_cnt)}</div></div>
   <div class="erp-inj-metric"><div class="label">생산제품 등록</div><div class="value">{_format_int(running_cnt)}</div></div>
   <div class="erp-inj-metric"><div class="label">비고 있음</div><div class="value">{_format_int(note_cnt)}</div></div>
@@ -2991,22 +2987,18 @@ def _render_erp_injection_overview(equip_df: pd.DataFrame, *, selected_plant: st
         unsafe_allow_html=True,
     )
 
-    display_cols = ["공장명", "호기코드", "호기명", "제품코드", "제품명", "비고", "일시"]
+    display_cols = ["공장명", "호기명", "제품코드", "제품명", "비고"]
     display_cols = [c for c in display_cols if c in show.columns]
     for plant in show["공장명"].drop_duplicates().tolist():
         block = show.loc[show["공장명"].eq(plant), display_cols].copy()
-        if "일시" in block.columns:
-            block["일시"] = pd.to_datetime(block["일시"], errors="coerce")
         if selected_plant == "전체":
             st.markdown(f'<div class="erp-inj-plant-title">{plant}</div>', unsafe_allow_html=True)
         cfg = {
             "공장명": st.column_config.TextColumn("관", width="small"),
-            "호기코드": st.column_config.TextColumn("설비코드", width="small"),
             "호기명": st.column_config.TextColumn("설비명", width="medium"),
             "제품코드": st.column_config.TextColumn("제품코드", width="small"),
             "제품명": st.column_config.TextColumn("제품명", width="large"),
             "비고": st.column_config.TextColumn("비고사항", width="medium"),
-            "일시": st.column_config.DatetimeColumn("일시", format="YYYY-MM-DD", width="small"),
         }
         _render_dataframe_with_copy(
             _style_dataframe_like_dashboard(block),
@@ -7465,22 +7457,33 @@ def main() -> None:
     if view_mode == "사출계획":
         excel_mtime = _excel_version_mtime(excel_path)
 
-        st.subheader("사출 운영설비 현황")
-        erp_info = _load_erp_injection_equipment_cached(excel_path, excel_mtime)
-        erp_equip = erp_info.get("data", pd.DataFrame())
-        if erp_equip is None or erp_equip.empty:
-            avail = erp_info.get("available_sheets", None)
-            st.info("엑셀 `erp운영설비` 시트를 찾지 못했거나 표시할 데이터가 없습니다.")
-            if avail:
-                st.caption(f"감지된 시트: `{', '.join([str(x) for x in avail])}`")
-        else:
-            _render_erp_injection_overview(erp_equip, selected_plant=selected_plant)
-
         if selected_plant not in ("S관(3공장)", "전체"):
+            st.subheader("사출 운영설비 현황")
+            erp_info = _load_erp_injection_equipment_cached(excel_path, excel_mtime)
+            erp_equip = erp_info.get("data", pd.DataFrame())
+            if erp_equip is None or erp_equip.empty:
+                avail = erp_info.get("available_sheets", None)
+                st.info("엑셀 `erp운영설비` 시트를 찾지 못했거나 표시할 데이터가 없습니다.")
+                if avail:
+                    st.caption(f"감지된 시트: `{', '.join([str(x) for x in avail])}`")
+            else:
+                _render_erp_injection_overview(erp_equip, selected_plant=selected_plant)
             st.info(f"자동 생성 스케줄은 현재 `S관(3공장)`만 지원합니다. 위 표는 `{selected_plant}`의 ERP 운영설비 기준 현황입니다.")
             return
 
-        st.divider()
+        if selected_plant == "전체":
+            st.subheader("사출 운영설비 현황")
+            erp_info = _load_erp_injection_equipment_cached(excel_path, excel_mtime)
+            erp_equip = erp_info.get("data", pd.DataFrame())
+            if erp_equip is None or erp_equip.empty:
+                avail = erp_info.get("available_sheets", None)
+                st.info("엑셀 `erp운영설비` 시트를 찾지 못했거나 표시할 데이터가 없습니다.")
+                if avail:
+                    st.caption(f"감지된 시트: `{', '.join([str(x) for x in avail])}`")
+            else:
+                _render_erp_injection_overview(erp_equip, selected_plant=selected_plant)
+            return
+
         st.subheader("사출 스케줄 (자동 생성)")
         # Fixed horizon + start date (planning is always shown from 'today').
         horizon_days = 5
