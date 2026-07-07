@@ -252,6 +252,44 @@ def _coerce_multi_values(value: object, *, default: list[str], options: list[str
     return out if out else list(default)
 
 
+def _lens_spec_flags_from_selection(
+    codes_selected: list[str] | tuple[str, ...] | None,
+    data: pd.DataFrame | None = None,
+) -> tuple[bool, bool]:
+    """
+    Return (has_toric, has_multi) for dynamic spec columns.
+
+    Prefer the full selected code list over a shortened display label. This keeps
+    Sph+M/F and M/F+Sph selections equivalent regardless of click order.
+    """
+    selected = [str(x).strip() for x in (codes_selected or []) if str(x).strip() and str(x).strip() != "전체"]
+    if selected:
+        has_toric = any("toric" in s.lower() for s in selected)
+        has_multi = any(("m/f" in s.lower()) or ("mf" in s.lower()) or ("multifocal" in s.lower()) or ("multi" in s.lower()) for s in selected)
+        has_sph = any(("sph" in s.lower()) or ("spherical" in s.lower()) for s in selected)
+        if has_toric or has_multi or has_sph:
+            return bool(has_toric), bool(has_multi)
+
+    has_toric = False
+    has_multi = False
+    if data is not None and not data.empty:
+        if "CP" in data.columns or "AXIS" in data.columns:
+            cp_has = (
+                data["CP"].astype("string").fillna("").astype(str).str.strip().ne("").any()
+                if "CP" in data.columns
+                else False
+            )
+            axis_has = (
+                data["AXIS"].astype("string").fillna("").astype(str).str.strip().ne("").any()
+                if "AXIS" in data.columns
+                else False
+            )
+            has_toric = bool(cp_has or axis_has)
+        if "ADD" in data.columns:
+            has_multi = bool(data["ADD"].astype("string").fillna("").astype(str).str.strip().ne("").any())
+    return has_toric, has_multi
+
+
 def _find_repo_excel() -> str | None:
     for p in REPO_EXCEL_CANDIDATES:
         if os.path.exists(p):
@@ -5503,6 +5541,7 @@ def main() -> None:
         ui_key_prefix: str,
         process_only: str | None = None,
         selected_code: str | None = None,
+        selected_codes: list[str] | tuple[str, ...] | None = None,
     ) -> None:
         stage_cols_raw = [process_only] if process_only else DEFAULT_STAGE_COLS
         numeric_cols = [c for c in stage_cols_raw if c in filtered.columns]
@@ -5638,32 +5677,7 @@ def main() -> None:
             if s in export_df.columns:
                 export_df[s] = pd.to_numeric(export_df[s], errors="coerce").fillna(0).astype(int)
 
-        has_toric = False
-        has_multi = False
-        if "CP" in view.columns or "AXIS" in view.columns:
-            cp_has = (
-                view["CP"].astype("string").fillna("").astype(str).str.strip().ne("").any()
-                if "CP" in view.columns
-                else False
-            )
-            axis_has = (
-                view["AXIS"].astype("string").fillna("").astype(str).str.strip().ne("").any()
-                if "AXIS" in view.columns
-                else False
-            )
-            has_toric = bool(cp_has or axis_has)
-        if "ADD" in view.columns:
-            has_multi = bool(view["ADD"].astype("string").fillna("").astype(str).str.strip().ne("").any())
-
-        # 공정별 보기에서 분류가 명확한 경우 규격 컬럼을 강제 결정
-        if selected_code and selected_code != "전체":
-            sl = str(selected_code).lower()
-            if "toric" in sl:
-                has_toric, has_multi = True, False
-            elif "m/f" in sl or "multifocal" in sl or "multi" in sl:
-                has_toric, has_multi = False, True
-            elif "sph" in sl or "spherical" in sl:
-                has_toric, has_multi = False, False
+        has_toric, has_multi = _lens_spec_flags_from_selection(selected_codes, view)
 
         cols = ["신규분류 요약코드", "품명"]
         if process_only:
@@ -6491,10 +6505,13 @@ def main() -> None:
         ]
         # Hide empty optional spec columns to keep the table compact.
         show_cols: list[str] = []
+        has_toric, has_multi = _lens_spec_flags_from_selection(codes_selected, view_show)
         for c in base_cols:
             if c not in view_show.columns:
                 continue
-            if c in ["CP", "AXIS", "ADD"] and view_show[c].astype("string").fillna("").astype(str).str.strip().eq("").all():
+            if c in ["CP", "AXIS"] and (not has_toric) and view_show[c].astype("string").fillna("").astype(str).str.strip().eq("").all():
+                continue
+            if c == "ADD" and (not has_multi) and view_show[c].astype("string").fillna("").astype(str).str.strip().eq("").all():
                 continue
             show_cols.append(c)
         view_show = view_show[show_cols].copy()
@@ -7233,37 +7250,7 @@ def main() -> None:
         # - Spherical: POWER only
         # - Toric: POWER + CP + AXIS
         # - Multifocal: POWER + ADD
-        has_toric = False
-        has_multi = False
-        try:
-            selected_non_all = [str(x) for x in codes_selected if str(x) != "전체"]
-            if len(selected_non_all) == 1:
-                sl = selected_non_all[0].lower()
-                if "toric" in sl:
-                    has_toric, has_multi = True, False
-                elif ("m/f" in sl) or ("mf" in sl) or ("multi" in sl):
-                    has_toric, has_multi = False, True
-                elif "sph" in sl:
-                    has_toric, has_multi = False, False
-            if (not selected_non_all) or (len(selected_non_all) != 1) or (("전체" in codes_selected) if isinstance(codes_selected, list) else False):
-                # Fallback: infer from data (useful when multiple codes are selected).
-                if "CP" in need_alloc.columns or "AXIS" in need_alloc.columns:
-                    cp_has = (
-                        need_alloc["CP"].astype("string").fillna("").astype(str).str.strip().ne("").any()
-                        if "CP" in need_alloc.columns
-                        else False
-                    )
-                    ax_has = (
-                        need_alloc["AXIS"].astype("string").fillna("").astype(str).str.strip().ne("").any()
-                        if "AXIS" in need_alloc.columns
-                        else False
-                    )
-                    has_toric = bool(cp_has or ax_has)
-                if "ADD" in need_alloc.columns:
-                    has_multi = bool(need_alloc["ADD"].astype("string").fillna("").astype(str).str.strip().ne("").any())
-        except Exception:
-            has_toric = False
-            has_multi = False
+        has_toric, has_multi = _lens_spec_flags_from_selection(codes_selected, need_alloc)
 
         show_cols = [
             "우선순위",
@@ -8124,6 +8111,7 @@ def main() -> None:
         ui_key_prefix=f"{page_key}_{code_key}",
         process_only=process_only,
         selected_code=code_label,
+        selected_codes=codes_selected,
     )
 
 
